@@ -14,7 +14,200 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      alerts: {
+        Row: {
+          created_at: string
+          device_id: string | null
+          id: string
+          message: string
+          read: boolean
+          type: string
+          user_id: string
+          widget_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          device_id?: string | null
+          id?: string
+          message: string
+          read?: boolean
+          type: string
+          user_id: string
+          widget_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          device_id?: string | null
+          id?: string
+          message?: string
+          read?: boolean
+          type?: string
+          user_id?: string
+          widget_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alerts_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alerts_widget_id_fkey"
+            columns: ["widget_id"]
+            isOneToOne: false
+            referencedRelation: "widgets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      broker_settings: {
+        Row: {
+          created_at: string
+          id: string
+          password: string | null
+          updated_at: string
+          url: string
+          user_id: string
+          username: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          password?: string | null
+          updated_at?: string
+          url?: string
+          user_id: string
+          username?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          password?: string | null
+          updated_at?: string
+          url?: string
+          user_id?: string
+          username?: string | null
+        }
+        Relationships: []
+      }
+      devices: {
+        Row: {
+          created_at: string
+          device_id: string
+          device_key: string
+          id: string
+          name: string
+          online: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          device_id: string
+          device_key: string
+          id?: string
+          name: string
+          online?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          device_id?: string
+          device_key?: string
+          id?: string
+          name?: string
+          online?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      widgets: {
+        Row: {
+          address: string
+          created_at: string
+          device_id: string
+          echo_pin: number | null
+          gauge_type: string | null
+          id: string
+          label: string
+          max_value: number | null
+          min_value: number | null
+          override_mode: boolean | null
+          pin: number | null
+          state: Json | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          address: string
+          created_at?: string
+          device_id: string
+          echo_pin?: number | null
+          gauge_type?: string | null
+          id?: string
+          label: string
+          max_value?: number | null
+          min_value?: number | null
+          override_mode?: boolean | null
+          pin?: number | null
+          state?: Json | null
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string
+          created_at?: string
+          device_id?: string
+          echo_pin?: number | null
+          gauge_type?: string | null
+          id?: string
+          label?: string
+          max_value?: number | null
+          min_value?: number | null
+          override_mode?: boolean | null
+          pin?: number | null
+          state?: Json | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "widgets_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

@@ -57,6 +57,15 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        iot: {
+          bg: "hsl(var(--iot-bg))",
+          card: "hsl(var(--iot-card))",
+          border: "hsl(var(--iot-border))",
+          muted: "hsl(var(--iot-muted))",
+          online: "hsl(var(--iot-online))",
+          offline: "hsl(var(--iot-offline))",
+          warning: "hsl(var(--iot-warning))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
