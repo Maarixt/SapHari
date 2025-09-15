@@ -1,24 +1,875 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>home-saphari</title>
-    <meta name="description" content="Lovable Generated Project" />
-    <meta name="author" content="Lovable" />
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>SapHari MQTT Dashboard</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <style>
+    body{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;background:#0f1115;color:#eaeef2;margin:0}
+    header{padding:16px 20px;border-bottom:1px solid #222;display:flex;justify-content:space-between;align-items:center}
+    h1{font-size:18px;margin:0}
+    .wrap{padding:16px}
+    .row{margin:8px 0}
+    .btn{background:#2563eb;border:none;color:#fff;padding:8px 12px;border-radius:8px;cursor:pointer}
+    .btn.secondary{background:#374151}
+    .btn.danger{background:#dc2626}
+    .grid{display:flex;flex-wrap:wrap;gap:12px}
+    .card{background:#161a22;border:1px solid #242a36;border-radius:12px;padding:14px;min-width:240px}
+    .muted{color:#9aa4b2}
+    input,select,textarea{background:#0b0e13;color:#eaeef2;border:1px solid #293040;border-radius:8px;padding:8px;width:100%}
+    label{font-size:12px;color:#9aa4b2}
+    .dlg{position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center}
+    .dlg .panel{background:#10141c;border:1px solid #2a3242;border-radius:12px;padding:16px;min-width:280px;max-width:92vw}
+    .flex{display:flex;gap:8px;align-items:center}
+    .between{justify-content:space-between}
+    .list{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+    .tag{display:inline-block;background:#1f2533;border:1px solid #2f394d;padding:2px 6px;border-radius:999px;font-size:12px;margin-right:6px}
+    canvas{display:block;margin:8px auto}
+    .small{font-size:12px}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🌐 SapHari MQTT Dashboard</h1>
+    <div class="flex" style="gap:10px">
+      <span id="conn" class="tag">MQTT: …</span>
+      <button class="btn" onclick="openBrokerDlg()">Broker</button>
+    </div>
+  </header>
 
-    <meta property="og:title" content="home-saphari" />
-    <meta property="og:description" content="Lovable Generated Project" />
-    <meta property="og:type" content="website" />
-    <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+  <div class="wrap" id="deviceManager">
+    <div class="flex between">
+      <h2 style="margin:8px 0">Devices</h2>
+      <button class="btn" onclick="openAddDevice()">➕ Add Device</button>
+    </div>
+    <div id="deviceList" class="list"></div>
+  </div>
 
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@lovable_dev" />
-    <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
-  </head>
+  <div class="wrap" id="deviceView" style="display:none">
+    <div class="flex between">
+      <div class="flex" style="gap:12px;align-items:baseline">
+        <button class="btn secondary" onclick="closeDevice()">&larr; Back</button>
+        <h2 id="dvTitle" style="margin:8px 0"></h2>
+        <span id="dvOnline" class="tag">offline</span>
+      </div>
+      <div class="flex" style="gap:8px">
+        <button class="btn" onclick="addSwitch()">➕ Switch</button>
+        <button class="btn" onclick="addGauge()">➕ Gauge</button>
+        <button class="btn" onclick="addServo()">➕ Servo</button>
+        <button class="btn" onclick="addAlert()">➕ Alert</button>
+        <button class="btn" onclick="genSnippet()">⚡ Generate Snippet</button>
+      </div>
+    </div>
+    <div id="board" class="grid"></div>
+  </div>
 
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+  <div id="dlgs"></div>
+
+<script>
+/* ========= Persistent State ========= */
+let devices = JSON.parse(localStorage.getItem('sh_devices')||'[]');
+devices.forEach(d=>{
+  d.widgets = d.widgets || { switches:[], gauges:[], servos:[], alerts:[] };
+  d.widgets.switches = d.widgets.switches || [];
+  d.widgets.gauges = d.widgets.gauges || [];
+  d.widgets.servos = d.widgets.servos || [];
+  d.widgets.alerts = d.widgets.alerts || [];
+  d.state = d.state || { online:false };
+});
+let current = null;
+
+/* ========= MQTT Client ========= */
+let broker = JSON.parse(localStorage.getItem('sh_broker') || '{}');
+if(!broker.url){
+  broker = { url: 'wss://broker.emqx.io:8084/mqtt', user:'', pass:'' };
+  localStorage.setItem('sh_broker', JSON.stringify(broker));
+}
+let mqttClient = null;
+function connectMQTT() {
+  safeDisconnect();
+  setConn('connecting…');
+  mqttClient = mqtt.connect(broker.url, {
+    username: broker.user || undefined,
+    password: broker.pass || undefined,
+    reconnectPeriod: 2000,
+  });
+  mqttClient.on('connect', () => {
+    setConn('connected');
+    mqttClient.subscribe('saphari/+/sensor/#');
+    mqttClient.subscribe('saphari/+/status/#');
+    mqttClient.subscribe('saphari/+/alert/#');
+  });
+  mqttClient.on('reconnect', ()=> setConn('reconnecting…'));
+  mqttClient.on('close', ()=> setConn('disconnected'));
+  mqttClient.on('error', ()=> setConn('error'));
+  mqttClient.on('message', onMqttMessage);
+}
+function safeDisconnect(){ try{ mqttClient && mqttClient.end(true) }catch(e){} }
+function setConn(s){ document.getElementById('conn').textContent = 'MQTT: '+s; }
+
+/* ========= Utils ========= */
+const SWITCH_PINS=[2,4,5,12,13,14,15,16,17,18,19,21,22,23,25,26,27,32,33];
+const DIGITAL_PINS=[...SWITCH_PINS];
+const ANALOG_PINS =[32,33,34,35,36,39];
+const SERVO_PINS  =[...SWITCH_PINS];
+
+function randId(){ return 'saph-' + Math.random().toString(36).slice(2,8); }
+function randKey(){ return Math.random().toString(36).slice(2,10).toUpperCase(); }
+function save(){ localStorage.setItem('sh_devices', JSON.stringify(devices)); }
+
+function usedPins(dev){
+  const u=new Set();
+  dev.widgets.switches.forEach(s=>{ if(s.pin!==null && s.pin!==undefined) u.add(s.pin); });
+  dev.widgets.servos.forEach(s=>u.add(s.pin));
+  dev.widgets.gauges.forEach(g=>{ u.add(g.pin); if(g.type==='ultrasonic' && g.echo!=null) u.add(g.echo); });
+  dev.widgets.alerts.forEach(a=>u.add(a.pin));
+  return u;
+}
+function pinOptions(allowed, dev, current){
+  const used = usedPins(dev);
+  return allowed.map(p=>{
+    const dis = used.has(p) && p!==current ? 'disabled' : '';
+    const sel = p===current ? 'selected' : '';
+    return `<option value="${p}" ${sel} ${dis}>${p}</option>`;
+  }).join('');
+}
+function nextAddr(prefix, existing){
+  const set = new Set(existing);
+  let n=1; while(set.has(prefix+n)) n++;
+  return prefix+n;
+}
+
+/* ========= Broker Helper ========= */
+function brokerForESP32(url) {
+  try {
+    const u = new URL(url);
+    const host = u.hostname;
+    const port = u.port ? parseInt(u.port) : 0;
+    if (u.protocol === 'wss:' || u.protocol === 'ws:') {
+      if (port === 8083 || port === 8084) return { host, port: 1883 };
+      return { host, port: 1883 };
+    }
+    return { host, port: port || 1883 };
+  } catch(e){
+    return { host: url, port: 1883 };
+  }
+}
+
+/* ========= Device Manager ========= */
+function renderDevices(){
+  const el = document.getElementById('deviceList');
+  if(devices.length===0){
+    el.innerHTML = `<div class="card"><div class="muted">No devices yet. Click “Add Device”.</div></div>`;
+    return;
+  }
+  el.innerHTML = devices.map((d,i)=>`
+    <div class="card">
+      <div class="flex between">
+        <div>
+          <div><b>${d.name||d.id}</b></div>
+          <div class="small muted">${d.id}</div>
+        </div>
+        <div class="flex">
+          <button class="btn" onclick="openDevice(${i})">Open</button>
+          <button class="btn secondary" onclick="showCreds(${i})">Creds</button>
+          <button class="btn danger" onclick="delDevice(${i})">Delete</button>
+        </div>
+      </div>
+      <div class="row small">
+        <span class="tag">switches: ${d.widgets.switches.length}</span>
+        <span class="tag">gauges: ${d.widgets.gauges.length}</span>
+        <span class="tag">servos: ${d.widgets.servos.length}</span>
+        <span class="tag">alerts: ${d.widgets.alerts.length}</span>
+      </div>
+    </div>`).join('');
+}
+function openAddDevice(){
+  const id = randId(), key = randKey();
+  showDlg(`
+    <div class="panel">
+      <h3 style="margin:4px 0">Add Device</h3>
+      <div class="row"><label>Name</label><input id="dvName" value="Device"></div>
+      <div class="row"><label>Device ID</label><input id="dvId" value="${id}"></div>
+      <div class="row"><label>Device Key</label><input id="dvKey" value="${key}"></div>
+      <div class="flex between" style="margin-top:10px">
+        <button class="btn" onclick="confirmAddDevice()">Save</button>
+        <button class="btn secondary" onclick="closeDlg()">Cancel</button>
+      </div>
+      <p class="small muted">ESP32 subscribes: <code>saphari/&lt;id&gt;/cmd/#</code>. Sensors publish: <code>saphari/&lt;id&gt;/sensor/&lt;addr&gt;</code> (retained).</p>
+    </div>`);
+}
+function confirmAddDevice(){
+  const name = document.getElementById('dvName').value.trim() || 'Device';
+  const id   = document.getElementById('dvId').value.trim();
+  const key  = document.getElementById('dvKey').value.trim();
+  if(!id || !key){ alert('Need ID and Key'); return; }
+  devices.push({ id, key, name, widgets:{ switches:[], gauges:[], servos:[], alerts:[] }, state:{ online:false } });
+  save(); closeDlg(); renderDevices();
+}
+function showCreds(i){
+  const d = devices[i];
+  showDlg(`
+    <div class="panel">
+      <h3 style="margin:4px 0">Device Credentials</h3>
+      <div class="row"><label>Device</label><input value="${d.name}" disabled></div>
+      <div class="row"><label>Device ID</label><input value="${d.id}" disabled></div>
+      <div class="row"><label>Device Key</label><input value="${d.key}" disabled></div>
+      <div class="row"><label>Broker (WebSocket)</label><input value="${broker.url}" disabled></div>
+      <p class="small muted">ESP publishes to: <code>saphari/${d.id}/sensor/&lt;addr&gt;</code></p>
+      <div class="flex between" style="margin-top:10px">
+        <button class="btn secondary" onclick="closeDlg()">Close</button>
+      </div>
+    </div>`);
+}
+function delDevice(i){
+  if(!confirm('Delete device?')) return;
+  devices.splice(i,1); save(); renderDevices();
+}
+function openDevice(i){
+  current=i;
+  document.getElementById('deviceManager').style.display='none';
+  document.getElementById('deviceView').style.display='block';
+  document.getElementById('dvTitle').textContent = devices[i].name || devices[i].id;
+  renderBoard();
+}
+function closeDevice(){
+  current=null;
+  document.getElementById('deviceView').style.display='none';
+  document.getElementById('deviceManager').style.display='block';
+  renderDevices();
+}
+
+/* ========= Dialog Helpers ========= */
+function showDlg(html){ document.getElementById('dlgs').innerHTML = `<div class="dlg" onclick="closeDlg(event)">${html}</div>`; }
+function closeDlg(e){ const host=document.getElementById('dlgs'); if(!e || e.target===host.firstChild) host.innerHTML=''; }
+function openBrokerDlg(){
+  showDlg(`
+    <div class="panel">
+      <h3>Mqtt Broker</h3>
+      <div class="row"><label>WebSocket URL</label><input id="bkUrl" value="${broker.url}"></div>
+      <div class="row"><label>Username</label><input id="bkUser" value="${broker.user||''}"></div>
+      <div class="row"><label>Password</label><input id="bkPass" type="password" value="${broker.pass||''}"></div>
+      <div class="flex between" style="margin-top:10px">
+        <button class="btn" onclick="saveBroker()">Save & Reconnect</button>
+        <button class="btn secondary" onclick="closeDlg()">Cancel</button>
+      </div>
+      <p class="small muted">Example: <code>wss://broker.emqx.io:8084/mqtt</code></p>
+    </div>`);
+}
+function saveBroker(){
+  const url = document.getElementById('bkUrl').value.trim();
+  const user = document.getElementById('bkUser').value.trim();
+  const pass = document.getElementById('bkPass').value;
+  broker = { url, user, pass };
+  localStorage.setItem('sh_broker', JSON.stringify(broker));
+  closeDlg(); connectMQTT();
+}
+/* ========= Switches ========= */
+function addSwitch(){
+  const dev = devices[current];
+  const addr = nextAddr('S', dev.widgets.switches.map(w=>w.addr));
+  showDlg(`
+    <div class="panel">
+      <h3>Add Switch</h3>
+      <div class="row"><label>Label</label><input id="swLbl" value="Switch"></div>
+      <div class="row"><label>Address</label><input id="swAddr" value="${addr}" disabled></div>
+      <div class="row"><label>Manual override disables automations</label>
+        <select id="swOverride" onchange="toggleSwPinRow()">
+          <option value="0" selected>No (Physical)</option>
+          <option value="1">Yes (Override only)</option>
+        </select>
+      </div>
+      <div class="row" id="swPinRow"><label>GPIO</label>
+        <select id="swPin">${pinOptions(SWITCH_PINS, dev, null)}</select>
+      </div>
+      <div class="flex between" style="margin-top:10px">
+        <button class="btn" onclick="confirmAddSwitch()">Add</button>
+        <button class="btn secondary" onclick="closeDlg()">Cancel</button>
+      </div>
+    </div>`);
+}
+
+function toggleSwPinRow(){
+  const ov = document.getElementById('swOverride').value==='1';
+  const row = document.getElementById('swPinRow');
+  if(row) row.style.display = ov ? 'none':'block';
+}
+
+function confirmAddSwitch(){
+  const dev = devices[current];
+  const isOv = document.getElementById('swOverride').value==='1';
+  const pinEl = document.getElementById('swPin');
+  const pinVal = isOv ? null : parseInt(pinEl.value);
+  dev.widgets.switches.push({
+    label: document.getElementById('swLbl').value.trim()||'Switch',
+    addr: document.getElementById('swAddr').value.trim(),
+    pin: pinVal,
+    override: isOv,
+    state: 0
+  });
+  save(); closeDlg(); renderBoard();
+}
+
+function editSwitch(idx){
+  const dev = devices[current]; const sw=dev.widgets.switches[idx];
+  showDlg(`
+    <div class="panel">
+      <h3>Edit Switch</h3>
+      <div class="row"><label>Label</label><input id="swLbl" value="${sw.label}"></div>
+      <div class="row"><label>Manual override disables automations</label>
+        <select id="swOverride" onchange="toggleSwPinRowEdit()">
+          <option value="0" ${!sw.override?'selected':''}>No (Physical)</option>
+          <option value="1" ${sw.override?'selected':''}>Yes (Override only)</option>
+        </select>
+      </div>
+      <div class="row" id="swPinRow"><label>GPIO</label>
+        <select id="swPin">${pinOptions(SWITCH_PINS, dev, sw.pin)}</select>
+      </div>
+      <div class="flex between" style="margin-top:10px">
+        <button class="btn" onclick="confirmEditSwitch(${idx})">Save</button>
+        <button class="btn secondary" onclick="closeDlg()">Cancel</button>
+      </div>
+    </div>`);
+  setTimeout(()=>{ const row=document.getElementById('swPinRow'); if(row) row.style.display = sw.override?'none':'block'; },0);
+}
+
+function toggleSwPinRowEdit(){
+  const ov = document.getElementById('swOverride').value==='1';
+  const row = document.getElementById('swPinRow');
+  if(row) row.style.display = ov ? 'none':'block';
+}
+
+function confirmEditSwitch(idx){
+  const dev = devices[current];
+  const isOv = document.getElementById('swOverride').value==='1';
+  dev.widgets.switches[idx].label = document.getElementById('swLbl').value.trim()||'Switch';
+  dev.widgets.switches[idx].override = isOv;
+  dev.widgets.switches[idx].pin = isOv ? null : parseInt(document.getElementById('swPin').value);
+  save(); closeDlg(); renderBoard();
+}
+
+function delSwitch(idx){
+  const dev = devices[current];
+  dev.widgets.switches.splice(idx,1);
+  save(); renderBoard();
+}
+
+function toggleSwitch(idx){
+  const dev = devices[current]; const sw = dev.widgets.switches[idx];
+  const newState = sw.state ? 0 : 1;
+  sw.state = newState; save(); renderBoard();
+
+  if(!mqttClient || !mqttClient.connected) return;
+
+  if(sw.pin===null || sw.pin===undefined){
+    // Pure override path: publish a retained status + mirror sensor topic
+    const overridePayload = JSON.stringify({ addr: sw.addr, state: newState, key: dev.key });
+    mqttClient.publish(`saphari/${dev.id}/status/override`, overridePayload, { retain: true });
+    mqttClient.publish(`saphari/${dev.id}/sensor/${sw.addr}`, String(newState), { retain: true });
+  } else {
+    // Physical output path
+    const topic = `saphari/${dev.id}/cmd/toggle`;
+    const payload = JSON.stringify({ addr: sw.addr, pin: sw.pin, state: newState, override: sw.override, key: dev.key });
+    mqttClient.publish(topic, payload, { retain: true });
+  }
+}
+/* ========= Gauges ========= */
+function addGauge(){
+  const dev = devices[current];
+  const addr = nextAddr('G', dev.widgets.gauges.map(w=>w.addr));
+  showDlg(`
+    <div class="panel">
+      <h3>Add Gauge</h3>
+      <div class="row"><label>Label</label><input id="ggLbl" value="Gauge"></div>
+      <div class="row"><label>Address</label><input id="ggAddr" value="${addr}" disabled></div>
+      <div class="row"><label>Sensor Type</label>
+        <select id="ggType" onchange="chgGaugePins()">
+          <option value="analog">analog</option>
+          <option value="pir">pir</option>
+          <option value="ds18b20">ds18b20</option>
+          <option value="ultrasonic">ultrasonic</option>
+        </select>
+      </div>
+      <div class="row"><label>GPIO / Trig</label><select id="ggPin"></select></div>
+      <div class="row" id="echoRow" style="display:none"><label>Echo Pin</label><select id="ggEcho"></select></div>
+      <div class="row"><label>Min</label><input id="ggMin" type="number" value="0"></div>
+      <div class="row"><label>Max</label><input id="ggMax" type="number" value="100"></div>
+      <div class="flex between" style="margin-top:10px">
+        <button class="btn" onclick="confirmAddGauge()">Add</button>
+        <button class="btn secondary" onclick="closeDlg()">Cancel</button>
+      </div>
+    </div>`);
+  chgGaugePins();
+}
+
+function chgGaugePins(){
+  const dev = devices[current];
+  const t = document.getElementById('ggType').value;
+  const pins = (t==='analog') ? ANALOG_PINS : DIGITAL_PINS;
+  document.getElementById('ggPin').innerHTML = pinOptions(pins, dev, null);
+  const isU = (t==='ultrasonic');
+  document.getElementById('echoRow').style.display = isU ? 'block':'none';
+  if(isU) document.getElementById('ggEcho').innerHTML = pinOptions(DIGITAL_PINS, dev, null);
+}
+
+function confirmAddGauge(){
+  const dev = devices[current];
+  const g = {
+    label: document.getElementById('ggLbl').value.trim()||'Gauge',
+    addr: document.getElementById('ggAddr').value.trim(),
+    type: document.getElementById('ggType').value,
+    pin: parseInt(document.getElementById('ggPin').value),
+    min: parseFloat(document.getElementById('ggMin').value),
+    max: parseFloat(document.getElementById('ggMax').value)
+  };
+  if(g.type==='ultrasonic') g.echo = parseInt(document.getElementById('ggEcho').value);
+  dev.widgets.gauges.push(g); save(); closeDlg(); renderBoard();
+}
+
+function editGauge(idx){
+  const dev=devices[current]; const g=dev.widgets.gauges[idx];
+  showDlg(`
+    <div class="panel">
+      <h3>Edit Gauge</h3>
+      <div class="row"><label>Label</label><input id="ggLbl" value="${g.label}"></div>
+      <div class="row"><label>Min</label><input id="ggMin" type="number" value="${g.min}"></div>
+      <div class="row"><label>Max</label><input id="ggMax" type="number" value="${g.max}"></div>
+      <div class="flex between" style="margin-top:10px">
+        <button class="btn" onclick="confirmEditGauge(${idx})">Save</button>
+        <button class="btn secondary" onclick="closeDlg()">Cancel</button>
+      </div>
+    </div>`);
+}
+
+function confirmEditGauge(idx){
+  const dev=devices[current];
+  dev.widgets.gauges[idx].label = document.getElementById('ggLbl').value.trim()||'Gauge';
+  dev.widgets.gauges[idx].min   = parseFloat(document.getElementById('ggMin').value);
+  dev.widgets.gauges[idx].max   = parseFloat(document.getElementById('ggMax').value);
+  save(); closeDlg(); renderBoard();
+}
+
+function delGauge(idx){
+  const dev=devices[current];
+  dev.widgets.gauges.splice(idx,1);
+  save(); renderBoard();
+}
+/* ========= Servos ========= */
+function addServo(){
+  const dev = devices[current];
+  const addr = nextAddr('SS', dev.widgets.servos.map(w=>w.addr));
+  showDlg(`
+    <div class="panel">
+      <h3>Add Servo</h3>
+      <div class="row"><label>Label</label><input id="svLbl" value="Servo"></div>
+      <div class="row"><label>Address</label><input id="svAddr" value="${addr}" disabled></div>
+      <div class="row"><label>GPIO</label>
+        <select id="svPin">${pinOptions(SERVO_PINS, dev, null)}</select>
+      </div>
+      <div class="flex between" style="margin-top:10px">
+        <button class="btn" onclick="confirmAddServo()">Add</button>
+        <button class="btn secondary" onclick="closeDlg()">Cancel</button>
+      </div>
+    </div>`);
+}
+
+function confirmAddServo(){
+  const dev = devices[current];
+  dev.widgets.servos.push({ 
+    label: document.getElementById('svLbl').value.trim()||'Servo',
+    addr: document.getElementById('svAddr').value.trim(),
+    pin: parseInt(document.getElementById('svPin').value), 
+    angle: 90 
+  });
+  save(); closeDlg(); renderBoard();
+}
+
+function editServo(idx){
+  const dev=devices[current]; const s=dev.widgets.servos[idx];
+  showDlg(`
+    <div class="panel">
+      <h3>Edit Servo</h3>
+      <div class="row"><label>Label</label><input id="svLbl" value="${s.label}"></div>
+      <div class="flex between" style="margin-top:10px">
+        <button class="btn" onclick="confirmEditServo(${idx})">Save</button>
+        <button class="btn secondary" onclick="closeDlg()">Cancel</button>
+      </div>
+    </div>`);
+}
+
+function confirmEditServo(idx){
+  const dev=devices[current];
+  dev.widgets.servos[idx].label = document.getElementById('svLbl').value.trim()||'Servo';
+  save(); closeDlg(); renderBoard();
+}
+
+function delServo(idx){
+  const dev=devices[current];
+  dev.widgets.servos.splice(idx,1);
+  save(); renderBoard();
+}
+
+function moveServo(idx, val){
+  const dev=devices[current]; const s=dev.widgets.servos[idx];
+  s.angle = parseInt(val);
+  save();
+  const topic = `saphari/${dev.id}/cmd/servo`;
+  const payload = JSON.stringify({ addr: s.addr, pin: s.pin, angle: s.angle, key: dev.key });
+  if(mqttClient && mqttClient.connected) mqttClient.publish(topic, payload, { retain: true });
+  renderBoard();
+}
+
+/* ========= Alerts ========= */
+function addAlert(){
+  const dev = devices[current];
+  const addr = nextAddr('A', dev.widgets.alerts.map(a=>a.addr));
+  showDlg(`
+    <div class="panel">
+      <h3>Add Alert</h3>
+      <div class="row"><label>Label</label><input id="alLbl" value="Alert"></div>
+      <div class="row"><label>Address</label><input id="alAddr" value="${addr}" disabled></div>
+      <div class="row"><label>GPIO Pin</label>
+        <select id="alPin">${pinOptions(DIGITAL_PINS, dev, null)}</select>
+      </div>
+      <div class="row"><label>Trigger</label>
+        <select id="alTrig">
+          <option value="1">HIGH</option>
+          <option value="0">LOW</option>
+        </select>
+      </div>
+      <div class="row"><label>Message</label><input id="alMsg" value="Water detected!"></div>
+      <div class="flex between" style="margin-top:10px">
+        <button class="btn" onclick="confirmAddAlert()">Add</button>
+        <button class="btn secondary" onclick="closeDlg()">Cancel</button>
+      </div>
+    </div>`);
+}
+
+function confirmAddAlert(){
+  const dev = devices[current];
+  dev.widgets.alerts.push({
+    label: document.getElementById('alLbl').value.trim()||'Alert',
+    addr: document.getElementById('alAddr').value.trim(),
+    pin: parseInt(document.getElementById('alPin').value),
+    trigger: parseInt(document.getElementById('alTrig').value),
+    message: document.getElementById('alMsg').value.trim()
+  });
+  save(); closeDlg(); renderBoard();
+}
+
+function editAlert(idx){
+  const dev=devices[current]; const a=dev.widgets.alerts[idx];
+  showDlg(`
+    <div class="panel">
+      <h3>Edit Alert</h3>
+      <div class="row"><label>Label</label><input id="alLbl" value="${a.label}"></div>
+      <div class="row"><label>GPIO Pin</label>
+        <select id="alPin">${pinOptions(DIGITAL_PINS, dev, a.pin)}</select>
+      </div>
+      <div class="row"><label>Trigger</label>
+        <select id="alTrig">
+          <option value="1" ${a.trigger===1?'selected':''}>HIGH</option>
+          <option value="0" ${a.trigger===0?'selected':''}>LOW</option>
+        </select>
+      </div>
+      <div class="row"><label>Message</label><input id="alMsg" value="${a.message}"></div>
+      <div class="flex between" style="margin-top:10px">
+        <button class="btn" onclick="confirmEditAlert(${idx})">Save</button>
+        <button class="btn secondary" onclick="closeDlg()">Cancel</button>
+      </div>
+    </div>`);
+}
+
+function confirmEditAlert(idx){
+  const dev=devices[current];
+  const a=dev.widgets.alerts[idx];
+  a.label = document.getElementById('alLbl').value.trim()||'Alert';
+  a.pin = parseInt(document.getElementById('alPin').value);
+  a.trigger = parseInt(document.getElementById('alTrig').value);
+  a.message = document.getElementById('alMsg').value.trim();
+  save(); closeDlg(); renderBoard();
+}
+
+function delAlert(idx){
+  const dev = devices[current];
+  dev.widgets.alerts.splice(idx,1);
+  save(); renderBoard();
+}
+/* ========= Gauge draw + data handling ========= */
+const lastValues = {}; // key = `${devId}:${addr}`
+
+function drawGauge(canvasId, value, min, max, type){
+  const c = document.getElementById(canvasId); 
+  if(!c) return;
+  const ctx = c.getContext('2d'); 
+  const w=c.width, h=c.height;
+  ctx.clearRect(0,0,w,h);
+
+  if(typeof value !== 'number' || isNaN(value)) {
+    // empty state
+    ctx.beginPath(); 
+    ctx.arc(w/2,h,64,Math.PI,0); 
+    ctx.strokeStyle='#283041'; 
+    ctx.lineWidth=12; 
+    ctx.stroke();
+    ctx.fillStyle='#9aa4b2'; 
+    ctx.font='12px sans-serif'; 
+    ctx.textAlign='center'; 
+    ctx.fillText('—', w/2,h-10);
+    return;
+  }
+
+  // normalize
+  let pct = (value - min) / (max - min); 
+  pct = Math.max(0, Math.min(1, pct));
+
+  // background arc
+  ctx.beginPath(); 
+  ctx.arc(w/2,h,64,Math.PI,0); 
+  ctx.strokeStyle='#283041'; 
+  ctx.lineWidth=12; 
+  ctx.stroke();
+
+  // value arc
+  ctx.beginPath(); 
+  ctx.arc(w/2,h,64,Math.PI, Math.PI*(1-pct), true);
+  ctx.strokeStyle = pct<0.5 ? '#22c55e' : (pct<0.8 ? '#eab308' : '#ef4444');
+  ctx.lineWidth=12; 
+  ctx.stroke();
+
+  // display text
+  let disp = (type==='pir') ? (value>=1?'ON':'OFF')
+            : (type==='ds18b20') ? (value.toFixed(1)+' °C')
+            : (type==='ultrasonic') ? (value.toFixed(0)+' cm')
+            : value.toFixed(0);
+
+  ctx.fillStyle='#eaeef2'; 
+  ctx.font='13px sans-serif'; 
+  ctx.textAlign='center';
+  ctx.fillText(disp, w/2, h-10);
+}
+
+function requestGaugeReads(){
+  devices.forEach(dev=>{
+    dev.widgets.gauges.forEach(g=>{
+      const payload = JSON.stringify({ addr: g.addr, key: dev.key });
+      if(mqttClient && mqttClient.connected) {
+        mqttClient.publish(`saphari/${dev.id}/cmd/read`, payload);
+      }
+    });
+  });
+}
+setInterval(()=>{ if(mqttClient && mqttClient.connected) requestGaugeReads(); }, 2500);
+/* ========= Device Board ========= */
+function allAddrs(dev){
+  return [
+    ...dev.widgets.switches.map(w=>w.addr),
+    ...dev.widgets.gauges.map(w=>w.addr),
+    ...dev.widgets.servos.map(w=>w.addr),
+    ...dev.widgets.alerts.map(a=>a.addr),
+  ];
+}
+
+function renderBoard(){
+  const dev = devices[current];
+  const cards = [];
+
+  // switches
+  dev.widgets.switches.forEach((sw,idx)=>{
+    cards.push(`
+      <div class="card">
+        <div class="flex between">
+          <b>${sw.label}</b>
+          <span class="tag">${sw.addr} ${sw.pin!==null?`· GPIO ${sw.pin}`:'· override'}</span>
+        </div>
+        <div class="row">
+          <button class="btn" onclick="toggleSwitch(${idx})">${sw.state? 'ON':'OFF'}</button>
+        </div>
+        <div class="small muted">Override: ${sw.override? 'ON':'OFF'}</div>
+        <div class="flex" style="gap:8px;margin-top:8px">
+          <button class="btn secondary" onclick="editSwitch(${idx})">⚙️</button>
+          <button class="btn danger" onclick="delSwitch(${idx})">🗑</button>
+        </div>
+      </div>`);
+  });
+
+  // gauges
+  dev.widgets.gauges.forEach((g,idx)=>{
+    const id = `g${idx}`;
+    cards.push(`
+      <div class="card">
+        <div class="flex between">
+          <b>${g.label}</b>
+          <span class="tag">${g.addr} · ${g.type}${g.type==='ultrasonic'?` trig ${g.pin} / echo ${g.echo}`:` @ ${g.pin}`}</span>
+        </div>
+        <canvas id="${id}" width="160" height="96"></canvas>
+        <div class="flex" style="gap:8px;margin-top:8px">
+          <button class="btn secondary" onclick="editGauge(${idx})">⚙️</button>
+          <button class="btn danger" onclick="delGauge(${idx})">🗑</button>
+        </div>
+      </div>`);
+  });
+
+  // servos
+  dev.widgets.servos.forEach((s,idx)=>{
+    cards.push(`
+      <div class="card">
+        <div class="flex between">
+          <b>${s.label}</b>
+          <span class="tag">${s.addr} · GPIO ${s.pin}</span>
+        </div>
+        <input type="range" min="0" max="180" value="${s.angle}" oninput="moveServo(${idx}, this.value)"/>
+        <div class="small muted">${s.angle}°</div>
+        <div class="flex" style="gap:8px;margin-top:8px">
+          <button class="btn secondary" onclick="editServo(${idx})">⚙️</button>
+          <button class="btn danger" onclick="delServo(${idx})">🗑</button>
+        </div>
+      </div>`);
+  });
+
+  // alerts
+  dev.widgets.alerts.forEach((a,idx)=>{
+    cards.push(`
+      <div class="card">
+        <div class="flex between">
+          <b>${a.label}</b>
+          <span class="tag">${a.addr} · GPIO ${a.pin} · ${a.trigger==1?'HIGH':'LOW'}</span>
+        </div>
+        <div class="small muted">Msg: ${a.message}</div>
+        <div class="flex" style="gap:8px;margin-top:8px">
+          <button class="btn secondary" onclick="editAlert(${idx})">⚙️</button>
+          <button class="btn danger" onclick="delAlert(${idx})">🗑</button>
+        </div>
+      </div>`);
+  });
+
+  document.getElementById('board').innerHTML = cards.join('') || `<div class="card"><div class="muted">Add widgets for this device.</div></div>`;
+
+  // draw cached gauge values
+  dev.widgets.gauges.forEach((g,idx)=>{
+    drawGauge(`g${idx}`, lastValues[`${dev.id}:${g.addr}`], g.min, g.max, g.type);
+  });
+  document.getElementById('dvOnline').textContent = dev.state.online ? 'online' : 'offline';
+}
+
+/* ========= MQTT Message Handling ========= */
+function onMqttMessage(topic, buf){
+  const msg = buf.toString();
+  const parts = topic.split('/'); // saphari/<id>/(sensor|status)/...
+  if(parts.length < 4) return;
+  const devId = parts[1], cat = parts[2];
+  const dev = devices.find(d=>d.id===devId);
+  if(!dev) return;
+
+  if(cat==='sensor'){
+    const addr = parts[3];
+    const v = parseFloat(msg);
+    if(!isNaN(v)) lastValues[`${devId}:${addr}`] = v;
+
+    if(current!=null && devices[current].id===devId){
+      const si = dev.widgets.switches.findIndex(s=>s.addr===addr);
+      if(si>=0){
+        dev.widgets.switches[si].state = v>=0.5?1:0;
+        save(); renderBoard(); return;
+      }
+      const xi = dev.widgets.servos.findIndex(s=>s.addr===addr);
+      if(xi>=0){
+        dev.widgets.servos[xi].angle = Math.round(v);
+        save(); renderBoard(); return;
+      }
+      const gi = dev.widgets.gauges.findIndex(g=>g.addr===addr);
+      if(gi>=0){
+        const g=dev.widgets.gauges[gi];
+        // clamp to min/max for display
+        const clamped = Math.min(g.max, Math.max(g.min, v));
+        drawGauge(`g${gi}`, clamped, g.min, g.max, g.type);
+      }
+    }
+  } else if(cat==='alert'){
+    if(current!=null && devices[current].id===devId){
+      alert(msg);
+    }
+  } else if(cat==='status' && parts[3]==='online'){
+    dev.state.online = (msg==='1');
+    if(current!=null && devices[current].id===devId){
+      document.getElementById('dvOnline').textContent = dev.state.online ? 'online' : 'offline';
+    }
+  }
+}
+
+/* ========= Snippet Generator ========= */
+function genSnippet(){
+  const dev = devices[current];
+  const br = brokerForESP32(broker.url);
+
+  let sw = dev.widgets.switches.map(s=>
+    `{ "${s.addr}", ${s.pin!==null && s.pin!==undefined ? s.pin : -1}, false, ${s.override?'true':'false'} }`
+  ).join(",\n  ") || "// none";
+
+  let gg = dev.widgets.gauges.map(g=>{
+    if(g.type==="analog") return `{ "${g.addr}", GT_ANALOG, ${g.pin}, -1 }`;
+    if(g.type==="pir") return `{ "${g.addr}", GT_PIR, ${g.pin}, -1 }`;
+    if(g.type==="ds18b20") return `{ "${g.addr}", GT_DS18B20, ${g.pin}, -1 }`;
+    if(g.type==="ultrasonic") return `{ "${g.addr}", GT_ULTRA, ${g.pin}, ${g.echo} }`;
+  }).join(",\n  ") || "// none";
+
+  let sv = dev.widgets.servos.map(s=>
+    `{ "${s.addr}", ${s.pin}, ${s.angle}, false }`
+  ).join(",\n  ") || "// none";
+
+  let al = dev.widgets.alerts.map(a=>
+    `{ "${a.addr}", ${a.pin}, ${a.trigger}, "${a.message.replace(/"/g,'\\"')}" }`
+  ).join(",\n  ") || "// none";
+
+  const out =
+`// ==== SapHari Device Credentials ====
+#define DEVICE_ID   "${dev.id}"
+#define DEVICE_KEY  "${dev.key}"
+
+#define MQTT_BROKER "${br.host}"
+#define MQTT_PORT   ${br.port}
+#define MQTT_USER   "${broker.user||""}"
+#define MQTT_PASS   "${broker.pass||""}"
+
+// ==== Switches ====
+SwitchMap SWITCHES[] = {
+  ${sw}
+};
+int NUM_SWITCHES = sizeof(SWITCHES)/sizeof(SWITCHES[0]);
+
+// ==== Gauges ====
+GaugeMap GAUGES[] = {
+  ${gg}
+};
+int NUM_GAUGES = sizeof(GAUGES)/sizeof(GAUGES[0]);
+
+// ==== Servos ====
+ServoMap SERVOS[] = {
+  ${sv}
+};
+int NUM_SERVOS = sizeof(SERVOS)/sizeof(SERVOS[0]);
+
+// ==== Alerts ====
+AlertMap ALERTS[] = {
+  ${al}
+};
+int NUM_ALERTS = sizeof(ALERTS)/sizeof(ALERTS[0]);
+`;
+
+  showDlg(`
+    <div class="panel">
+      <h3>ESP32 Snippet for ${dev.name}</h3>
+      <textarea style="width:100%;height:280px;background:#0b0e13;color:#eaeef2;border:1px solid #2a3242;border-radius:6px">${out}</textarea>
+      <div class="flex between" style="margin-top:10px">
+        <button class="btn secondary" onclick="closeDlg()">Close</button>
+      </div>
+    </div>`);
+}
+
+/* ========= Boot ========= */
+renderDevices();
+connectMQTT();
+</script>
+</body>
 </html>
