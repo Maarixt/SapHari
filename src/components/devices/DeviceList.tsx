@@ -18,6 +18,7 @@ interface Device {
     switches: number;
     gauges: number;
     servos: number;
+    alerts: number;
   };
 }
 
@@ -53,6 +54,7 @@ export const DeviceList = ({ onDeviceSelect }: DeviceListProps) => {
           switches: device.widgets?.filter((w: any) => w.type === 'switch').length || 0,
           gauges: device.widgets?.filter((w: any) => w.type === 'gauge').length || 0,
           servos: device.widgets?.filter((w: any) => w.type === 'servo').length || 0,
+          alerts: device.widgets?.filter((w: any) => w.type === 'alert').length || 0,
         }
       }));
 
