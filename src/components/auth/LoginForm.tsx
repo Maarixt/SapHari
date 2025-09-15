@@ -3,10 +3,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 
 export const LoginForm = () => {
+  const { login, signup } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
@@ -19,29 +20,17 @@ export const LoginForm = () => {
 
     try {
       if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              display_name: email.split('@')[0]
-            }
-          }
-        });
-        
-        if (error) throw error;
-        
+        await signup(email, password);
         toast({
           title: "Check your email",
           description: "We've sent you a confirmation link to complete your registration."
         });
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password
+        await login(email, password);
+        toast({
+          title: "Welcome back!",
+          description: "You've been signed in successfully."
         });
-        
-        if (error) throw error;
       }
     } catch (error: any) {
       toast({

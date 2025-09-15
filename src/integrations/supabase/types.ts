@@ -62,47 +62,6 @@ export type Database = {
           },
         ]
       }
-      alert_rules: {
-        Row: {
-          id: string
-          user_id: string
-          device_id: string
-          pin: string
-          trigger_state: string
-          message: string
-          channel: string
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          device_id: string
-          pin: string
-          trigger_state: string
-          message: string
-          channel: string
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          device_id?: string
-          pin?: string
-          trigger_state?: string
-          message?: string
-          channel?: string
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "alert_rules_device_id_fkey"
-            columns: ["device_id"]
-            isOneToOne: false
-            referencedRelation: "devices"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       broker_settings: {
         Row: {
           created_at: string
@@ -167,27 +126,9 @@ export type Database = {
         Relationships: []
       }
       profiles: {
-        Row: {
-          created_at: string
-          display_name: string | null
-          id: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          display_name?: string | null
-          id?: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          display_name?: string | null
-          id?: string
-          updated_at?: string
-          user_id?: string
-        }
+        Row: {}
+        Insert: {}
+        Update: {}
         Relationships: []
       }
       widgets: {
@@ -201,10 +142,8 @@ export type Database = {
           label: string
           max_value: number | null
           min_value: number | null
-          message: string | null
           override_mode: boolean | null
           pin: number | null
-          trigger: number | null
           state: Json | null
           type: string
           updated_at: string
@@ -219,10 +158,8 @@ export type Database = {
           label: string
           max_value?: number | null
           min_value?: number | null
-          message?: string | null
           override_mode?: boolean | null
           pin?: number | null
-          trigger?: number | null
           state?: Json | null
           type: string
           updated_at?: string
@@ -237,10 +174,8 @@ export type Database = {
           label?: string
           max_value?: number | null
           min_value?: number | null
-          message?: string | null
           override_mode?: boolean | null
           pin?: number | null
-          trigger?: number | null
           state?: Json | null
           type?: string
           updated_at?: string

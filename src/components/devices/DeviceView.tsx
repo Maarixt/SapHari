@@ -12,29 +12,7 @@ import { AlertWidget } from '../widgets/AlertWidget';
 import { AddWidgetDialog } from '../widgets/AddWidgetDialog';
 import { CodeSnippetDialog } from '../widgets/CodeSnippetDialog';
 
-interface Device {
-  id: string;
-  device_id: string;
-  device_key: string;
-  name: string;
-  online: boolean;
-}
-
-interface Widget {
-  id: string;
-  type: 'switch' | 'gauge' | 'servo' | 'alert';
-  label: string;
-  address: string;
-  pin?: number;
-  echo_pin?: number;
-  gauge_type?: string;
-  min_value?: number;
-  max_value?: number;
-  override_mode?: boolean;
-  trigger?: number;
-  message?: string;
-  state: any;
-}
+import { Device, Widget } from '@/lib/types';
 
 interface DeviceViewProps {
   device: Device;
@@ -51,6 +29,9 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
   const [showCodeSnippet, setShowCodeSnippet] = useState(false);
   const [deviceOnline, setDeviceOnline] = useState(device.online);
 
+  // For now, assume owner role - this will be properly implemented when DeviceView gets role info
+  const userRole = 'owner';
+
   const loadWidgets = async () => {
     try {
       const { data, error } = await supabase
@@ -60,7 +41,10 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-      setWidgets(data || []);
+      setWidgets((data || []).map(item => ({
+        ...item,
+        type: item.type as 'switch' | 'gauge' | 'servo' | 'alert'
+      })));
     } catch (error) {
       console.error('Error loading widgets:', error);
       toast({
