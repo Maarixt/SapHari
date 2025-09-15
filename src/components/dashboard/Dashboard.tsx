@@ -4,6 +4,7 @@ import { DeviceList } from '../devices/DeviceList';
 import { DeviceView } from '../devices/DeviceView';
 import { BrokerSettingsDialog } from './BrokerSettingsDialog';
 import { NotificationsDialog } from './NotificationsDialog';
+import { AlertRuleDialog } from './AlertRuleDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -21,6 +22,7 @@ export const Dashboard = () => {
   const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
   const [showBrokerSettings, setShowBrokerSettings] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showAlertRules, setShowAlertRules] = useState(false);
   const [unreadAlerts, setUnreadAlerts] = useState(0);
 
   // Load unread alerts count
@@ -68,6 +70,7 @@ export const Dashboard = () => {
         onSettingsClick={() => setShowBrokerSettings(true)}
         onNotificationsClick={() => setShowNotifications(true)}
         unreadAlerts={unreadAlerts}
+        onAlertRulesClick={() => setShowAlertRules(true)}
       />
       
       <main>
@@ -90,6 +93,11 @@ export const Dashboard = () => {
         open={showNotifications}
         onOpenChange={setShowNotifications}
         onAlertsRead={loadUnreadAlerts}
+      />
+
+      <AlertRuleDialog
+        open={showAlertRules}
+        onOpenChange={setShowAlertRules}
       />
     </div>
   );

@@ -62,6 +62,47 @@ export type Database = {
           },
         ]
       }
+      alert_rules: {
+        Row: {
+          id: string
+          user_id: string
+          device_id: string
+          pin: string
+          trigger_state: string
+          message: string
+          channel: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          device_id: string
+          pin: string
+          trigger_state: string
+          message: string
+          channel: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          device_id?: string
+          pin?: string
+          trigger_state?: string
+          message?: string
+          channel?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alert_rules_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       broker_settings: {
         Row: {
           created_at: string
