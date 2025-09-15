@@ -1,4 +1,4 @@
-import { Bell, Settings, LogOut } from 'lucide-react';
+import { Bell, Settings, LogOut, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useMQTT } from '@/hooks/useMQTT';
@@ -14,9 +14,10 @@ interface HeaderProps {
   onSettingsClick: () => void;
   onNotificationsClick: () => void;
   unreadAlerts: number;
+  onAlertRulesClick: () => void;
 }
 
-export const Header = ({ onSettingsClick, onNotificationsClick, unreadAlerts }: HeaderProps) => {
+export const Header = ({ onSettingsClick, onNotificationsClick, unreadAlerts, onAlertRulesClick }: HeaderProps) => {
   const { status } = useMQTT();
   const { signOut } = useAuth();
 
@@ -47,7 +48,15 @@ export const Header = ({ onSettingsClick, onNotificationsClick, unreadAlerts }: 
           <Badge variant="secondary" className={`${getStatusColor()} text-white`}>
             MQTT: {getStatusText()}
           </Badge>
-          
+
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onAlertRulesClick}
+          >
+            <AlertTriangle className="h-5 w-5" />
+          </Button>
+
           <Button
             variant="ghost"
             size="icon"
