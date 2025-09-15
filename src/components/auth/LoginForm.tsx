@@ -3,11 +3,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 
 export const LoginForm = () => {
   const { toast } = useToast();
+  const { login, signup } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
@@ -19,35 +20,20 @@ export const LoginForm = () => {
 
     try {
       if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              display_name: email.split('@')[0]
-            }
-          }
-        });
-        
-        if (error) throw error;
-        
+        await signup(email, password);
         toast({
-          title: "Check your email",
-          description: "We've sent you a confirmation link to complete your registration."
+          title: 'Check your email',
+          description: "We've sent you a confirmation link to complete your registration.",
         });
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password
-        });
-        
-        if (error) throw error;
+        await login(email, password);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const description = error instanceof Error ? error.message : 'Unknown error';
       toast({
-        title: "Authentication Error",
-        description: error.message,
-        variant: "destructive"
+        title: 'Authentication Error',
+        description,
+        variant: 'destructive',
       });
     } finally {
       setIsLoading(false);
