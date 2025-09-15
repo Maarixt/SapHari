@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 
 const SWITCH_PINS = [2,4,5,12,13,14,15,16,17,18,19,21,22,23,25,26,27,32,33];
 const ANALOG_PINS = [32,33,34,35,36,39];
+const ALL_PINS = Array.from({ length: 40 }, (_, i) => i);
 
 interface AddWidgetDialogProps {
   open: boolean;
@@ -158,7 +159,7 @@ export const AddWidgetDialog = ({ open, onOpenChange, device, type, existingWidg
                     <SelectValue placeholder="Select pin" />
                   </SelectTrigger>
                   <SelectContent>
-                    {SWITCH_PINS.map(p => (
+                    {ALL_PINS.map(p => (
                       <SelectItem key={p} value={p.toString()}>{p}</SelectItem>
                     ))}
                   </SelectContent>

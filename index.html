@@ -106,6 +106,7 @@ const SWITCH_PINS=[2,4,5,12,13,14,15,16,17,18,19,21,22,23,25,26,27,32,33];
 const DIGITAL_PINS=[...SWITCH_PINS];
 const ANALOG_PINS =[32,33,34,35,36,39];
 const SERVO_PINS  =[...SWITCH_PINS];
+const ALERT_PINS  = Array.from({ length: 40 }, (_, i) => i);
 
 function randId(){ return 'saph-' + Math.random().toString(36).slice(2,8); }
 function randKey(){ return Math.random().toString(36).slice(2,10).toUpperCase(); }
@@ -119,10 +120,10 @@ function usedPins(dev){
   dev.widgets.alerts.forEach(a=>u.add(a.pin));
   return u;
 }
-function pinOptions(allowed, dev, current){
+function pinOptions(allowed, dev, current, allowUsed=false){
   const used = usedPins(dev);
   return allowed.map(p=>{
-    const dis = used.has(p) && p!==current ? 'disabled' : '';
+    const dis = (!allowUsed && used.has(p) && p!==current) ? 'disabled' : '';
     const sel = p===current ? 'selected' : '';
     return `<option value="${p}" ${sel} ${dis}>${p}</option>`;
   }).join('');
@@ -523,7 +524,7 @@ function addAlert(){
       <div class="row"><label>Label</label><input id="alLbl" value="Alert"></div>
       <div class="row"><label>Address</label><input id="alAddr" value="${addr}" disabled></div>
       <div class="row"><label>GPIO Pin</label>
-        <select id="alPin">${pinOptions(DIGITAL_PINS, dev, null)}</select>
+        <select id="alPin">${pinOptions(ALERT_PINS, dev, null, true)}</select>
       </div>
       <div class="row"><label>Trigger</label>
         <select id="alTrig">
