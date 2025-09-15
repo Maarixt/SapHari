@@ -57,6 +57,7 @@
         <button class="btn" onclick="addSwitch()">➕ Switch</button>
         <button class="btn" onclick="addGauge()">➕ Gauge</button>
         <button class="btn" onclick="addServo()">➕ Servo</button>
+        <button class="btn" onclick="addAlert()">➕ Alert</button>
         <button class="btn" onclick="genSnippet()">⚡ Generate Snippet</button>
       </div>
     </div>
@@ -68,6 +69,8 @@
 <script>
 /* ========= Persistent State ========= */
 let devices = JSON.parse(localStorage.getItem('sh_devices')||'[]');
+// ensure new alerts array exists for older stored devices
+devices.forEach(d=>{ if(!d.widgets.alerts) d.widgets.alerts=[]; });
 let current = null;
 
 /* ========= MQTT Client ========= */
@@ -113,6 +116,7 @@ function usedPins(dev){
   dev.widgets.switches.forEach(s=>{ if(s.pin!==null && s.pin!==undefined) u.add(s.pin); });
   dev.widgets.servos.forEach(s=>u.add(s.pin));
   dev.widgets.gauges.forEach(g=>{ u.add(g.pin); if(g.type==='ultrasonic' && g.echo!=null) u.add(g.echo); });
+  dev.widgets.alerts.forEach(a=>u.add(a.pin));
   return u;
 }
 function pinOptions(allowed, dev, current){
@@ -169,6 +173,7 @@ function renderDevices(){
         <span class="tag">switches: ${d.widgets.switches.length}</span>
         <span class="tag">gauges: ${d.widgets.gauges.length}</span>
         <span class="tag">servos: ${d.widgets.servos.length}</span>
+        <span class="tag">alerts: ${d.widgets.alerts.length}</span>
       </div>
     </div>`).join('');
 }
@@ -192,7 +197,7 @@ function confirmAddDevice(){
   const id   = document.getElementById('dvId').value.trim();
   const key  = document.getElementById('dvKey').value.trim();
   if(!id || !key){ alert('Need ID and Key'); return; }
-  devices.push({ id, key, name, widgets:{ switches:[], gauges:[], servos:[] }, state:{ online:false } });
+  devices.push({ id, key, name, widgets:{ switches:[], gauges:[], servos:[], alerts:[] }, state:{ online:false } });
   save(); closeDlg(); renderDevices();
 }
 function showCreds(i){
@@ -507,6 +512,50 @@ function moveServo(idx, val){
   if(mqttClient && mqttClient.connected) mqttClient.publish(topic, payload, { retain: true });
   renderBoard();
 }
+
+/* ========= Alerts ========= */
+function addAlert(){
+  const dev = devices[current];
+  const addr = nextAddr('A', dev.widgets.alerts.map(a=>a.addr));
+  showDlg(`
+    <div class="panel">
+      <h3>Add Alert</h3>
+      <div class="row"><label>Label</label><input id="alLbl" value="Alert"></div>
+      <div class="row"><label>Address</label><input id="alAddr" value="${addr}" disabled></div>
+      <div class="row"><label>GPIO Pin</label>
+        <select id="alPin">${pinOptions(DIGITAL_PINS, dev, null)}</select>
+      </div>
+      <div class="row"><label>Trigger</label>
+        <select id="alTrig">
+          <option value="1">HIGH</option>
+          <option value="0">LOW</option>
+        </select>
+      </div>
+      <div class="row"><label>Message</label><input id="alMsg" value="Water detected!"></div>
+      <div class="flex between" style="margin-top:10px">
+        <button class="btn" onclick="confirmAddAlert()">Add</button>
+        <button class="btn secondary" onclick="closeDlg()">Cancel</button>
+      </div>
+    </div>`);
+}
+
+function confirmAddAlert(){
+  const dev = devices[current];
+  dev.widgets.alerts.push({
+    label: document.getElementById('alLbl').value.trim()||'Alert',
+    addr: document.getElementById('alAddr').value.trim(),
+    pin: parseInt(document.getElementById('alPin').value),
+    trigger: parseInt(document.getElementById('alTrig').value),
+    message: document.getElementById('alMsg').value.trim()
+  });
+  save(); closeDlg(); renderBoard();
+}
+
+function delAlert(idx){
+  const dev = devices[current];
+  dev.widgets.alerts.splice(idx,1);
+  save(); renderBoard();
+}
 /* ========= Gauge draw + data handling ========= */
 const lastValues = {}; // key = `${devId}:${addr}`
 
@@ -578,6 +627,7 @@ function allAddrs(dev){
     ...dev.widgets.switches.map(w=>w.addr),
     ...dev.widgets.gauges.map(w=>w.addr),
     ...dev.widgets.servos.map(w=>w.addr),
+    ...dev.widgets.alerts.map(w=>w.addr),
   ];
 }
 
@@ -634,6 +684,21 @@ function renderBoard(){
         <div class="flex" style="gap:8px;margin-top:8px">
           <button class="btn secondary" onclick="editServo(${idx})">⚙️</button>
           <button class="btn danger" onclick="delServo(${idx})">🗑</button>
+        </div>
+      </div>`);
+  });
+
+  // alerts
+  dev.widgets.alerts.forEach((a,idx)=>{
+    cards.push(`
+      <div class="card">
+        <div class="flex between">
+          <b>${a.label}</b>
+          <span class="tag">${a.addr} · GPIO ${a.pin} · ${a.trigger==1?'HIGH':'LOW'}</span>
+        </div>
+        <div class="small muted">Msg: ${a.message}</div>
+        <div class="flex" style="gap:8px;margin-top:8px">
+          <button class="btn danger" onclick="delAlert(${idx})">🗑</button>
         </div>
       </div>`);
   });
@@ -708,6 +773,10 @@ function genSnippet(){
     `{ "${s.addr}", ${s.pin}, ${s.angle}, false }`
   ).join(",\n  ") || "// none";
 
+  let al = dev.widgets.alerts.map(a=>
+    `{ "${a.addr}", ${a.pin}, ${a.trigger}, "${a.message.replace(/"/g,'\\"')}" }`
+  ).join(",\n  ") || "// none";
+
   const out =
 `// ==== SapHari Device Credentials ====
 #define DEVICE_ID   "${dev.id}"
@@ -735,6 +804,12 @@ ServoMap SERVOS[] = {
   ${sv}
 };
 int NUM_SERVOS = sizeof(SERVOS)/sizeof(SERVOS[0]);
+
+// ==== Alerts ====
+AlertMap ALERTS[] = {
+  ${al}
+};
+int NUM_ALERTS = sizeof(ALERTS)/sizeof(ALERTS[0]);
 `;
 
   showDlg(`
