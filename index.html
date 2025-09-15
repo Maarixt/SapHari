@@ -76,6 +76,7 @@ devices.forEach(d=>{
   d.widgets.servos = d.widgets.servos || [];
   d.widgets.alerts = d.widgets.alerts || [];
   d.state = d.state || { online:false };
+  d.messages = d.messages || [];
 });
 let current = null;
 
@@ -204,7 +205,7 @@ function confirmAddDevice(){
   const id   = document.getElementById('dvId').value.trim();
   const key  = document.getElementById('dvKey').value.trim();
   if(!id || !key){ alert('Need ID and Key'); return; }
-  devices.push({ id, key, name, widgets:{ switches:[], gauges:[], servos:[], alerts:[] }, state:{ online:false } });
+  devices.push({ id, key, name, widgets:{ switches:[], gauges:[], servos:[], alerts:[] }, state:{ online:false }, messages: [] });
   save(); closeDlg(); renderDevices();
 }
 function showCreds(i){
@@ -675,6 +676,20 @@ function renderBoard(){
   const dev = devices[current];
   const cards = [];
 
+  // messages
+  if(dev.messages && dev.messages.length){
+    cards.push(`
+      <div class="card">
+        <div class="flex between">
+          <b>Messages</b>
+          <button class="btn danger" onclick="clearMessages()">Clear</button>
+        </div>
+        <div class="small" style="max-height:200px;overflow:auto">
+          ${dev.messages.map(m=>`<div>${m}</div>`).join('')}
+        </div>
+      </div>`);
+  }
+
   // switches
   dev.widgets.switches.forEach((sw,idx)=>{
     cards.push(`
@@ -753,6 +768,14 @@ function renderBoard(){
   document.getElementById('dvOnline').textContent = dev.state.online ? 'online' : 'offline';
 }
 
+function clearMessages(){
+  const dev = devices[current];
+  if(!dev) return;
+  dev.messages = [];
+  save();
+  renderBoard();
+}
+
 /* ========= MQTT Message Handling ========= */
 function onMqttMessage(topic, buf){
   const msg = buf.toString();
@@ -787,8 +810,13 @@ function onMqttMessage(topic, buf){
       }
     }
   } else if(cat==='alert'){
+    const entry = `[${new Date().toLocaleTimeString()}] ${msg}`;
+    dev.messages.unshift(entry);
+    dev.messages = dev.messages.slice(0,20);
+    save();
     if(current!=null && devices[current].id===devId){
       alert(msg);
+      renderBoard();
     }
   } else if(cat==='status' && parts[3]==='online'){
     dev.state.online = (msg==='1');
