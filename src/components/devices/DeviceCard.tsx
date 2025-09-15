@@ -26,7 +26,6 @@ interface Device {
     switches: number;
     gauges: number;
     servos: number;
-    alerts: number;
   };
 }
 
@@ -61,7 +60,6 @@ export const DeviceCard = ({ device, onSelect, onDelete }: DeviceCardProps) => {
           <Badge variant="outline">Switches: {device.widget_counts?.switches || 0}</Badge>
           <Badge variant="outline">Gauges: {device.widget_counts?.gauges || 0}</Badge>
           <Badge variant="outline">Servos: {device.widget_counts?.servos || 0}</Badge>
-          <Badge variant="outline">Alerts: {device.widget_counts?.alerts || 0}</Badge>
         </div>
 
         <div className="flex gap-2">

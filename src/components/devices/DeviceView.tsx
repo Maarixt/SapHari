@@ -8,7 +8,6 @@ import { useMQTT } from '@/hooks/useMQTT';
 import { SwitchWidget } from '../widgets/SwitchWidget';
 import { GaugeWidget } from '../widgets/GaugeWidget';
 import { ServoWidget } from '../widgets/ServoWidget';
-import { AlertWidget } from '../widgets/AlertWidget';
 import { AddWidgetDialog } from '../widgets/AddWidgetDialog';
 import { CodeSnippetDialog } from '../widgets/CodeSnippetDialog';
 
@@ -22,7 +21,7 @@ interface Device {
 
 interface Widget {
   id: string;
-  type: 'switch' | 'gauge' | 'servo' | 'alert';
+  type: 'switch' | 'gauge' | 'servo';
   label: string;
   address: string;
   pin?: number;
@@ -31,8 +30,6 @@ interface Widget {
   min_value?: number;
   max_value?: number;
   override_mode?: boolean;
-  trigger?: number;
-  message?: string;
   state: any;
 }
 
@@ -47,7 +44,7 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
   const [widgets, setWidgets] = useState<Widget[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddWidget, setShowAddWidget] = useState(false);
-  const [addWidgetType, setAddWidgetType] = useState<'switch' | 'gauge' | 'servo' | 'alert'>('switch');
+  const [addWidgetType, setAddWidgetType] = useState<'switch' | 'gauge' | 'servo'>('switch');
   const [showCodeSnippet, setShowCodeSnippet] = useState(false);
   const [deviceOnline, setDeviceOnline] = useState(device.online);
 
@@ -115,7 +112,7 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
     return cleanup;
   }, [device, onMessage]);
 
-  const handleAddWidget = (type: 'switch' | 'gauge' | 'servo' | 'alert') => {
+  const handleAddWidget = (type: 'switch' | 'gauge' | 'servo') => {
     setAddWidgetType(type);
     setShowAddWidget(true);
   };
@@ -174,10 +171,6 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
             <Plus className="mr-2 h-4 w-4" />
             Servo
           </Button>
-          <Button variant="outline" onClick={() => handleAddWidget('alert')}>
-            <Plus className="mr-2 h-4 w-4" />
-            Alert
-          </Button>
           <Button variant="outline" onClick={() => setShowCodeSnippet(true)}>
             <Code className="mr-2 h-4 w-4" />
             Code Snippet
@@ -200,10 +193,6 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
             <Button variant="outline" onClick={() => handleAddWidget('servo')}>
               <Plus className="mr-2 h-4 w-4" />
               Add Servo
-            </Button>
-            <Button variant="outline" onClick={() => handleAddWidget('alert')}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Alert
             </Button>
           </div>
         </div>
@@ -236,15 +225,6 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
                   key={widget.id}
                   widget={widget}
                   device={device}
-                  onUpdate={(updates) => handleWidgetUpdated(widget.id, updates)}
-                  onDelete={() => handleWidgetDeleted(widget.id)}
-                />
-              );
-            } else if (widget.type === 'alert') {
-              return (
-                <AlertWidget
-                  key={widget.id}
-                  widget={widget}
                   onUpdate={(updates) => handleWidgetUpdated(widget.id, updates)}
                   onDelete={() => handleWidgetDeleted(widget.id)}
                 />

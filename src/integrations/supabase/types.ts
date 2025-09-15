@@ -201,10 +201,8 @@ export type Database = {
           label: string
           max_value: number | null
           min_value: number | null
-          message: string | null
           override_mode: boolean | null
           pin: number | null
-          trigger: number | null
           state: Json | null
           type: string
           updated_at: string
@@ -219,10 +217,8 @@ export type Database = {
           label: string
           max_value?: number | null
           min_value?: number | null
-          message?: string | null
           override_mode?: boolean | null
           pin?: number | null
-          trigger?: number | null
           state?: Json | null
           type: string
           updated_at?: string
@@ -237,10 +233,8 @@ export type Database = {
           label?: string
           max_value?: number | null
           min_value?: number | null
-          message?: string | null
           override_mode?: boolean | null
           pin?: number | null
-          trigger?: number | null
           state?: Json | null
           type?: string
           updated_at?: string

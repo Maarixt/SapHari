@@ -22,12 +22,8 @@ export const CodeSnippetDialog = ({ open, onOpenChange, device, widgets }: CodeS
       `{ "${w.address}", GT_${w.gauge_type?.toUpperCase() || 'ANALOG'}, ${w.pin}, ${w.echo_pin || -1} }`
     ).join(',\n  ') || '// none';
     
-    const servos = widgets.filter(w => w.type === 'servo').map(w =>
+    const servos = widgets.filter(w => w.type === 'servo').map(w => 
       `{ "${w.address}", ${w.pin}, ${w.state?.angle || 90}, false }`
-    ).join(',\n  ') || '// none';
-
-    const alerts = widgets.filter(w => w.type === 'alert').map(w =>
-      `{ "${w.address}", ${w.pin}, ${w.trigger}, "${(w.message || '').replace(/"/g, '\\"')}" }`
     ).join(',\n  ') || '// none';
 
     return `// SapHari Device Configuration
@@ -46,12 +42,7 @@ GaugeMap GAUGES[] = {
 
 ServoMap SERVOS[] = {
   ${servos}
-};
-
-AlertMap ALERTS[] = {
-  ${alerts}
-};
-int NUM_ALERTS = sizeof(ALERTS)/sizeof(ALERTS[0]);`;
+};`;
   };
 
   return (
