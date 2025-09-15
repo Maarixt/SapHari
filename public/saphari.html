@@ -75,6 +75,7 @@ devices.forEach(d=>{
   d.widgets.gauges = d.widgets.gauges || [];
   d.widgets.servos = d.widgets.servos || [];
   d.widgets.alerts = d.widgets.alerts || [];
+  d.widgets.alerts.forEach(a=>{ a.email = a.email || ''; });
   d.state = d.state || { online:false };
   d.messages = d.messages || [];
 });
@@ -540,6 +541,7 @@ function addAlert(){
         </select>
       </div>
       <div class="row"><label>Message</label><input id="alMsg" value="Water detected!"></div>
+      <div class="row"><label>Email (optional)</label><input id="alEmail" placeholder="user@example.com"></div>
       <div class="flex between" style="margin-top:10px">
         <button class="btn" onclick="confirmAddAlert()">Add</button>
         <button class="btn secondary" onclick="closeDlg()">Cancel</button>
@@ -554,7 +556,8 @@ function confirmAddAlert(){
     addr: document.getElementById('alAddr').value.trim(),
     pin: parseInt(document.getElementById('alPin').value),
     trigger: parseInt(document.getElementById('alTrig').value),
-    message: document.getElementById('alMsg').value.trim()
+    message: document.getElementById('alMsg').value.trim(),
+    email: document.getElementById('alEmail').value.trim()
   });
   save(); closeDlg(); renderBoard();
 }
@@ -575,6 +578,7 @@ function editAlert(idx){
         </select>
       </div>
       <div class="row"><label>Message</label><input id="alMsg" value="${a.message}"></div>
+      <div class="row"><label>Email (optional)</label><input id="alEmail" value="${a.email||''}"></div>
       <div class="flex between" style="margin-top:10px">
         <button class="btn" onclick="confirmEditAlert(${idx})">Save</button>
         <button class="btn secondary" onclick="closeDlg()">Cancel</button>
@@ -589,6 +593,7 @@ function confirmEditAlert(idx){
   a.pin = parseInt(document.getElementById('alPin').value);
   a.trigger = parseInt(document.getElementById('alTrig').value);
   a.message = document.getElementById('alMsg').value.trim();
+  a.email = document.getElementById('alEmail').value.trim();
   save(); closeDlg(); renderBoard();
 }
 
@@ -596,6 +601,19 @@ function delAlert(idx){
   const dev = devices[current];
   dev.widgets.alerts.splice(idx,1);
   save(); renderBoard();
+}
+
+function triggerAlert(dev, a, value){
+  window.alert(`📢 [${dev.name}] ${a.message}`);
+  const recipient = a.email || 'user@example.com';
+  console.log(`Sending email to ${recipient}: ${a.message}`);
+  const entry = `[${new Date().toLocaleTimeString()}] ${a.message}`;
+  dev.messages.unshift(entry);
+  dev.messages = dev.messages.slice(0,20);
+  save();
+  if(current!=null && devices[current].id===dev.id){
+    renderBoard();
+  }
 }
 /* ========= Gauge draw + data handling ========= */
 const lastValues = {}; // key = `${devId}:${addr}`
@@ -751,7 +769,7 @@ function renderBoard(){
           <b>${a.label}</b>
           <span class="tag">${a.addr} · GPIO ${a.pin} · ${a.trigger==1?'HIGH':'LOW'}</span>
         </div>
-        <div class="small muted">Msg: ${a.message}</div>
+        <div class="small muted">Msg: ${a.message}${a.email?` (📧 ${a.email})`:''}</div>
         <div class="flex" style="gap:8px;margin-top:8px">
           <button class="btn secondary" onclick="editAlert(${idx})">⚙️</button>
           <button class="btn danger" onclick="delAlert(${idx})">🗑</button>
@@ -809,14 +827,25 @@ function onMqttMessage(topic, buf){
         drawGauge(`g${gi}`, clamped, g.min, g.max, g.type);
       }
     }
+    dev.widgets.alerts.forEach(a=>{
+      if(a.addr===addr && msg===String(a.trigger)){
+        triggerAlert(dev, a, msg);
+      }
+    });
   } else if(cat==='alert'){
-    const entry = `[${new Date().toLocaleTimeString()}] ${msg}`;
-    dev.messages.unshift(entry);
-    dev.messages = dev.messages.slice(0,20);
-    save();
-    if(current!=null && devices[current].id===devId){
-      alert(msg);
-      renderBoard();
+    const addr = parts[3];
+    const a = dev.widgets.alerts.find(x=>x.addr===addr);
+    if(a){
+      triggerAlert(dev, a, msg);
+    } else {
+      const entry = `[${new Date().toLocaleTimeString()}] ${msg}`;
+      dev.messages.unshift(entry);
+      dev.messages = dev.messages.slice(0,20);
+      save();
+      if(current!=null && devices[current].id===devId){
+        window.alert(msg);
+        renderBoard();
+      }
     }
   } else if(cat==='status' && parts[3]==='online'){
     dev.state.online = (msg==='1');
