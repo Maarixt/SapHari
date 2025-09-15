@@ -1,5 +1,5 @@
 import { useAuth } from '@/hooks/useAuth';
-import { LoginForm } from './LoginForm';
+import { Navigate, useLocation } from 'react-router-dom';
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -7,6 +7,7 @@ interface AuthGuardProps {
 
 export const AuthGuard = ({ children }: AuthGuardProps) => {
   const { user, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -20,7 +21,7 @@ export const AuthGuard = ({ children }: AuthGuardProps) => {
   }
 
   if (!user) {
-    return <LoginForm />;
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   return <>{children}</>;

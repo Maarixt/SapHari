@@ -5,6 +5,12 @@
   <title>SapHari MQTT Dashboard</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <script src="https://unpkg.com/@supabase/supabase-js"></script>
+  <script>
+    const supabaseUrl = "https://YOUR_PROJECT_ID.supabase.co";
+    const supabaseKey = "YOUR_ANON_KEY";
+    const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+  </script>
   <style>
     body{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;background:#0f1115;color:#eaeef2;margin:0}
     header{padding:16px 20px;border-bottom:1px solid #222;display:flex;justify-content:space-between;align-items:center}
@@ -38,7 +44,18 @@
     </div>
   </header>
 
-  <div class="wrap" id="deviceManager">
+  <div id="authView" class="wrap" style="display:none">
+    <h2>Login / Signup</h2>
+    <div class="row"><label>Email</label><input id="authEmail"></div>
+    <div class="row"><label>Password</label><input id="authPass" type="password"></div>
+    <div class="flex" style="gap:8px;margin-top:10px">
+      <button class="btn" onclick="doLogin()">Login</button>
+      <button class="btn secondary" onclick="doSignup()">Signup</button>
+    </div>
+    <div id="authMsg" class="small muted"></div>
+  </div>
+
+  <div class="wrap" id="deviceManager" style="display:none">
     <div class="flex between">
       <h2 style="margin:8px 0">Devices</h2>
       <button class="btn" onclick="openAddDevice()">➕ Add Device</button>
@@ -72,6 +89,40 @@ let devices = JSON.parse(localStorage.getItem('sh_devices')||'[]');
 // ensure new alerts array exists for older stored devices
 devices.forEach(d=>{ if(!d.widgets.alerts) d.widgets.alerts=[]; });
 let current = null;
+
+/* ========= Auth ========= */
+async function doSignup(){
+  const email = document.getElementById('authEmail').value;
+  const password = document.getElementById('authPass').value;
+  let { error } = await supabase.auth.signUp({ email, password });
+  if(error){ document.getElementById('authMsg').textContent = error.message; return; }
+  document.getElementById('authMsg').textContent = "Signup successful! Check your email to confirm.";
+}
+
+async function doLogin(){
+  const email = document.getElementById('authEmail').value;
+  const password = document.getElementById('authPass').value;
+  let { error } = await supabase.auth.signInWithPassword({ email, password });
+  if(error){ document.getElementById('authMsg').textContent = error.message; return; }
+  document.getElementById('authMsg').textContent = "Login successful!";
+  loadUserDashboard();
+}
+
+async function checkAuth(){
+  const { data: { session } } = await supabase.auth.getSession();
+  if(session){
+    loadUserDashboard();
+  } else {
+    document.getElementById('authView').style.display='block';
+  }
+}
+
+function loadUserDashboard(){
+  document.getElementById('authView').style.display='none';
+  document.getElementById('deviceManager').style.display='block';
+  renderDevices();
+  connectMQTT();
+}
 
 /* ========= MQTT Client ========= */
 let broker = JSON.parse(localStorage.getItem('sh_broker') || '{}');
@@ -823,8 +874,7 @@ int NUM_ALERTS = sizeof(ALERTS)/sizeof(ALERTS[0]);
 }
 
 /* ========= Boot ========= */
-renderDevices();
-connectMQTT();
+checkAuth();
 </script>
 </body>
 </html>
