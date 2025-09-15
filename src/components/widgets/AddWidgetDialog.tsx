@@ -6,16 +6,29 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import type { TablesInsert } from '@/integrations/supabase/types';
 
 const SWITCH_PINS = [2,4,5,12,13,14,15,16,17,18,19,21,22,23,25,26,27,32,33];
 const ANALOG_PINS = [32,33,34,35,36,39];
 
+interface Device {
+  id: string;
+}
+
+type WidgetType = 'switch' | 'gauge' | 'servo' | 'alert';
+
+interface Widget {
+  id: string;
+  type: WidgetType;
+  pin?: number | null;
+}
+
 interface AddWidgetDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  device: any;
-  type: 'switch' | 'gauge' | 'servo';
-  existingWidgets: any[];
+  device: Device;
+  type: WidgetType;
+  existingWidgets: Widget[];
   onWidgetAdded: () => void;
 }
 
@@ -25,9 +38,26 @@ export const AddWidgetDialog = ({ open, onOpenChange, device, type, existingWidg
   const [pin, setPin] = useState<number | undefined>();
   const [gaugeType, setGaugeType] = useState('analog');
   const [overrideMode, setOverrideMode] = useState(false);
+  const [trigger, setTrigger] = useState('1');
+  const [message, setMessage] = useState('');
+
+  const usedPins = existingWidgets
+    .filter(w => w.type !== 'alert' && w.pin !== null && w.pin !== undefined)
+    .map(w => w.pin!)
+    .filter((p): p is number => typeof p === 'number');
+
+  const availableSwitchPins = SWITCH_PINS.filter(p => !usedPins.includes(p));
+  const availableAnalogPins = ANALOG_PINS.filter(p => !usedPins.includes(p));
 
   const getNextAddress = () => {
-    const prefix = type === 'switch' ? 'S' : type === 'gauge' ? 'G' : 'SS';
+    const prefix =
+      type === 'switch'
+        ? 'S'
+        : type === 'gauge'
+        ? 'G'
+        : type === 'servo'
+        ? 'SS'
+        : 'A';
     const existing = existingWidgets.filter(w => w.type === type).map(w => w.address);
     let n = 1;
     while (existing.includes(prefix + n)) n++;
@@ -38,20 +68,41 @@ export const AddWidgetDialog = ({ open, onOpenChange, device, type, existingWidg
     e.preventDefault();
     
     try {
-      const widgetData: any = {
+      if (type !== 'alert' && pin !== undefined && usedPins.includes(pin)) {
+        toast({ title: "Error", description: "Pin already in use", variant: "destructive" });
+        return;
+      }
+
+      const widgetData: TablesInsert<'widgets'> = {
         device_id: device.id,
         type,
         label: label || `${type} widget`,
         address: getNextAddress(),
-        pin: overrideMode ? null : pin,
-        override_mode: overrideMode,
-        state: type === 'servo' ? { angle: 90 } : { value: 0 }
       };
 
+      if (type === 'switch') {
+        widgetData.pin = overrideMode ? null : pin;
+        widgetData.override_mode = overrideMode;
+        widgetData.state = { value: 0 };
+      }
+
       if (type === 'gauge') {
+        widgetData.pin = pin;
+        widgetData.state = { value: 0 };
         widgetData.gauge_type = gaugeType;
         widgetData.min_value = 0;
         widgetData.max_value = gaugeType === 'analog' ? 4095 : 100;
+      }
+
+      if (type === 'servo') {
+        widgetData.pin = pin;
+        widgetData.state = { angle: 90 };
+      }
+
+      if (type === 'alert') {
+        widgetData.pin = pin;
+        widgetData.trigger = parseInt(trigger);
+        widgetData.message = message;
       }
 
       const { error } = await supabase.from('widgets').insert(widgetData);
@@ -59,8 +110,9 @@ export const AddWidgetDialog = ({ open, onOpenChange, device, type, existingWidg
 
       onWidgetAdded();
       toast({ title: "Widget added successfully" });
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      toast({ title: "Error", description: message, variant: "destructive" });
     }
   };
 
@@ -108,7 +160,7 @@ export const AddWidgetDialog = ({ open, onOpenChange, device, type, existingWidg
             </div>
           )}
 
-          {!overrideMode && (
+          {(type !== 'switch' || !overrideMode) && type !== 'alert' ? (
             <div>
               <Label>GPIO Pin</Label>
               <Select onValueChange={(v) => setPin(parseInt(v))}>
@@ -116,12 +168,46 @@ export const AddWidgetDialog = ({ open, onOpenChange, device, type, existingWidg
                   <SelectValue placeholder="Select pin" />
                 </SelectTrigger>
                 <SelectContent>
-                  {(type === 'gauge' && gaugeType === 'analog' ? ANALOG_PINS : SWITCH_PINS).map(p => (
+                  {(type === 'gauge' && gaugeType === 'analog' ? availableAnalogPins : availableSwitchPins).map(p => (
                     <SelectItem key={p} value={p.toString()}>{p}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
+          ) : null}
+
+          {type === 'alert' && (
+            <>
+              <div>
+                <Label>GPIO Pin</Label>
+                <Select onValueChange={(v) => setPin(parseInt(v))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select pin" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SWITCH_PINS.map(p => (
+                      <SelectItem key={p} value={p.toString()}>{p}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Trigger</Label>
+                <Select onValueChange={setTrigger} defaultValue="1">
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">HIGH</SelectItem>
+                    <SelectItem value="0">LOW</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Message</Label>
+                <Input value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Alert message" />
+              </div>
+            </>
           )}
 
           <Button type="submit">Add Widget</Button>
