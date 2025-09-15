@@ -14,7 +14,7 @@ interface Widget {
   pin: number;
   trigger: number;
   message: string;
-  state?: any;
+  state?: Record<string, unknown>;
 }
 
 interface AlertWidgetProps {

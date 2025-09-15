@@ -20,6 +20,7 @@ type WidgetType = 'switch' | 'gauge' | 'servo' | 'alert';
 interface Widget {
   id: string;
   type: WidgetType;
+  address: string;
   pin?: number | null;
 }
 
