@@ -9,14 +9,7 @@ import { useMQTT } from '@/hooks/useMQTT';
 import { useToast } from '@/hooks/use-toast';
 import { EditWidgetDialog } from './EditWidgetDialog';
 
-import { Widget } from '@/lib/types';
-
-interface Device {
-  id: string;
-  device_id: string;
-  device_key: string;
-  name: string;
-}
+import { Widget, Device } from '@/lib/types';
 
 interface SwitchWidgetProps {
   widget: Widget;

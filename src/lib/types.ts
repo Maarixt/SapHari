@@ -9,6 +9,7 @@ export interface Device {
   owner_id: string;
   created_at: string;
   updated_at: string;
+  user_id?: string; // For backward compatibility
 }
 
 export interface Widget {

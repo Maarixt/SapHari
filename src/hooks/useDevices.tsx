@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
-import { Device, Collaborator, DeviceWithRole } from '@/lib/types';
-import { resolveUserRole } from '@/lib/roles';
+import { DeviceWithRole, Role } from '@/lib/types';
 
 export const useDevices = () => {
   const { user } = useAuth();
@@ -20,46 +19,20 @@ export const useDevices = () => {
     try {
       setError(null);
       
-      // Load all collaborations for this user
-      const { data: collaborations, error: collabError } = await supabase
-        .from('collaborators')
-        .select('*')
-        .eq('user_email', user.email);
-
-      if (collabError) throw collabError;
-
-      // Load owned devices
-      const { data: ownedDevices, error: ownedError } = await supabase
+      // Load devices with user_id (backward compatibility)
+      const { data: deviceData, error: deviceError } = await supabase
         .from('devices')
         .select('*')
-        .eq('owner_id', user.id);
+        .eq('user_id', user.id);
+        
+      if (deviceError) throw deviceError;
 
-      if (ownedError) throw ownedError;
-
-      // Load shared devices (where user is collaborator)
-      const sharedDeviceIds = collaborations?.map(c => c.device_id) || [];
-      let sharedDevices: Device[] = [];
-      
-      if (sharedDeviceIds.length > 0) {
-        const { data, error: sharedError } = await supabase
-          .from('devices')
-          .select('*')
-          .in('id', sharedDeviceIds);
-
-        if (sharedError) throw sharedError;
-        sharedDevices = data || [];
-      }
-
-      // Combine and add role information
-      const allDevices = [
-        ...(ownedDevices || []),
-        ...sharedDevices
-      ];
-
-      const devicesWithRoles: DeviceWithRole[] = allDevices.map(device => ({
+      // Convert to DeviceWithRole format
+      const devicesWithRoles: DeviceWithRole[] = (deviceData || []).map(device => ({
         ...device,
-        userRole: resolveUserRole(device, user.id, user.email || '', collaborations || []),
-        collaborators: collaborations?.filter(c => c.device_id === device.id) || []
+        owner_id: device.user_id || user.id,
+        userRole: 'owner' as Role,
+        collaborators: []
       }));
 
       setDevices(devicesWithRoles);

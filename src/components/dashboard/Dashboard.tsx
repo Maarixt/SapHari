@@ -7,19 +7,11 @@ import { NotificationsDialog } from './NotificationsDialog';
 import { AlertRuleDialog } from './AlertRuleDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-
-interface Device {
-  id: string;
-  device_id: string;
-  device_key: string;
-  name: string;
-  online: boolean;
-  created_at: string;
-}
+import { DeviceWithRole } from '@/lib/types';
 
 export const Dashboard = () => {
   const { user } = useAuth();
-  const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
+  const [selectedDevice, setSelectedDevice] = useState<DeviceWithRole | null>(null);
   const [showBrokerSettings, setShowBrokerSettings] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showAlertRules, setShowAlertRules] = useState(false);

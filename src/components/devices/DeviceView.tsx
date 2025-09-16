@@ -12,10 +12,10 @@ import { AlertWidget } from '../widgets/AlertWidget';
 import { AddWidgetDialog } from '../widgets/AddWidgetDialog';
 import { CodeSnippetDialog } from '../widgets/CodeSnippetDialog';
 
-import { Device, Widget } from '@/lib/types';
+import { Device, Widget, DeviceWithRole } from '@/lib/types';
 
 interface DeviceViewProps {
-  device: Device;
+  device: DeviceWithRole;
   onBack: () => void;
 }
 

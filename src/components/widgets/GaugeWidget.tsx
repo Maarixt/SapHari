@@ -5,26 +5,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { EditWidgetDialog } from './EditWidgetDialog';
-
-interface Widget {
-  id: string;
-  type: 'switch' | 'gauge' | 'servo';
-  label: string;
-  address: string;
-  pin?: number;
-  echo_pin?: number;
-  gauge_type?: string;
-  min_value?: number;
-  max_value?: number;
-  state: any;
-}
-
-interface Device {
-  id: string;
-  device_id: string;
-  device_key: string;
-  name: string;
-}
+import { Widget, Device } from '@/lib/types';
 
 interface GaugeWidgetProps {
   widget: Widget;
@@ -34,88 +15,73 @@ interface GaugeWidgetProps {
 }
 
 export const GaugeWidget = ({ widget, device, onUpdate, onDelete }: GaugeWidgetProps) => {
-  const { toast } = useToast();
-  const [showEdit, setShowEdit] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const { toast } = useToast();
+  const [showEditDialog, setShowEditDialog] = useState(false);
 
-  const value = widget.state?.value;
-  const min = widget.min_value || 0;
-  const max = widget.max_value || 100;
-  const type = widget.gauge_type || 'analog';
-
-  const drawGauge = () => {
+  const drawGauge = (value: number) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const w = canvas.width;
-    const h = canvas.height;
-    ctx.clearRect(0, 0, w, h);
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height - 20;
+    const radius = 60;
 
-    if (typeof value !== 'number' || isNaN(value)) {
-      // Empty state
-      ctx.beginPath();
-      ctx.arc(w/2, h, 64, Math.PI, 0);
-      ctx.strokeStyle = 'hsl(var(--border))';
-      ctx.lineWidth = 12;
-      ctx.stroke();
-      ctx.fillStyle = 'hsl(var(--muted-foreground))';
-      ctx.font = '12px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('—', w/2, h-10);
-      return;
-    }
-
-    // Normalize value
-    let pct = (value - min) / (max - min);
-    pct = Math.max(0, Math.min(1, pct));
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // Background arc
     ctx.beginPath();
-    ctx.arc(w/2, h, 64, Math.PI, 0);
-    ctx.strokeStyle = 'hsl(var(--border))';
-    ctx.lineWidth = 12;
+    ctx.arc(centerX, centerY, radius, Math.PI, 0);
+    ctx.strokeStyle = '#334155';
+    ctx.lineWidth = 8;
     ctx.stroke();
 
     // Value arc
+    const normalizedValue = Math.max(0, Math.min(1, 
+      (value - (widget.min_value || 0)) / ((widget.max_value || 100) - (widget.min_value || 0))
+    ));
+    
     ctx.beginPath();
-    ctx.arc(w/2, h, 64, Math.PI, Math.PI*(1-pct), true);
-    ctx.strokeStyle = pct < 0.5 ? 'hsl(var(--iot-online))' : 
-                      pct < 0.8 ? 'hsl(var(--iot-warning))' : 
-                      'hsl(var(--iot-offline))';
-    ctx.lineWidth = 12;
+    ctx.arc(centerX, centerY, radius, Math.PI, Math.PI * (1 - normalizedValue), true);
+    ctx.strokeStyle = normalizedValue < 0.5 ? '#22c55e' : normalizedValue < 0.8 ? '#eab308' : '#ef4444';
+    ctx.lineWidth = 8;
     ctx.stroke();
 
-    // Display text
-    let displayText = '';
-    switch (type) {
-      case 'pir':
-        displayText = value >= 1 ? 'ON' : 'OFF';
-        break;
-      case 'ds18b20':
-        displayText = value.toFixed(1) + ' °C';
-        break;
-      case 'ultrasonic':
-        displayText = value.toFixed(0) + ' cm';
-        break;
-      default:
-        displayText = value.toFixed(0);
-        break;
-    }
-
-    ctx.fillStyle = 'hsl(var(--foreground))';
-    ctx.font = '13px sans-serif';
+    // Display value
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = 'bold 14px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(displayText, w/2, h-10);
+    
+    let displayText = '';
+    if (widget.gauge_type === 'pir') {
+      displayText = value >= 1 ? 'DETECTED' : 'CLEAR';
+    } else if (widget.gauge_type === 'ds18b20') {
+      displayText = `${value.toFixed(1)}°C`;
+    } else if (widget.gauge_type === 'ultrasonic') {
+      displayText = `${value.toFixed(0)} cm`;
+    } else {
+      displayText = value.toFixed(0);
+    }
+    
+    ctx.fillText(displayText, centerX, centerY - 10);
   };
 
   useEffect(() => {
-    drawGauge();
-  }, [value, min, max, type]);
+    const value = widget.state?.value || 0;
+    drawGauge(value);
+  }, [widget.state?.value, widget.min_value, widget.max_value, widget.gauge_type]);
+
+  const handleEdit = () => {
+    setShowEditDialog(true);
+  };
 
   const handleDelete = async () => {
+    if (!confirm('Delete this gauge widget?')) return;
+
     try {
       const { error } = await supabase
         .from('widgets')
@@ -124,59 +90,72 @@ export const GaugeWidget = ({ widget, device, onUpdate, onDelete }: GaugeWidgetP
 
       if (error) throw error;
       onDelete();
-    } catch (error) {
-      console.error('Error deleting widget:', error);
+      toast({
+        title: "Widget deleted",
+        description: "Gauge widget has been removed"
+      });
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to delete widget",
+        description: error.message,
         variant: "destructive"
       });
     }
   };
 
-  const getPinDescription = () => {
-    if (type === 'ultrasonic') {
-      return `trig ${widget.pin} / echo ${widget.echo_pin}`;
-    }
-    return `@ ${widget.pin}`;
-  };
-
   return (
-    <Card className="bg-card border-border">
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
-          <div>
-            <h3 className="font-semibold">{widget.label}</h3>
-            <p className="text-sm text-muted-foreground">
-              {widget.address} • {type} {getPinDescription()}
-            </p>
-          </div>
+    <>
+      <Card className="bg-card border border-iot-border">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <h3 className="text-sm font-medium text-iot-text">{widget.label}</h3>
           <div className="flex gap-1">
-            <Button variant="ghost" size="icon" onClick={() => setShowEdit(true)}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleEdit}
+              className="h-8 w-8 p-0 text-iot-muted hover:text-iot-text"
+            >
               <Settings className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="icon" onClick={handleDelete}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleDelete}
+              className="h-8 w-8 p-0 text-iot-muted hover:text-red-500"
+            >
               <Trash2 className="h-4 w-4" />
             </Button>
           </div>
-        </div>
-      </CardHeader>
-
-      <CardContent>
-        <canvas
-          ref={canvasRef}
-          width={160}
-          height={96}
-          className="mx-auto"
-        />
-      </CardContent>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col items-center space-y-2">
+            <canvas
+              ref={canvasRef}
+              width={140}
+              height={80}
+              className="border border-iot-border rounded"
+            />
+            <div className="text-xs text-iot-muted space-x-2">
+              <span>{widget.address}</span>
+              <span>•</span>
+              <span>{widget.gauge_type}</span>
+              {widget.pin && (
+                <>
+                  <span>•</span>
+                  <span>GPIO {widget.pin}</span>
+                </>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <EditWidgetDialog
-        open={showEdit}
-        onOpenChange={setShowEdit}
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
         widget={widget}
         onUpdate={onUpdate}
       />
-    </Card>
+    </>
   );
 };
