@@ -18,15 +18,15 @@ export interface Widget {
   type: 'switch' | 'gauge' | 'servo' | 'alert';
   label: string;
   address: string;
-  pin?: number;
-  echo_pin?: number;
-  gauge_type?: string;
-  min_value?: number;
-  max_value?: number;
-  override_mode?: boolean;
-  trigger?: number;
-  message?: string;
-  state: any;
+  pin?: number | null;
+  echo_pin?: number | null;
+  gauge_type?: 'analog' | 'pir' | 'ds18b20' | 'ultrasonic' | null;
+  min_value?: number | null;
+  max_value?: number | null;
+  override_mode?: boolean | null;
+  trigger?: number | null;
+  message?: string | null;
+  state: Record<string, unknown> | null;
   created_at?: string;
   updated_at?: string;
 }

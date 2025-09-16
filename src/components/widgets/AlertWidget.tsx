@@ -10,11 +10,12 @@ import { Widget } from '@/lib/types';
 
 interface AlertWidgetProps {
   widget: Widget;
+  allWidgets: Widget[];
   onUpdate: (updates: Partial<Widget>) => void;
   onDelete: () => void;
 }
 
-export const AlertWidget = ({ widget, onUpdate, onDelete }: AlertWidgetProps) => {
+export const AlertWidget = ({ widget, allWidgets, onUpdate, onDelete }: AlertWidgetProps) => {
   const { toast } = useToast();
   const [showEditDialog, setShowEditDialog] = useState(false);
 
@@ -40,17 +41,17 @@ export const AlertWidget = ({ widget, onUpdate, onDelete }: AlertWidgetProps) =>
         title: "Widget deleted",
         description: "Alert widget has been removed"
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Failed to delete widget',
         variant: "destructive"
       });
     }
   };
 
   const handleAcknowledge = () => {
-    const updatedState = { ...widget.state, triggered: false };
+    const updatedState = { ...(widget.state ?? {}), triggered: false };
     onUpdate({
       state: updatedState
     });
@@ -134,10 +135,10 @@ export const AlertWidget = ({ widget, onUpdate, onDelete }: AlertWidgetProps) =>
             
             <div className="text-xs text-iot-muted text-center space-x-2">
               <span>{widget.address}</span>
-              {widget.trigger && (
+              {widget.trigger !== null && widget.trigger !== undefined && (
                 <>
                   <span>•</span>
-                  <span>Trigger: {widget.trigger}</span>
+                  <span>Trigger: {widget.trigger === 0 ? 'Falling' : 'Rising'}</span>
                 </>
               )}
             </div>
@@ -149,6 +150,7 @@ export const AlertWidget = ({ widget, onUpdate, onDelete }: AlertWidgetProps) =>
         open={showEditDialog}
         onOpenChange={setShowEditDialog}
         widget={widget}
+        allWidgets={allWidgets}
         onUpdate={onUpdate}
       />
     </>

@@ -14,11 +14,12 @@ import { Widget, Device } from '@/lib/types';
 interface SwitchWidgetProps {
   widget: Widget;
   device: Device;
+  allWidgets: Widget[];
   onUpdate: (updates: Partial<Widget>) => void;
   onDelete: () => void;
 }
 
-export const SwitchWidget = ({ widget, device, onUpdate, onDelete }: SwitchWidgetProps) => {
+export const SwitchWidget = ({ widget, device, allWidgets, onUpdate, onDelete }: SwitchWidgetProps) => {
   const { publishMessage } = useMQTT();
   const { toast } = useToast();
   const [showEdit, setShowEdit] = useState(false);
@@ -33,14 +34,14 @@ export const SwitchWidget = ({ widget, device, onUpdate, onDelete }: SwitchWidge
     try {
       // Update local state immediately for responsiveness
       onUpdate({
-        state: { ...widget.state, value: newState }
+        state: { ...(widget.state ?? {}), value: newState }
       });
 
       // Update database
       const { error } = await supabase
         .from('widgets')
-        .update({ 
-          state: { ...widget.state, value: newState }
+        .update({
+          state: { ...(widget.state ?? {}), value: newState }
         })
         .eq('id', widget.id);
 
@@ -67,16 +68,16 @@ export const SwitchWidget = ({ widget, device, onUpdate, onDelete }: SwitchWidge
         });
         publishMessage(`saphari/${device.device_id}/cmd/toggle`, payload, true);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error toggling switch:', error);
       toast({
         title: "Error",
-        description: "Failed to toggle switch",
+        description: error instanceof Error ? error.message : "Failed to toggle switch",
         variant: "destructive"
       });
       // Revert local state on error
       onUpdate({
-        state: { ...widget.state, value: currentState }
+        state: { ...(widget.state ?? {}), value: currentState }
       });
     } finally {
       setIsToggling(false);
@@ -98,11 +99,11 @@ export const SwitchWidget = ({ widget, device, onUpdate, onDelete }: SwitchWidge
         title: "Widget deleted",
         description: "Switch widget has been removed"
       });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error deleting widget:', error);
       toast({
         title: "Error",
-        description: "Failed to delete widget",
+        description: error instanceof Error ? error.message : "Failed to delete widget",
         variant: "destructive"
       });
     }
@@ -150,6 +151,7 @@ export const SwitchWidget = ({ widget, device, onUpdate, onDelete }: SwitchWidge
         open={showEdit}
         onOpenChange={setShowEdit}
         widget={widget}
+        allWidgets={allWidgets}
         onUpdate={onUpdate}
       />
     </Card>
