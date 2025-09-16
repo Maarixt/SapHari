@@ -10,70 +10,74 @@ import { Widget, Device } from '@/lib/types';
 interface GaugeWidgetProps {
   widget: Widget;
   device: Device;
+  allWidgets: Widget[];
   onUpdate: (updates: Partial<Widget>) => void;
   onDelete: () => void;
 }
 
-export const GaugeWidget = ({ widget, device, onUpdate, onDelete }: GaugeWidgetProps) => {
+export const GaugeWidget = ({ widget, device, allWidgets, onUpdate, onDelete }: GaugeWidgetProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { toast } = useToast();
   const [showEditDialog, setShowEditDialog] = useState(false);
 
-  const drawGauge = (value: number) => {
+  const stateValue = widget.state?.['value'];
+
+  useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    const rawValue = stateValue;
+    const parsedValue =
+      typeof rawValue === 'number'
+        ? rawValue
+        : typeof rawValue === 'string'
+        ? Number(rawValue)
+        : 0;
+    const numericValue = Number.isNaN(parsedValue) ? 0 : parsedValue;
+
     const centerX = canvas.width / 2;
     const centerY = canvas.height - 20;
     const radius = 60;
 
-    // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Background arc
     ctx.beginPath();
     ctx.arc(centerX, centerY, radius, Math.PI, 0);
     ctx.strokeStyle = '#334155';
     ctx.lineWidth = 8;
     ctx.stroke();
 
-    // Value arc
-    const normalizedValue = Math.max(0, Math.min(1, 
-      (value - (widget.min_value || 0)) / ((widget.max_value || 100) - (widget.min_value || 0))
-    ));
-    
+    const min = widget.min_value ?? 0;
+    const max = widget.max_value ?? 100;
+    const range = Math.max(0.0001, max - min);
+    const normalizedValue = Math.max(0, Math.min(1, (numericValue - min) / range));
+
     ctx.beginPath();
     ctx.arc(centerX, centerY, radius, Math.PI, Math.PI * (1 - normalizedValue), true);
     ctx.strokeStyle = normalizedValue < 0.5 ? '#22c55e' : normalizedValue < 0.8 ? '#eab308' : '#ef4444';
     ctx.lineWidth = 8;
     ctx.stroke();
 
-    // Display value
     ctx.fillStyle = '#f8fafc';
     ctx.font = 'bold 14px sans-serif';
     ctx.textAlign = 'center';
-    
+
     let displayText = '';
     if (widget.gauge_type === 'pir') {
-      displayText = value >= 1 ? 'DETECTED' : 'CLEAR';
+      displayText = numericValue >= 1 ? 'DETECTED' : 'CLEAR';
     } else if (widget.gauge_type === 'ds18b20') {
-      displayText = `${value.toFixed(1)}°C`;
+      displayText = `${numericValue.toFixed(1)}°C`;
     } else if (widget.gauge_type === 'ultrasonic') {
-      displayText = `${value.toFixed(0)} cm`;
+      displayText = `${numericValue.toFixed(0)} cm`;
     } else {
-      displayText = value.toFixed(0);
+      displayText = numericValue.toFixed(0);
     }
-    
-    ctx.fillText(displayText, centerX, centerY - 10);
-  };
 
-  useEffect(() => {
-    const value = widget.state?.value || 0;
-    drawGauge(value);
-  }, [widget.state?.value, widget.min_value, widget.max_value, widget.gauge_type]);
+    ctx.fillText(displayText, centerX, centerY - 10);
+  }, [stateValue, widget.min_value, widget.max_value, widget.gauge_type]);
 
   const handleEdit = () => {
     setShowEditDialog(true);
@@ -94,10 +98,10 @@ export const GaugeWidget = ({ widget, device, onUpdate, onDelete }: GaugeWidgetP
         title: "Widget deleted",
         description: "Gauge widget has been removed"
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Failed to delete widget',
         variant: "destructive"
       });
     }
@@ -139,10 +143,16 @@ export const GaugeWidget = ({ widget, device, onUpdate, onDelete }: GaugeWidgetP
               <span>{widget.address}</span>
               <span>•</span>
               <span>{widget.gauge_type}</span>
-              {widget.pin && (
+              {widget.pin !== null && widget.pin !== undefined && (
                 <>
                   <span>•</span>
                   <span>GPIO {widget.pin}</span>
+                </>
+              )}
+              {widget.echo_pin !== null && widget.echo_pin !== undefined && (
+                <>
+                  <span>•</span>
+                  <span>Echo GPIO {widget.echo_pin}</span>
                 </>
               )}
             </div>
@@ -154,6 +164,7 @@ export const GaugeWidget = ({ widget, device, onUpdate, onDelete }: GaugeWidgetP
         open={showEditDialog}
         onOpenChange={setShowEditDialog}
         widget={widget}
+        allWidgets={allWidgets}
         onUpdate={onUpdate}
       />
     </>

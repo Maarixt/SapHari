@@ -81,7 +81,7 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
           const trimmed = message.trim();
           const numericValue = Number(trimmed);
           const isNumeric = !Number.isNaN(numericValue);
-          const nextState = { ...target.state };
+          const nextState = { ...(target.state ?? {}) };
 
           if (target.type === 'alert') {
             const triggered = trimmed === '1' || trimmed.toLowerCase() === 'true';
@@ -238,6 +238,7 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
                   key={widget.id}
                   widget={widget}
                   device={device}
+                  allWidgets={widgets}
                   onUpdate={(updates) => handleWidgetUpdated(widget.id, updates)}
                   onDelete={() => handleWidgetDeleted(widget.id)}
                 />
@@ -248,6 +249,7 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
                   key={widget.id}
                   widget={widget}
                   device={device}
+                  allWidgets={widgets}
                   onUpdate={(updates) => handleWidgetUpdated(widget.id, updates)}
                   onDelete={() => handleWidgetDeleted(widget.id)}
                 />
@@ -258,6 +260,7 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
                   key={widget.id}
                   widget={widget}
                   device={device}
+                  allWidgets={widgets}
                   onUpdate={(updates) => handleWidgetUpdated(widget.id, updates)}
                   onDelete={() => handleWidgetDeleted(widget.id)}
                 />
@@ -267,6 +270,7 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
                 <AlertWidget
                   key={widget.id}
                   widget={widget}
+                  allWidgets={widgets}
                   onUpdate={(updates) => handleWidgetUpdated(widget.id, updates)}
                   onDelete={() => handleWidgetDeleted(widget.id)}
                 />

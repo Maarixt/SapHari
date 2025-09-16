@@ -12,11 +12,12 @@ import { Widget, Device } from '@/lib/types';
 interface ServoWidgetProps {
   widget: Widget;
   device: Device;
+  allWidgets: Widget[];
   onUpdate: (updates: Partial<Widget>) => void;
   onDelete: () => void;
 }
 
-export const ServoWidget = ({ widget, device, onUpdate, onDelete }: ServoWidgetProps) => {
+export const ServoWidget = ({ widget, device, allWidgets, onUpdate, onDelete }: ServoWidgetProps) => {
   const { publishMessage } = useMQTT();
   const { toast } = useToast();
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -25,7 +26,7 @@ export const ServoWidget = ({ widget, device, onUpdate, onDelete }: ServoWidgetP
 
   const handleAngleChange = (value: number[]) => {
     const newAngle = value[0];
-    const updatedState = { ...widget.state, angle: newAngle };
+    const updatedState = { ...(widget.state ?? {}), angle: newAngle };
 
     // Update local state immediately
     onUpdate({
@@ -78,10 +79,10 @@ export const ServoWidget = ({ widget, device, onUpdate, onDelete }: ServoWidgetP
         title: "Widget deleted",
         description: "Servo widget has been removed"
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Failed to delete widget',
         variant: "destructive"
       });
     }
@@ -142,6 +143,7 @@ export const ServoWidget = ({ widget, device, onUpdate, onDelete }: ServoWidgetP
         open={showEditDialog}
         onOpenChange={setShowEditDialog}
         widget={widget}
+        allWidgets={allWidgets}
         onUpdate={onUpdate}
       />
     </>

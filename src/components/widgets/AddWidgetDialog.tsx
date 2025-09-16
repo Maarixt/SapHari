@@ -1,125 +1,232 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Switch as Toggle } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { Device, Widget } from '@/lib/types';
 
-const SWITCH_PINS = [2,4,5,12,13,14,15,16,17,18,19,21,22,23,25,26,27,32,33];
-const ANALOG_PINS = [32,33,34,35,36,39];
-const ALL_PINS = Array.from({ length: 40 }, (_, i) => i);
+type GaugeType = 'analog' | 'pir' | 'ds18b20' | 'ultrasonic';
+type TriggerEdge = 'rising' | 'falling';
+
+const DIGITAL_PINS = [2, 4, 5, 12, 13, 14, 15, 16, 17, 18, 19, 21, 22, 23, 25, 26, 27, 32, 33];
+const ANALOG_PINS = [32, 33, 34, 35, 36, 39];
+
+const GAUGE_DEFAULTS: Record<GaugeType, { min: number; max: number }> = {
+  analog: { min: 0, max: 4095 },
+  pir: { min: 0, max: 1 },
+  ds18b20: { min: -40, max: 125 },
+  ultrasonic: { min: 0, max: 400 },
+};
 
 interface AddWidgetDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  device: any;
+  device: Device;
   type: 'switch' | 'gauge' | 'servo' | 'alert';
-  existingWidgets: any[];
+  existingWidgets: Widget[];
   onWidgetAdded: () => void;
 }
 
-export const AddWidgetDialog = ({ open, onOpenChange, device, type, existingWidgets, onWidgetAdded }: AddWidgetDialogProps) => {
+const buildUsedPinSet = (widgets: Widget[]) => {
+  const used = new Set<number>();
+  widgets.forEach((widget) => {
+    if (widget.pin !== null && widget.pin !== undefined) {
+      used.add(widget.pin);
+    }
+    if (widget.echo_pin !== null && widget.echo_pin !== undefined) {
+      used.add(widget.echo_pin);
+    }
+  });
+  return used;
+};
+
+export const AddWidgetDialog = ({
+  open,
+  onOpenChange,
+  device,
+  type,
+  existingWidgets,
+  onWidgetAdded,
+}: AddWidgetDialogProps) => {
   const { toast } = useToast();
   const [label, setLabel] = useState('');
-  const [pin, setPin] = useState<number | undefined>();
-  const [gaugeType, setGaugeType] = useState('analog');
   const [overrideMode, setOverrideMode] = useState(false);
-  const [trigger, setTrigger] = useState('1');
+  const [gaugeType, setGaugeType] = useState<GaugeType>('analog');
+  const [pin, setPin] = useState<number | undefined>();
+  const [echoPin, setEchoPin] = useState<number | undefined>();
+  const [minValue, setMinValue] = useState<string>('0');
+  const [maxValue, setMaxValue] = useState<string>('0');
+  const [triggerEdge, setTriggerEdge] = useState<TriggerEdge>('rising');
   const [message, setMessage] = useState('');
+
+  const usedPins = useMemo(() => buildUsedPinSet(existingWidgets), [existingWidgets]);
 
   useEffect(() => {
     if (!open) return;
 
     setLabel('');
-    setPin(undefined);
-    setGaugeType('analog');
     setOverrideMode(false);
-    setTrigger('1');
+    setGaugeType('analog');
+    setPin(undefined);
+    setEchoPin(undefined);
+    const defaults = GAUGE_DEFAULTS['analog'];
+    setMinValue(String(defaults.min));
+    setMaxValue(String(defaults.max));
+    setTriggerEdge('rising');
     setMessage('');
   }, [open, type]);
 
   useEffect(() => {
     if (!open || type !== 'gauge') return;
+
+    const defaults = GAUGE_DEFAULTS[gaugeType];
+    setMinValue(String(defaults.min));
+    setMaxValue(String(defaults.max));
     setPin(undefined);
+    setEchoPin(undefined);
   }, [gaugeType, open, type]);
+
+  useEffect(() => {
+    if (!open || type !== 'switch') return;
+    if (overrideMode) {
+      setPin(undefined);
+    }
+  }, [overrideMode, open, type]);
+
+  const pinOptions = useMemo(() => {
+    if (type === 'alert') return [];
+
+    const sourcePins =
+      type === 'gauge'
+        ? gaugeType === 'analog'
+          ? ANALOG_PINS
+          : DIGITAL_PINS
+        : DIGITAL_PINS;
+
+    return sourcePins.map((gpio) => ({
+      value: gpio,
+      disabled: usedPins.has(gpio),
+    }));
+  }, [type, gaugeType, usedPins]);
+
+  const echoPinOptions = useMemo(() => {
+    if (type !== 'gauge' || gaugeType !== 'ultrasonic') return [];
+
+    return DIGITAL_PINS.map((gpio) => ({
+      value: gpio,
+      disabled: usedPins.has(gpio) || gpio === pin,
+    }));
+  }, [gaugeType, pin, type, usedPins]);
 
   const getNextAddress = () => {
     const prefix =
-      type === 'switch'
-        ? 'S'
-        : type === 'gauge'
-        ? 'G'
-        : type === 'servo'
-        ? 'SS'
-        : 'A';
-    const existing = existingWidgets.filter(w => w.type === type).map(w => w.address);
+      type === 'switch' ? 'S' : type === 'gauge' ? 'G' : type === 'servo' ? 'SS' : 'A';
+    const existing = existingWidgets.filter((w) => w.type === type).map((w) => w.address);
     let n = 1;
-    while (existing.includes(prefix + n)) n++;
-    return prefix + n;
+    while (existing.includes(`${prefix}${n}`)) n += 1;
+    return `${prefix}${n}`;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
 
     try {
-      const pinRequired =
-        (type === 'switch' && !overrideMode) ||
-        type === 'gauge' ||
-        type === 'servo' ||
-        type === 'alert';
-
-      if (pinRequired && pin === undefined && type !== 'switch') {
-        toast({ title: "GPIO pin required", description: "Select a GPIO pin before creating the widget", variant: "destructive" });
-        return;
-      }
-
-      const widgetData: any = {
+      const widgetData: Record<string, unknown> = {
         device_id: device.id,
         type,
-        label: label || `${type} widget`,
+        label: label.trim() || `${type} widget`,
         address: getNextAddress(),
       };
 
       if (type === 'switch') {
         if (!overrideMode && pin === undefined) {
-          toast({ title: "GPIO pin required", description: "Select a GPIO pin for the switch", variant: "destructive" });
+          toast({
+            title: 'GPIO pin required',
+            description: 'Select a GPIO pin for the switch',
+            variant: 'destructive',
+          });
           return;
         }
-        widgetData.pin = overrideMode ? null : pin;
+
+        widgetData.pin = overrideMode ? null : pin ?? null;
         widgetData.override_mode = overrideMode;
         widgetData.state = { value: 0 };
       }
 
       if (type === 'gauge') {
-        widgetData.pin = pin;
-        widgetData.state = { value: 0 };
-        widgetData.gauge_type = gaugeType;
-
-        if (gaugeType === 'pir') {
-          widgetData.min_value = 0;
-          widgetData.max_value = 1;
-        } else if (gaugeType === 'ds18b20') {
-          widgetData.min_value = -40;
-          widgetData.max_value = 125;
-        } else if (gaugeType === 'ultrasonic') {
-          widgetData.min_value = 0;
-          widgetData.max_value = 400;
-        } else {
-          widgetData.min_value = 0;
-          widgetData.max_value = 4095;
+        if (pin === undefined) {
+          toast({
+            title: 'GPIO pin required',
+            description: 'Select a GPIO pin for the gauge sensor',
+            variant: 'destructive',
+          });
+          return;
         }
+
+        if (gaugeType === 'ultrasonic' && echoPin === undefined) {
+          toast({
+            title: 'Echo pin required',
+            description: 'Select an echo GPIO pin for the ultrasonic sensor',
+            variant: 'destructive',
+          });
+          return;
+        }
+
+        const min = parseFloat(minValue);
+        const max = parseFloat(maxValue);
+
+        if (Number.isNaN(min) || Number.isNaN(max)) {
+          toast({
+            title: 'Invalid range',
+            description: 'Enter valid numbers for min and max values',
+            variant: 'destructive',
+          });
+          return;
+        }
+
+        if (min >= max) {
+          toast({
+            title: 'Invalid range',
+            description: 'Min value must be less than max value',
+            variant: 'destructive',
+          });
+          return;
+        }
+
+        widgetData.pin = pin;
+        widgetData.echo_pin = gaugeType === 'ultrasonic' ? echoPin ?? null : null;
+        widgetData.gauge_type = gaugeType;
+        widgetData.min_value = min;
+        widgetData.max_value = max;
+        widgetData.state = { value: 0 };
       }
 
       if (type === 'servo') {
+        if (pin === undefined) {
+          toast({
+            title: 'GPIO pin required',
+            description: 'Select a GPIO pin for the servo',
+            variant: 'destructive',
+          });
+          return;
+        }
+
         widgetData.pin = pin;
         widgetData.state = { angle: 90 };
       }
 
       if (type === 'alert') {
-        widgetData.pin = pin;
-        widgetData.trigger = parseInt(trigger);
+        widgetData.trigger = triggerEdge === 'rising' ? 1 : 0;
         widgetData.message = message;
         widgetData.state = { triggered: false, lastTrigger: null };
       }
@@ -129,9 +236,10 @@ export const AddWidgetDialog = ({ open, onOpenChange, device, type, existingWidg
 
       onWidgetAdded();
       onOpenChange(false);
-      toast({ title: "Widget added successfully" });
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({ title: 'Widget added successfully' });
+    } catch (error: unknown) {
+      const description = error instanceof Error ? error.message : 'Failed to add widget';
+      toast({ title: 'Error', description, variant: 'destructive' });
     }
   };
 
@@ -142,32 +250,30 @@ export const AddWidgetDialog = ({ open, onOpenChange, device, type, existingWidg
           <DialogTitle>Add {type} Widget</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
+          <div className="space-y-2">
             <Label>Label</Label>
-            <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder={`${type} widget`} />
+            <Input value={label} onChange={(event) => setLabel(event.target.value)} placeholder={`${type} widget`} />
           </div>
-          
+
           {type === 'switch' && (
-            <div>
+            <div className="space-y-2">
               <Label>Override Mode</Label>
-              <Select value={overrideMode ? 'true' : 'false'} onValueChange={(v) => setOverrideMode(v === 'true')}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select mode" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="false">Physical (requires GPIO)</SelectItem>
-                  <SelectItem value="true">Override only</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex items-center justify-between rounded-md border border-border p-3">
+                <div>
+                  <p className="text-sm font-medium">Use dashboard override only</p>
+                  <p className="text-xs text-muted-foreground">Disable GPIO control and only send software toggles.</p>
+                </div>
+                <Toggle checked={overrideMode} onCheckedChange={setOverrideMode} />
+              </div>
             </div>
           )}
 
           {type === 'gauge' && (
-            <div>
+            <div className="space-y-2">
               <Label>Sensor Type</Label>
-              <Select value={gaugeType} onValueChange={setGaugeType}>
+              <Select value={gaugeType} onValueChange={(value) => setGaugeType(value as GaugeType)}>
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Select sensor" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="analog">Analog</SelectItem>
@@ -179,57 +285,86 @@ export const AddWidgetDialog = ({ open, onOpenChange, device, type, existingWidg
             </div>
           )}
 
-          {(type !== 'switch' || !overrideMode) && type !== 'alert' ? (
-            <div>
-              <Label>GPIO Pin</Label>
-              <Select value={pin !== undefined ? String(pin) : undefined} onValueChange={(v) => setPin(parseInt(v))}>
+          {(type !== 'switch' || !overrideMode) && type !== 'alert' && (
+            <div className="space-y-2">
+              <Label>{type === 'gauge' && gaugeType === 'ultrasonic' ? 'Trig GPIO Pin' : 'GPIO Pin'}</Label>
+              <Select
+                value={pin !== undefined ? String(pin) : undefined}
+                onValueChange={(value) => setPin(parseInt(value, 10))}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select pin" />
                 </SelectTrigger>
                 <SelectContent>
-                  {(type === 'gauge' && gaugeType === 'analog' ? ANALOG_PINS : SWITCH_PINS).map(p => (
-                    <SelectItem key={p} value={p.toString()}>{p}</SelectItem>
+                  {pinOptions.map((option) => (
+                    <SelectItem key={option.value} value={String(option.value)} disabled={option.disabled}>
+                      GPIO {option.value}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-          ) : null}
-
-          {type === 'alert' && (
-            <>
-              <div>
-                <Label>GPIO Pin</Label>
-                <Select value={pin !== undefined ? String(pin) : undefined} onValueChange={(v) => setPin(parseInt(v))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select pin" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ALL_PINS.map(p => (
-                      <SelectItem key={p} value={p.toString()}>{p}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Trigger</Label>
-                <Select value={trigger} onValueChange={setTrigger}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1">HIGH</SelectItem>
-                    <SelectItem value="0">LOW</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Message</Label>
-                <Input value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Alert message" />
-              </div>
-            </>
           )}
 
-          <Button type="submit">Add Widget</Button>
+          {type === 'gauge' && gaugeType === 'ultrasonic' && (
+            <div className="space-y-2">
+              <Label>Echo GPIO Pin</Label>
+              <Select
+                value={echoPin !== undefined ? String(echoPin) : undefined}
+                onValueChange={(value) => setEchoPin(parseInt(value, 10))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select echo pin" />
+                </SelectTrigger>
+                <SelectContent>
+                  {echoPinOptions.map((option) => (
+                    <SelectItem key={option.value} value={String(option.value)} disabled={option.disabled}>
+                      GPIO {option.value}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {type === 'gauge' && (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Min Value</Label>
+                <Input type="number" value={minValue} onChange={(event) => setMinValue(event.target.value)} step="any" />
+              </div>
+              <div className="space-y-2">
+                <Label>Max Value</Label>
+                <Input type="number" value={maxValue} onChange={(event) => setMaxValue(event.target.value)} step="any" />
+              </div>
+            </div>
+          )}
+
+          {type === 'alert' && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Trigger Edge</Label>
+                <Select value={triggerEdge} onValueChange={(value) => setTriggerEdge(value as TriggerEdge)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select trigger" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="rising">Rising</SelectItem>
+                    <SelectItem value="falling">Falling</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Message</Label>
+                <Input value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Alert message" />
+              </div>
+            </div>
+          )}
+
+          <Button type="submit" className="w-full">
+            Add Widget
+          </Button>
         </form>
       </DialogContent>
     </Dialog>
