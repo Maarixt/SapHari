@@ -1,21 +1,26 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { Widget } from '@/lib/types';
 
 interface EditWidgetDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  widget: any;
-  onUpdate: (updates: any) => void;
+  widget: Widget;
+  onUpdate: (updates: Partial<Widget>) => void;
 }
 
 export const EditWidgetDialog = ({ open, onOpenChange, widget, onUpdate }: EditWidgetDialogProps) => {
   const { toast } = useToast();
   const [label, setLabel] = useState(widget.label);
+
+  useEffect(() => {
+    setLabel(widget.label);
+  }, [widget.label]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,8 +36,10 @@ export const EditWidgetDialog = ({ open, onOpenChange, widget, onUpdate }: EditW
       onUpdate({ label });
       onOpenChange(false);
       toast({ title: "Widget updated" });
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } catch (error: unknown) {
+      console.error('Error updating widget label:', error);
+      const description = error instanceof Error ? error.message : 'Failed to update widget';
+      toast({ title: "Error", description, variant: "destructive" });
     }
   };
 

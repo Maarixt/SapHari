@@ -21,7 +21,7 @@ interface DeviceViewProps {
 
 export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
   const { toast } = useToast();
-  const { publishMessage, onMessage } = useMQTT();
+  const { onMessage } = useMQTT();
   const [widgets, setWidgets] = useState<Widget[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddWidget, setShowAddWidget] = useState(false);
@@ -32,8 +32,13 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
   // For now, assume owner role - this will be properly implemented when DeviceView gets role info
   const userRole = 'owner';
 
+  useEffect(() => {
+    setDeviceOnline(device.online);
+  }, [device.online]);
+
   const loadWidgets = async () => {
     try {
+      setLoading(true);
       const { data, error } = await supabase
         .from('widgets')
         .select('*')
@@ -69,18 +74,51 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
       const address = parts[3];
 
       if (category === 'sensor') {
-        const value = parseFloat(message);
-        if (!isNaN(value)) {
-          setWidgets(prev => prev.map(widget => {
-            if (widget.address === address) {
-              return {
-                ...widget,
-                state: { ...widget.state, value }
-              };
+        setWidgets((prev) => {
+          const target = prev.find((widget) => widget.address === address);
+          if (!target) return prev;
+
+          const trimmed = message.trim();
+          const numericValue = Number(trimmed);
+          const isNumeric = !Number.isNaN(numericValue);
+          const nextState = { ...target.state };
+
+          if (target.type === 'alert') {
+            const triggered = trimmed === '1' || trimmed.toLowerCase() === 'true';
+            if (triggered === Boolean(target.state?.triggered)) {
+              return prev;
             }
-            return widget;
-          }));
-        }
+            nextState.triggered = triggered;
+            nextState.lastTrigger = triggered ? new Date().toISOString() : target.state?.lastTrigger;
+          } else if (target.type === 'servo') {
+            if (!isNumeric) return prev;
+            if (target.state?.angle === numericValue) return prev;
+            nextState.angle = numericValue;
+          } else {
+            if (!isNumeric) return prev;
+            if (target.state?.value === numericValue) return prev;
+            nextState.value = numericValue;
+          }
+
+          supabase
+            .from('widgets')
+            .update({ state: nextState })
+            .eq('id', target.id)
+            .then(({ error }) => {
+              if (error) {
+                console.error('Error persisting widget state:', error);
+              }
+            });
+
+          return prev.map((widget) =>
+            widget.id === target.id
+              ? {
+                  ...widget,
+                  state: nextState,
+                }
+              : widget
+          );
+        });
       } else if (category === 'status' && address === 'online') {
         const online = message === '1';
         setDeviceOnline(online);

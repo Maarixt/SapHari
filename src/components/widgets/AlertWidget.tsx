@@ -20,6 +20,7 @@ export const AlertWidget = ({ widget, onUpdate, onDelete }: AlertWidgetProps) =>
 
   const isTriggered = widget.state?.triggered || false;
   const lastTrigger = widget.state?.lastTrigger;
+  const triggerLabel = widget.trigger === 1 ? 'Rising' : widget.trigger === 0 ? 'Falling' : undefined;
 
   const handleEdit = () => {
     setShowEditDialog(true);
@@ -40,19 +41,37 @@ export const AlertWidget = ({ widget, onUpdate, onDelete }: AlertWidgetProps) =>
         title: "Widget deleted",
         description: "Alert widget has been removed"
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      console.error('Error deleting alert widget:', error);
+      const description = error instanceof Error ? error.message : 'Failed to delete widget';
       toast({
         title: "Error",
-        description: error.message,
+        description,
         variant: "destructive"
       });
     }
   };
 
   const handleAcknowledge = () => {
+    const updatedState = { ...widget.state, triggered: false };
     onUpdate({
-      state: { ...widget.state, triggered: false }
+      state: updatedState
     });
+
+    supabase
+      .from('widgets')
+      .update({ state: updatedState })
+      .eq('id', widget.id)
+      .then(({ error }) => {
+        if (error) {
+          console.error('Error acknowledging alert:', error);
+          toast({
+            title: "Error",
+            description: "Failed to acknowledge alert",
+            variant: "destructive"
+          });
+        }
+      });
   };
 
   return (
@@ -116,12 +135,18 @@ export const AlertWidget = ({ widget, onUpdate, onDelete }: AlertWidgetProps) =>
               </div>
             )}
             
-            <div className="text-xs text-iot-muted text-center space-x-2">
+            <div className="text-xs text-iot-muted text-center flex flex-wrap justify-center gap-x-2 gap-y-1">
               <span>{widget.address}</span>
-              {widget.trigger && (
+              {typeof widget.pin === 'number' && (
                 <>
                   <span>•</span>
-                  <span>Trigger: {widget.trigger}</span>
+                  <span>GPIO {widget.pin}</span>
+                </>
+              )}
+              {triggerLabel && (
+                <>
+                  <span>•</span>
+                  <span>Trigger: {triggerLabel}</span>
                 </>
               )}
             </div>

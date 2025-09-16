@@ -18,6 +18,7 @@ export const GaugeWidget = ({ widget, device, onUpdate, onDelete }: GaugeWidgetP
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { toast } = useToast();
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const gaugeTypeLabel = (widget.gauge_type || 'analog').toUpperCase();
 
   const drawGauge = (value: number) => {
     const canvas = canvasRef.current;
@@ -94,10 +95,12 @@ export const GaugeWidget = ({ widget, device, onUpdate, onDelete }: GaugeWidgetP
         title: "Widget deleted",
         description: "Gauge widget has been removed"
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      console.error('Error deleting gauge widget:', error);
+      const description = error instanceof Error ? error.message : 'Failed to delete widget';
       toast({
         title: "Error",
-        description: error.message,
+        description,
         variant: "destructive"
       });
     }
@@ -135,14 +138,20 @@ export const GaugeWidget = ({ widget, device, onUpdate, onDelete }: GaugeWidgetP
               height={80}
               className="border border-iot-border rounded"
             />
-            <div className="text-xs text-iot-muted space-x-2">
+            <div className="text-xs text-iot-muted flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
               <span>{widget.address}</span>
               <span>•</span>
-              <span>{widget.gauge_type}</span>
-              {widget.pin && (
+              <span>{gaugeTypeLabel}</span>
+              {widget.pin !== null && widget.pin !== undefined && (
                 <>
                   <span>•</span>
                   <span>GPIO {widget.pin}</span>
+                </>
+              )}
+              {widget.echo_pin !== null && widget.echo_pin !== undefined && (
+                <>
+                  <span>•</span>
+                  <span>Echo GPIO {widget.echo_pin}</span>
                 </>
               )}
             </div>
