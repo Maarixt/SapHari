@@ -50,9 +50,25 @@ export const AlertWidget = ({ widget, onUpdate, onDelete }: AlertWidgetProps) =>
   };
 
   const handleAcknowledge = () => {
+    const updatedState = { ...widget.state, triggered: false };
     onUpdate({
-      state: { ...widget.state, triggered: false }
+      state: updatedState
     });
+
+    supabase
+      .from('widgets')
+      .update({ state: updatedState })
+      .eq('id', widget.id)
+      .then(({ error }) => {
+        if (error) {
+          console.error('Error acknowledging alert:', error);
+          toast({
+            title: "Error",
+            description: "Failed to acknowledge alert",
+            variant: "destructive"
+          });
+        }
+      });
   };
 
   return (

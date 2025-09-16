@@ -25,10 +25,11 @@ export const ServoWidget = ({ widget, device, onUpdate, onDelete }: ServoWidgetP
 
   const handleAngleChange = (value: number[]) => {
     const newAngle = value[0];
-    
+    const updatedState = { ...widget.state, angle: newAngle };
+
     // Update local state immediately
     onUpdate({
-      state: { ...widget.state, angle: newAngle }
+      state: updatedState
     });
 
     // Publish MQTT command
@@ -39,8 +40,23 @@ export const ServoWidget = ({ widget, device, onUpdate, onDelete }: ServoWidgetP
       angle: newAngle,
       key: device.device_key
     });
-    
+
     publishMessage(topic, payload);
+
+    supabase
+      .from('widgets')
+      .update({ state: updatedState })
+      .eq('id', widget.id)
+      .then(({ error }) => {
+        if (error) {
+          console.error('Error saving servo angle:', error);
+          toast({
+            title: "Error",
+            description: "Failed to persist servo angle",
+            variant: "destructive"
+          });
+        }
+      });
   };
 
   const handleEdit = () => {

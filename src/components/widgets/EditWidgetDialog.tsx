@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,6 +16,10 @@ interface EditWidgetDialogProps {
 export const EditWidgetDialog = ({ open, onOpenChange, widget, onUpdate }: EditWidgetDialogProps) => {
   const { toast } = useToast();
   const [label, setLabel] = useState(widget.label);
+
+  useEffect(() => {
+    setLabel(widget.label);
+  }, [widget.label]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
