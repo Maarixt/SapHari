@@ -1,8 +1,8 @@
 import { LoginForm } from '@/components/auth/LoginForm';
 import { useAuth } from '@/hooks/useAuth';
-import { Navigate, useLocation, Location } from 'react-router-dom';
+import { Navigate, useLocation, type Location } from 'react-router-dom';
 
-const Login = () => {
+const Signup = () => {
   const { user } = useAuth();
   const location = useLocation();
   const state = location.state as { from?: Location } | undefined;
@@ -12,7 +12,7 @@ const Login = () => {
     return <Navigate to={from} replace />;
   }
 
-  return <LoginForm />;
+  return <LoginForm initialMode="signup" />;
 };
 
-export default Login;
+export default Signup;
