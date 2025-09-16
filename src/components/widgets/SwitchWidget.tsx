@@ -84,6 +84,8 @@ export const SwitchWidget = ({ widget, device, onUpdate, onDelete }: SwitchWidge
   };
 
   const handleDelete = async () => {
+    if (!confirm('Delete this switch widget?')) return;
+
     try {
       const { error } = await supabase
         .from('widgets')
@@ -92,6 +94,10 @@ export const SwitchWidget = ({ widget, device, onUpdate, onDelete }: SwitchWidge
 
       if (error) throw error;
       onDelete();
+      toast({
+        title: "Widget deleted",
+        description: "Switch widget has been removed"
+      });
     } catch (error) {
       console.error('Error deleting widget:', error);
       toast({

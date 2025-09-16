@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -29,6 +29,22 @@ export const AddWidgetDialog = ({ open, onOpenChange, device, type, existingWidg
   const [trigger, setTrigger] = useState('1');
   const [message, setMessage] = useState('');
 
+  useEffect(() => {
+    if (!open) return;
+
+    setLabel('');
+    setPin(undefined);
+    setGaugeType('analog');
+    setOverrideMode(false);
+    setTrigger('1');
+    setMessage('');
+  }, [open, type]);
+
+  useEffect(() => {
+    if (!open || type !== 'gauge') return;
+    setPin(undefined);
+  }, [gaugeType, open, type]);
+
   const getNextAddress = () => {
     const prefix =
       type === 'switch'
@@ -46,8 +62,19 @@ export const AddWidgetDialog = ({ open, onOpenChange, device, type, existingWidg
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     try {
+      const pinRequired =
+        (type === 'switch' && !overrideMode) ||
+        type === 'gauge' ||
+        type === 'servo' ||
+        type === 'alert';
+
+      if (pinRequired && pin === undefined && type !== 'switch') {
+        toast({ title: "GPIO pin required", description: "Select a GPIO pin before creating the widget", variant: "destructive" });
+        return;
+      }
+
       const widgetData: any = {
         device_id: device.id,
         type,
@@ -56,6 +83,10 @@ export const AddWidgetDialog = ({ open, onOpenChange, device, type, existingWidg
       };
 
       if (type === 'switch') {
+        if (!overrideMode && pin === undefined) {
+          toast({ title: "GPIO pin required", description: "Select a GPIO pin for the switch", variant: "destructive" });
+          return;
+        }
         widgetData.pin = overrideMode ? null : pin;
         widgetData.override_mode = overrideMode;
         widgetData.state = { value: 0 };
@@ -65,8 +96,20 @@ export const AddWidgetDialog = ({ open, onOpenChange, device, type, existingWidg
         widgetData.pin = pin;
         widgetData.state = { value: 0 };
         widgetData.gauge_type = gaugeType;
-        widgetData.min_value = 0;
-        widgetData.max_value = gaugeType === 'analog' ? 4095 : 100;
+
+        if (gaugeType === 'pir') {
+          widgetData.min_value = 0;
+          widgetData.max_value = 1;
+        } else if (gaugeType === 'ds18b20') {
+          widgetData.min_value = -40;
+          widgetData.max_value = 125;
+        } else if (gaugeType === 'ultrasonic') {
+          widgetData.min_value = 0;
+          widgetData.max_value = 400;
+        } else {
+          widgetData.min_value = 0;
+          widgetData.max_value = 4095;
+        }
       }
 
       if (type === 'servo') {
@@ -78,12 +121,14 @@ export const AddWidgetDialog = ({ open, onOpenChange, device, type, existingWidg
         widgetData.pin = pin;
         widgetData.trigger = parseInt(trigger);
         widgetData.message = message;
+        widgetData.state = { triggered: false, lastTrigger: null };
       }
 
       const { error } = await supabase.from('widgets').insert(widgetData);
       if (error) throw error;
 
       onWidgetAdded();
+      onOpenChange(false);
       toast({ title: "Widget added successfully" });
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -105,7 +150,7 @@ export const AddWidgetDialog = ({ open, onOpenChange, device, type, existingWidg
           {type === 'switch' && (
             <div>
               <Label>Override Mode</Label>
-              <Select onValueChange={(v) => setOverrideMode(v === 'true')}>
+              <Select value={overrideMode ? 'true' : 'false'} onValueChange={(v) => setOverrideMode(v === 'true')}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select mode" />
                 </SelectTrigger>
@@ -120,7 +165,7 @@ export const AddWidgetDialog = ({ open, onOpenChange, device, type, existingWidg
           {type === 'gauge' && (
             <div>
               <Label>Sensor Type</Label>
-              <Select onValueChange={setGaugeType} defaultValue="analog">
+              <Select value={gaugeType} onValueChange={setGaugeType}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -137,7 +182,7 @@ export const AddWidgetDialog = ({ open, onOpenChange, device, type, existingWidg
           {(type !== 'switch' || !overrideMode) && type !== 'alert' ? (
             <div>
               <Label>GPIO Pin</Label>
-              <Select onValueChange={(v) => setPin(parseInt(v))}>
+              <Select value={pin !== undefined ? String(pin) : undefined} onValueChange={(v) => setPin(parseInt(v))}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select pin" />
                 </SelectTrigger>
@@ -154,7 +199,7 @@ export const AddWidgetDialog = ({ open, onOpenChange, device, type, existingWidg
             <>
               <div>
                 <Label>GPIO Pin</Label>
-                <Select onValueChange={(v) => setPin(parseInt(v))}>
+                <Select value={pin !== undefined ? String(pin) : undefined} onValueChange={(v) => setPin(parseInt(v))}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select pin" />
                   </SelectTrigger>
@@ -167,7 +212,7 @@ export const AddWidgetDialog = ({ open, onOpenChange, device, type, existingWidg
               </div>
               <div>
                 <Label>Trigger</Label>
-                <Select onValueChange={setTrigger} defaultValue="1">
+                <Select value={trigger} onValueChange={setTrigger}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
