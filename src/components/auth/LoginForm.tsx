@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -6,13 +7,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 
-export const LoginForm = () => {
+interface LoginFormProps {
+  initialMode?: 'login' | 'signup';
+}
+
+export const LoginForm = ({ initialMode = 'login' }: LoginFormProps) => {
   const { login, signup } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(initialMode === 'signup');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+
+  useEffect(() => {
+    setIsSignUp(initialMode === 'signup');
+  }, [initialMode]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,7 +94,10 @@ export const LoginForm = () => {
           <div className="mt-4 text-center">
             <Button
               variant="link"
-              onClick={() => setIsSignUp(!isSignUp)}
+              onClick={() => {
+                if (isLoading) return;
+                navigate(isSignUp ? '/login' : '/signup');
+              }}
               disabled={isLoading}
             >
               {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
