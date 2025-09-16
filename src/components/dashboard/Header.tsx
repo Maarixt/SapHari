@@ -3,7 +3,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useMQTT } from '@/hooks/useMQTT';
 import { useAuth } from '@/hooks/useAuth';
-import { useNavigate } from 'react-router-dom';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,16 +20,6 @@ interface HeaderProps {
 export const Header = ({ onSettingsClick, onNotificationsClick, unreadAlerts, onAlertRulesClick }: HeaderProps) => {
   const { status } = useMQTT();
   const { signOut } = useAuth();
-  const navigate = useNavigate();
-
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-      navigate('/login', { replace: true });
-    } catch (error) {
-      console.error('Sign out failed:', error);
-    }
-  };
 
   const getStatusColor = () => {
     switch (status) {
@@ -95,13 +84,12 @@ export const Header = ({ onSettingsClick, onNotificationsClick, unreadAlerts, on
               <DropdownMenuItem onClick={onSettingsClick}>
                 MQTT Settings
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={signOut}>
+                <LogOut className="mr-2 h-4 w-4" />
+                Sign Out
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-
-          <Button variant="outline" onClick={handleSignOut}>
-            <LogOut className="mr-2 h-4 w-4" />
-            Sign Out
-          </Button>
         </div>
       </div>
     </header>
