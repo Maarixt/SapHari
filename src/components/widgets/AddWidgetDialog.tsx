@@ -111,9 +111,11 @@ export const AddWidgetDialog = ({
           : DIGITAL_PINS
         : DIGITAL_PINS;
 
+    const allowUsedPins = type === 'alert';
+
     return sourcePins.map((gpio) => ({
       value: gpio,
-      disabled: usedPins.has(gpio),
+      disabled: allowUsedPins ? false : usedPins.has(gpio),
     }));
   }, [type, gaugeType, usedPins]);
 
