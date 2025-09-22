@@ -1,4 +1,4 @@
-import { LoginForm } from '@/components/auth/LoginForm';
+import { SignupForm } from '@/components/auth/SignupForm';
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate, useLocation, type Location } from 'react-router-dom';
 import { FullPageLoader } from '@/components/ui/FullPageLoader';
@@ -14,7 +14,7 @@ const Signup = () => {
     return <Navigate to={from} replace />;
   }
 
-  return <LoginForm initialMode="signup" />;
+  return <SignupForm />;
 };
 
 export default Signup;
