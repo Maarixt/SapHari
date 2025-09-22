@@ -138,9 +138,17 @@ export const EditWidgetDialog = ({ open, onOpenChange, widget, allWidgets, onUpd
           : DIGITAL_PINS
         : DIGITAL_PINS;
 
+    const shouldDisable = (gpio: number) => {
+      if (widget.type === 'alert') {
+        return false;
+      }
+
+      return usedPins.has(gpio) && gpio !== pin;
+    };
+
     return allowedPins.map((gpio) => ({
       value: gpio,
-      disabled: usedPins.has(gpio) && gpio !== pin,
+      disabled: shouldDisable(gpio),
     }));
   }, [gaugeType, pin, usedPins, widget.type]);
 
