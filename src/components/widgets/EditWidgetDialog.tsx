@@ -16,7 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Widget } from '@/lib/types';
 
 type GaugeType = 'analog' | 'pir' | 'ds18b20' | 'ultrasonic';
-type TriggerLevel = 'high' | 'low';
+type TriggerEdge = 'rising' | 'falling';
 
 const DIGITAL_PINS = [2, 4, 5, 12, 13, 14, 15, 16, 17, 18, 19, 21, 22, 23, 25, 26, 27, 32, 33];
 const ANALOG_PINS = [32, 33, 34, 35, 36, 39];
@@ -67,7 +67,7 @@ export const EditWidgetDialog = ({ open, onOpenChange, widget, allWidgets, onUpd
       ? String(widget.max_value)
       : String(GAUGE_DEFAULTS[gaugeType].max)
   );
-  const [triggerLevel, setTriggerLevel] = useState<TriggerLevel>(widget.trigger === 0 ? 'low' : 'high');
+  const [triggerEdge, setTriggerEdge] = useState<TriggerEdge>(widget.trigger === 0 ? 'falling' : 'rising');
   const [message, setMessage] = useState(widget.message || '');
 
   const usedPins = useMemo(() => buildUsedPinSet(allWidgets, widget.id), [allWidgets, widget.id]);
@@ -92,7 +92,7 @@ export const EditWidgetDialog = ({ open, onOpenChange, widget, allWidgets, onUpd
         ? String(widget.max_value)
         : String(GAUGE_DEFAULTS[initialGaugeType].max)
     );
-    setTriggerLevel(widget.trigger === 0 ? 'low' : 'high');
+    setTriggerEdge(widget.trigger === 0 ? 'falling' : 'rising');
     setMessage(widget.message || '');
     previousGaugeType.current = initialGaugeType;
   }, [open, widget]);
@@ -131,6 +131,8 @@ export const EditWidgetDialog = ({ open, onOpenChange, widget, allWidgets, onUpd
   }, [gaugeType, open, widget.type]);
 
   const pinOptions = useMemo(() => {
+    if (widget.type === 'alert') return [];
+
     const allowedPins =
       widget.type === 'gauge'
         ? gaugeType === 'analog'
@@ -245,21 +247,10 @@ export const EditWidgetDialog = ({ open, onOpenChange, widget, allWidgets, onUpd
       }
 
       if (widget.type === 'alert') {
-        if (pin === undefined) {
-          toast({
-            title: 'GPIO pin required',
-            description: 'Select a GPIO pin for the alert trigger',
-            variant: 'destructive',
-          });
-          return;
-        }
-
-        updates.pin = pin;
-        updates.trigger = triggerLevel === 'high' ? 1 : 0;
+        updates.trigger = triggerEdge === 'rising' ? 1 : 0;
         updates.message = message;
 
-        localUpdates.pin = pin;
-        localUpdates.trigger = triggerLevel === 'high' ? 1 : 0;
+        localUpdates.trigger = triggerEdge === 'rising' ? 1 : 0;
         localUpdates.message = message;
       }
 
@@ -409,33 +400,14 @@ export const EditWidgetDialog = ({ open, onOpenChange, widget, allWidgets, onUpd
           {widget.type === 'alert' && (
             <>
               <div className="space-y-2">
-                <Label>GPIO Pin</Label>
-                <Select
-                  value={pin !== undefined ? String(pin) : undefined}
-                  onValueChange={(value) => setPin(parseInt(value, 10))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select pin" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {pinOptions.map((option) => (
-                      <SelectItem key={option.value} value={String(option.value)} disabled={option.disabled}>
-                        GPIO {option.value}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Trigger Level</Label>
-                <Select value={triggerLevel} onValueChange={(value) => setTriggerLevel(value as TriggerLevel)}>
+                <Label>Trigger Edge</Label>
+                <Select value={triggerEdge} onValueChange={(value) => setTriggerEdge(value as TriggerEdge)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select trigger" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="high">High</SelectItem>
-                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="rising">Rising</SelectItem>
+                    <SelectItem value="falling">Falling</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

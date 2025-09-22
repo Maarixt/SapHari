@@ -16,7 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Device, Widget } from '@/lib/types';
 
 type GaugeType = 'analog' | 'pir' | 'ds18b20' | 'ultrasonic';
-type TriggerLevel = 'high' | 'low';
+type TriggerEdge = 'rising' | 'falling';
 
 const DIGITAL_PINS = [2, 4, 5, 12, 13, 14, 15, 16, 17, 18, 19, 21, 22, 23, 25, 26, 27, 32, 33];
 const ANALOG_PINS = [32, 33, 34, 35, 36, 39];
@@ -66,7 +66,7 @@ export const AddWidgetDialog = ({
   const [echoPin, setEchoPin] = useState<number | undefined>();
   const [minValue, setMinValue] = useState<string>('0');
   const [maxValue, setMaxValue] = useState<string>('0');
-  const [triggerLevel, setTriggerLevel] = useState<TriggerLevel>('high');
+  const [triggerEdge, setTriggerEdge] = useState<TriggerEdge>('rising');
   const [message, setMessage] = useState('');
 
   const usedPins = useMemo(() => buildUsedPinSet(existingWidgets), [existingWidgets]);
@@ -82,7 +82,7 @@ export const AddWidgetDialog = ({
     const defaults = GAUGE_DEFAULTS['analog'];
     setMinValue(String(defaults.min));
     setMaxValue(String(defaults.max));
-    setTriggerLevel('high');
+    setTriggerEdge('rising');
     setMessage('');
   }, [open, type]);
 
@@ -104,6 +104,8 @@ export const AddWidgetDialog = ({
   }, [overrideMode, open, type]);
 
   const pinOptions = useMemo(() => {
+    if (type === 'alert') return [];
+
     const sourcePins =
       type === 'gauge'
         ? gaugeType === 'analog'
@@ -224,17 +226,7 @@ export const AddWidgetDialog = ({
       }
 
       if (type === 'alert') {
-        if (pin === undefined) {
-          toast({
-            title: 'GPIO pin required',
-            description: 'Select a GPIO pin for the alert trigger',
-            variant: 'destructive',
-          });
-          return;
-        }
-
-        widgetData.pin = pin;
-        widgetData.trigger = triggerLevel === 'high' ? 1 : 0;
+        widgetData.trigger = triggerEdge === 'rising' ? 1 : 0;
         widgetData.message = message;
         widgetData.state = { triggered: false, lastTrigger: null };
       }
@@ -314,27 +306,6 @@ export const AddWidgetDialog = ({
             </div>
           )}
 
-          {type === 'alert' && (
-            <div className="space-y-2">
-              <Label>GPIO Pin</Label>
-              <Select
-                value={pin !== undefined ? String(pin) : undefined}
-                onValueChange={(value) => setPin(parseInt(value, 10))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select pin" />
-                </SelectTrigger>
-                <SelectContent>
-                  {pinOptions.map((option) => (
-                    <SelectItem key={option.value} value={String(option.value)} disabled={option.disabled}>
-                      GPIO {option.value}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
           {type === 'gauge' && gaugeType === 'ultrasonic' && (
             <div className="space-y-2">
               <Label>Echo GPIO Pin</Label>
@@ -372,14 +343,14 @@ export const AddWidgetDialog = ({
           {type === 'alert' && (
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label>Trigger Level</Label>
-                <Select value={triggerLevel} onValueChange={(value) => setTriggerLevel(value as TriggerLevel)}>
+                <Label>Trigger Edge</Label>
+                <Select value={triggerEdge} onValueChange={(value) => setTriggerEdge(value as TriggerEdge)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select trigger" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="high">High</SelectItem>
-                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="rising">Rising</SelectItem>
+                    <SelectItem value="falling">Falling</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
