@@ -12,7 +12,6 @@ interface CodeSnippetDialogProps {
 }
 
 const sanitizeMessage = (message: string) => message.replace(/"/g, '\\"');
-const formatTriggerLevel = (trigger?: number | null) => ((trigger ?? 1) === 0 ? 'LOW' : 'HIGH');
 
 const getSwitchState = (widget: Widget) => {
   const raw = widget.state?.['value'];
@@ -72,7 +71,7 @@ export const CodeSnippetDialog = ({ open, onOpenChange, device, widgets }: CodeS
     const alerts = widgets
       .filter((w) => w.type === 'alert')
       .map((w) =>
-        `{ "${w.address}", ${w.pin ?? -1}, "${formatTriggerLevel(w.trigger)}", "${sanitizeMessage(w.message || '')}" }`
+        `{ "${w.address}", ${w.trigger ?? 1}, "${sanitizeMessage(w.message || '')}" }`
       )
       .join(',\n  ');
 
