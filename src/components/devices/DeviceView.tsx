@@ -84,10 +84,28 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
           const nextState = { ...(target.state ?? {}) };
 
           if (target.type === 'alert') {
-            const triggered = trimmed === '1' || trimmed.toLowerCase() === 'true';
+            const lowered = trimmed.toLowerCase();
+            let digitalValue: boolean | null = null;
+
+            if (!Number.isNaN(numericValue)) {
+              digitalValue = numericValue !== 0;
+            } else if (['true', 'high', 'on', '1'].includes(lowered)) {
+              digitalValue = true;
+            } else if (['false', 'low', 'off', '0'].includes(lowered)) {
+              digitalValue = false;
+            }
+
+            if (digitalValue === null) {
+              return prev;
+            }
+
+            const expectHigh = (target.trigger ?? 1) !== 0;
+            const triggered = expectHigh ? digitalValue : !digitalValue;
+
             if (triggered === Boolean(target.state?.triggered)) {
               return prev;
             }
+
             nextState.triggered = triggered;
             nextState.lastTrigger = triggered ? new Date().toISOString() : target.state?.lastTrigger;
           } else if (target.type === 'servo') {
