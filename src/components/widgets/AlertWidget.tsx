@@ -21,6 +21,9 @@ export const AlertWidget = ({ widget, allWidgets, onUpdate, onDelete }: AlertWid
 
   const isTriggered = widget.state?.triggered || false;
   const lastTrigger = widget.state?.lastTrigger;
+  const triggerLabel = widget.trigger === 0 ? 'Low' : 'High';
+  const pinLabel = widget.pin !== null && widget.pin !== undefined ? `GPIO ${widget.pin}` : null;
+  const metaItems = [widget.address, pinLabel, `Trigger: ${triggerLabel}`].filter(Boolean).map(String);
 
   const handleEdit = () => {
     setShowEditDialog(true);
@@ -133,15 +136,9 @@ export const AlertWidget = ({ widget, allWidgets, onUpdate, onDelete }: AlertWid
               </div>
             )}
             
-            <div className="text-xs text-iot-muted text-center space-x-2">
-              <span>{widget.address}</span>
-              {widget.trigger !== null && widget.trigger !== undefined && (
-                <>
-                  <span>•</span>
-                  <span>Trigger: {widget.trigger === 0 ? 'Falling' : 'Rising'}</span>
-                </>
-              )}
-            </div>
+            {metaItems.length > 0 && (
+              <div className="text-xs text-iot-muted text-center">{metaItems.join(' • ')}</div>
+            )}
           </div>
         </CardContent>
       </Card>
