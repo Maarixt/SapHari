@@ -2,18 +2,12 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
-export interface SignupProfile {
-  firstName?: string;
-  lastName?: string;
-  company?: string;
-}
-
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  signup: (email: string, password: string, profile?: SignupProfile) => Promise<void>;
+  signup: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -58,33 +52,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     if (error) throw error;
   };
 
-  const signup = async (email: string, password: string, profile: SignupProfile = {}) => {
+  const signup = async (email: string, password: string) => {
     const redirectUrl = `${window.location.origin}/`;
-    const displayName = [profile.firstName, profile.lastName]
-      .filter(Boolean)
-      .join(' ')
-      .trim() || profile.company || email.split('@')[0];
-
-    const metadata: Record<string, string | undefined> = {
-      display_name: displayName,
-      first_name: profile.firstName?.trim(),
-      last_name: profile.lastName?.trim(),
-      company: profile.company?.trim(),
-    };
-
-    const sanitizedMetadata = Object.fromEntries(
-      Object.entries(metadata).filter(([, value]) => Boolean(value))
-    ) as Record<string, string>;
-
+    
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         emailRedirectTo: redirectUrl,
-        data: sanitizedMetadata,
-      },
+        data: {
+          display_name: email.split('@')[0]
+        }
+      }
     });
-
+    
     if (error) throw error;
   };
 

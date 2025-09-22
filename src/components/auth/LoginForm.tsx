@@ -42,10 +42,10 @@ export const LoginForm = ({ initialMode = 'login' }: LoginFormProps) => {
           description: "You've been signed in successfully."
         });
       }
-    } catch (error: unknown) {
+    } catch (error: any) {
       toast({
         title: "Authentication Error",
-        description: error instanceof Error ? error.message : 'Something went wrong',
+        description: error.message,
         variant: "destructive"
       });
     } finally {
