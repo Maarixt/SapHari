@@ -26,7 +26,7 @@ export interface Widget {
   override_mode?: boolean | null;
   trigger?: number | null;
   message?: string | null;
-  state: Record<string, unknown> | null;
+  state?: any;
   created_at?: string;
   updated_at?: string;
 }

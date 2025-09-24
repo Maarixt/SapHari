@@ -48,7 +48,9 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
       if (error) throw error;
       setWidgets((data || []).map(item => ({
         ...item,
-        type: item.type as 'switch' | 'gauge' | 'servo' | 'alert'
+        type: item.type as 'switch' | 'gauge' | 'servo' | 'alert',
+        gauge_type: item.gauge_type as 'analog' | 'pir' | 'ds18b20' | 'ultrasonic' | null,
+        state: item.state as any
       })));
     } catch (error) {
       console.error('Error loading widgets:', error);
@@ -120,7 +122,7 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
 
           supabase
             .from('widgets')
-            .update({ state: nextState })
+            .update({ state: nextState as any })
             .eq('id', target.id)
             .then(({ error }) => {
               if (error) {

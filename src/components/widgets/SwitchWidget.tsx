@@ -25,7 +25,7 @@ export const SwitchWidget = ({ widget, device, allWidgets, onUpdate, onDelete }:
   const [showEdit, setShowEdit] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
 
-  const currentState = widget.state?.value >= 0.5 ? 1 : 0;
+  const currentState = Number(widget.state?.value) >= 0.5 ? 1 : 0;
 
   const handleToggle = async () => {
     setIsToggling(true);

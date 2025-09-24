@@ -22,7 +22,7 @@ export const ServoWidget = ({ widget, device, allWidgets, onUpdate, onDelete }: 
   const { toast } = useToast();
   const [showEditDialog, setShowEditDialog] = useState(false);
   
-  const currentAngle = widget.state?.angle || 90;
+  const currentAngle = Number(widget.state?.angle) || 90;
 
   const handleAngleChange = (value: number[]) => {
     const newAngle = value[0];
@@ -115,13 +115,13 @@ export const ServoWidget = ({ widget, device, allWidgets, onUpdate, onDelete }: 
         <CardContent>
           <div className="space-y-4">
             <div className="text-center">
-              <div className="text-2xl font-bold text-iot-text">{currentAngle}°</div>
+               <div className="text-2xl font-bold text-iot-text">{currentAngle}°</div>
               <div className="text-sm text-iot-muted">Servo Position</div>
             </div>
             
             <div className="px-2">
               <Slider
-                value={[currentAngle]}
+                 value={[currentAngle]}
                 onValueChange={handleAngleChange}
                 max={180}
                 min={0}
