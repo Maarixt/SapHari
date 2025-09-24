@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { EditWidgetDialog } from './EditWidgetDialog';
 import { Widget } from '@/lib/types';
+import { useAuth } from '@/hooks/useAuth';
 
 interface AlertWidgetProps {
   widget: Widget;
@@ -17,6 +18,7 @@ interface AlertWidgetProps {
 
 export const AlertWidget = ({ widget, allWidgets, onUpdate, onDelete }: AlertWidgetProps) => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [showEditDialog, setShowEditDialog] = useState(false);
 
   const isTriggered = widget.state?.triggered || false;
@@ -73,6 +75,20 @@ export const AlertWidget = ({ widget, allWidgets, onUpdate, onDelete }: AlertWid
           });
         }
       });
+
+    if (user) {
+      supabase
+        .from('alerts')
+        .update({ read: true })
+        .eq('user_id', user.id)
+        .eq('widget_id', widget.id)
+        .eq('read', false)
+        .then(({ error }) => {
+          if (error) {
+            console.error('Error marking widget alerts as read:', error);
+          }
+        });
+    }
   };
 
   return (

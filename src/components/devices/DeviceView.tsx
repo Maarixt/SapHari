@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useMQTT } from '@/hooks/useMQTT';
+import { useAuth } from '@/hooks/useAuth';
 import { SwitchWidget } from '../widgets/SwitchWidget';
 import { GaugeWidget } from '../widgets/GaugeWidget';
 import { ServoWidget } from '../widgets/ServoWidget';
@@ -22,6 +23,7 @@ interface DeviceViewProps {
 export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
   const { toast } = useToast();
   const { onMessage } = useMQTT();
+  const { user } = useAuth();
   const [widgets, setWidgets] = useState<Widget[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddWidget, setShowAddWidget] = useState(false);
@@ -84,6 +86,7 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
           const nextState = { ...(target.state ?? {}) };
 
           if (target.type === 'alert') {
+            const previousState = target.state as { triggered?: unknown; lastTrigger?: unknown } | null;
             const lowered = trimmed.toLowerCase();
             let digitalValue: boolean | null = null;
 
@@ -101,13 +104,45 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
 
             const expectHigh = (target.trigger ?? 1) !== 0;
             const triggered = expectHigh ? digitalValue : !digitalValue;
+            const wasTriggered = Boolean(previousState?.triggered);
 
-            if (triggered === Boolean(target.state?.triggered)) {
+            if (triggered === wasTriggered) {
               return prev;
             }
 
+            const previousLastTrigger = typeof previousState?.lastTrigger === 'string'
+              ? previousState?.lastTrigger
+              : undefined;
+            const triggeredAt = triggered ? new Date().toISOString() : previousLastTrigger;
             nextState.triggered = triggered;
-            nextState.lastTrigger = triggered ? new Date().toISOString() : target.state?.lastTrigger;
+            nextState.lastTrigger = triggeredAt;
+
+            if (triggered && user) {
+              const defaultMessage = `${target.label} alert triggered (${digitalValue ? 'HIGH' : 'LOW'}) on ${device.name}`;
+              const alertMessage = target.message?.trim() || defaultMessage;
+
+              supabase
+                .from('alerts')
+                .insert({
+                  user_id: user.id,
+                  device_id: device.id,
+                  widget_id: target.id,
+                  type: 'alert_triggered',
+                  message: alertMessage,
+                  read: false,
+                  created_at: triggeredAt ?? undefined,
+                })
+                .then(({ error }) => {
+                  if (error) {
+                    console.error('Error creating alert notification:', error);
+                    toast({
+                      title: 'Notification failed',
+                      description: 'Could not record the alert notification.',
+                      variant: 'destructive',
+                    });
+                  }
+                });
+            }
           } else if (target.type === 'servo') {
             if (!isNumeric) return prev;
             if (target.state?.angle === numericValue) return prev;
@@ -153,7 +188,7 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
     });
 
     return cleanup;
-  }, [device, onMessage]);
+  }, [device, onMessage, toast, user]);
 
   const handleAddWidget = (type: 'switch' | 'gauge' | 'servo' | 'alert') => {
     setAddWidgetType(type);

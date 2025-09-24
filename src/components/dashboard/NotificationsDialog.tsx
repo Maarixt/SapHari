@@ -132,6 +132,7 @@ export const NotificationsDialog = ({ open, onOpenChange, onAlertsRead }: Notifi
       case 'device_offline': return 'destructive';
       case 'sensor_warning': return 'default';
       case 'motion_detected': return 'secondary';
+      case 'alert_triggered': return 'destructive';
       default: return 'outline';
     }
   };
@@ -166,7 +167,7 @@ export const NotificationsDialog = ({ open, onOpenChange, onAlertsRead }: Notifi
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         <Badge variant={getAlertVariant(alert.type)}>
-                          {alert.type.replace('_', ' ')}
+                          {alert.type.replace(/_/g, ' ')}
                         </Badge>
                         {!alert.read && (
                           <Badge variant="outline" className="bg-primary text-primary-foreground">
