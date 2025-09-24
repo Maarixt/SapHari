@@ -132,7 +132,7 @@ export const AlertWidget = ({ widget, allWidgets, onUpdate, onDelete }: AlertWid
 
             {lastTrigger && (
               <div className="text-xs text-iot-muted text-center">
-                Last: {new Date(String(lastTrigger)).toLocaleString()}
+                Last: {new Date(lastTrigger).toLocaleString()}
               </div>
             )}
             

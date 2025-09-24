@@ -241,21 +241,7 @@ export const AddWidgetDialog = ({
         widgetData.state = { triggered: false, lastTrigger: null };
       }
 
-      const { error } = await supabase.from('widgets').insert({
-        device_id: widgetData.device_id as string,
-        type: widgetData.type as string,
-        label: widgetData.label as string,
-        address: widgetData.address as string,
-        pin: widgetData.pin as number | null,
-        echo_pin: widgetData.echo_pin as number | null,
-        gauge_type: widgetData.gauge_type as string | null,
-        min_value: widgetData.min_value as number | null,
-        max_value: widgetData.max_value as number | null,
-        override_mode: widgetData.override_mode as boolean | null,
-        trigger: widgetData.trigger as number | null,
-        message: widgetData.message as string | null,
-        state: widgetData.state as any
-      });
+      const { error } = await supabase.from('widgets').insert(widgetData);
       if (error) throw error;
 
       onWidgetAdded();
