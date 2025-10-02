@@ -1,15 +1,13 @@
 import { LoginForm } from '@/components/auth/LoginForm';
 import { useAuth } from '@/hooks/useAuth';
-import { Navigate, useLocation, type Location } from 'react-router-dom';
-import { FullPageLoader } from '@/components/ui/FullPageLoader';
+import { Navigate, useLocation, Location } from 'react-router-dom';
 
 const Login = () => {
-  const { user, loading } = useAuth();
+  const { user } = useAuth();
   const location = useLocation();
   const state = location.state as { from?: Location } | undefined;
   const from = state?.from?.pathname || '/';
 
-  if (loading) return <FullPageLoader message="Checking session..." />;
   if (user) {
     return <Navigate to={from} replace />;
   }

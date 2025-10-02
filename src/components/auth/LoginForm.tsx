@@ -1,28 +1,17 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
-interface LoginFormProps {
-  initialMode?: 'login' | 'signup';
-}
-
-export const LoginForm = ({ initialMode = 'login' }: LoginFormProps) => {
-  const { login, signup } = useAuth();
+export const LoginForm = () => {
   const { toast } = useToast();
-  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
-  const [isSignUp, setIsSignUp] = useState(initialMode === 'signup');
+  const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-
-  useEffect(() => {
-    setIsSignUp(initialMode === 'signup');
-  }, [initialMode]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,22 +19,34 @@ export const LoginForm = ({ initialMode = 'login' }: LoginFormProps) => {
 
     try {
       if (isSignUp) {
-        await signup(email, password);
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              display_name: email.split('@')[0]
+            }
+          }
+        });
+        
+        if (error) throw error;
+        
         toast({
           title: "Check your email",
           description: "We've sent you a confirmation link to complete your registration."
         });
       } else {
-        await login(email, password);
-        toast({
-          title: "Welcome back!",
-          description: "You've been signed in successfully."
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password
         });
+        
+        if (error) throw error;
       }
-    } catch (error: unknown) {
+    } catch (error: any) {
       toast({
         title: "Authentication Error",
-        description: error instanceof Error ? error.message : 'Something went wrong',
+        description: error.message,
         variant: "destructive"
       });
     } finally {
@@ -94,10 +95,7 @@ export const LoginForm = ({ initialMode = 'login' }: LoginFormProps) => {
           <div className="mt-4 text-center">
             <Button
               variant="link"
-              onClick={() => {
-                if (isLoading) return;
-                navigate(isSignUp ? '/login' : '/signup');
-              }}
+              onClick={() => setIsSignUp(!isSignUp)}
               disabled={isLoading}
             >
               {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}

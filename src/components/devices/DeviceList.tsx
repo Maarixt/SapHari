@@ -3,24 +3,134 @@ import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DeviceCard } from './DeviceCard';
 import { AddDeviceDialog } from './AddDeviceDialog';
-import { useDevices } from '@/hooks/useDevices';
-import { DeviceWithRole } from '@/lib/types';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/hooks/use-toast';
+
+interface Device {
+  id: string;
+  device_id: string;
+  device_key: string;
+  name: string;
+  online: boolean;
+  created_at: string;
+  widget_counts?: {
+    switches: number;
+    gauges: number;
+    servos: number;
+    alerts: number;
+  };
+}
 
 interface DeviceListProps {
-  onDeviceSelect: (device: DeviceWithRole) => void;
+  onDeviceSelect: (device: Device) => void;
 }
 
 export const DeviceList = ({ onDeviceSelect }: DeviceListProps) => {
-  const { devices, loading, refetch } = useDevices();
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [devices, setDevices] = useState<Device[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showAddDialog, setShowAddDialog] = useState(false);
 
-  const handleAddDevice = () => {
-    refetch();
-    setShowAddDialog(false);
+  const loadDevices = async () => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('devices')
+        .select(`
+          *,
+          widgets(type)
+        `)
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const devicesWithCounts = data.map(device => ({
+        ...device,
+        widget_counts: {
+          switches: device.widgets?.filter((w: any) => w.type === 'switch').length || 0,
+          gauges: device.widgets?.filter((w: any) => w.type === 'gauge').length || 0,
+          servos: device.widgets?.filter((w: any) => w.type === 'servo').length || 0,
+          alerts: device.widgets?.filter((w: any) => w.type === 'alert').length || 0,
+        }
+      }));
+
+      setDevices(devicesWithCounts);
+    } catch (error) {
+      console.error('Error loading devices:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load devices",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDeleteDevice = () => {
-    refetch();
+  useEffect(() => {
+    loadDevices();
+  }, [user]);
+
+  const handleAddDevice = async (deviceData: { name: string; device_id: string; device_key: string }) => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('devices')
+        .insert({
+          user_id: user.id,
+          name: deviceData.name,
+          device_id: deviceData.device_id,
+          device_key: deviceData.device_key
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      await loadDevices();
+      toast({
+        title: "Device added",
+        description: `${deviceData.name} has been added successfully`
+      });
+    } catch (error: any) {
+      console.error('Error adding device:', error);
+      toast({
+        title: "Error",
+        description: error.message?.includes('duplicate') 
+          ? "A device with this ID already exists" 
+          : "Failed to add device",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDeleteDevice = async (deviceId: string) => {
+    try {
+      const { error } = await supabase
+        .from('devices')
+        .delete()
+        .eq('id', deviceId);
+
+      if (error) throw error;
+
+      await loadDevices();
+      toast({
+        title: "Device deleted",
+        description: "Device has been removed successfully"
+      });
+    } catch (error) {
+      console.error('Error deleting device:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete device",
+        variant: "destructive"
+      });
+    }
   };
 
   if (loading) {
@@ -56,7 +166,7 @@ export const DeviceList = ({ onDeviceSelect }: DeviceListProps) => {
               key={device.id}
               device={device}
               onSelect={() => onDeviceSelect(device)}
-              onDelete={handleDeleteDevice}
+              onDelete={() => handleDeleteDevice(device.id)}
             />
           ))}
         </div>
@@ -65,7 +175,7 @@ export const DeviceList = ({ onDeviceSelect }: DeviceListProps) => {
       <AddDeviceDialog
         open={showAddDialog}
         onOpenChange={setShowAddDialog}
-        onDeviceAdded={handleAddDevice}
+        onAdd={handleAddDevice}
       />
     </div>
   );

@@ -5,7 +5,6 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useMQTT } from '@/hooks/useMQTT';
-import { useAuth } from '@/hooks/useAuth';
 import { SwitchWidget } from '../widgets/SwitchWidget';
 import { GaugeWidget } from '../widgets/GaugeWidget';
 import { ServoWidget } from '../widgets/ServoWidget';
@@ -13,17 +12,38 @@ import { AlertWidget } from '../widgets/AlertWidget';
 import { AddWidgetDialog } from '../widgets/AddWidgetDialog';
 import { CodeSnippetDialog } from '../widgets/CodeSnippetDialog';
 
-import { Device, Widget, DeviceWithRole } from '@/lib/types';
+interface Device {
+  id: string;
+  device_id: string;
+  device_key: string;
+  name: string;
+  online: boolean;
+}
+
+interface Widget {
+  id: string;
+  type: 'switch' | 'gauge' | 'servo' | 'alert';
+  label: string;
+  address: string;
+  pin?: number;
+  echo_pin?: number;
+  gauge_type?: string;
+  min_value?: number;
+  max_value?: number;
+  override_mode?: boolean;
+  trigger?: number;
+  message?: string;
+  state: any;
+}
 
 interface DeviceViewProps {
-  device: DeviceWithRole;
+  device: Device;
   onBack: () => void;
 }
 
 export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
   const { toast } = useToast();
-  const { onMessage } = useMQTT();
-  const { user } = useAuth();
+  const { publishMessage, onMessage } = useMQTT();
   const [widgets, setWidgets] = useState<Widget[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddWidget, setShowAddWidget] = useState(false);
@@ -31,16 +51,8 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
   const [showCodeSnippet, setShowCodeSnippet] = useState(false);
   const [deviceOnline, setDeviceOnline] = useState(device.online);
 
-  // For now, assume owner role - this will be properly implemented when DeviceView gets role info
-  const userRole = 'owner';
-
-  useEffect(() => {
-    setDeviceOnline(device.online);
-  }, [device.online]);
-
   const loadWidgets = async () => {
     try {
-      setLoading(true);
       const { data, error } = await supabase
         .from('widgets')
         .select('*')
@@ -48,10 +60,7 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-      setWidgets((data || []).map(item => ({
-        ...item,
-        type: item.type as 'switch' | 'gauge' | 'servo' | 'alert'
-      })));
+      setWidgets(data || []);
     } catch (error) {
       console.error('Error loading widgets:', error);
       toast({
@@ -76,102 +85,18 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
       const address = parts[3];
 
       if (category === 'sensor') {
-        setWidgets((prev) => {
-          const target = prev.find((widget) => widget.address === address);
-          if (!target) return prev;
-
-          const trimmed = message.trim();
-          const numericValue = Number(trimmed);
-          const isNumeric = !Number.isNaN(numericValue);
-          const nextState = { ...(target.state ?? {}) };
-
-          if (target.type === 'alert') {
-            const previousState = target.state as { triggered?: unknown; lastTrigger?: unknown } | null;
-            const lowered = trimmed.toLowerCase();
-            let digitalValue: boolean | null = null;
-
-            if (!Number.isNaN(numericValue)) {
-              digitalValue = numericValue !== 0;
-            } else if (['true', 'high', 'on', '1'].includes(lowered)) {
-              digitalValue = true;
-            } else if (['false', 'low', 'off', '0'].includes(lowered)) {
-              digitalValue = false;
+        const value = parseFloat(message);
+        if (!isNaN(value)) {
+          setWidgets(prev => prev.map(widget => {
+            if (widget.address === address) {
+              return {
+                ...widget,
+                state: { ...widget.state, value }
+              };
             }
-
-            if (digitalValue === null) {
-              return prev;
-            }
-
-            const expectHigh = (target.trigger ?? 1) !== 0;
-            const triggered = expectHigh ? digitalValue : !digitalValue;
-            const wasTriggered = Boolean(previousState?.triggered);
-
-            if (triggered === wasTriggered) {
-              return prev;
-            }
-
-            const previousLastTrigger = typeof previousState?.lastTrigger === 'string'
-              ? previousState?.lastTrigger
-              : undefined;
-            const triggeredAt = triggered ? new Date().toISOString() : previousLastTrigger;
-            nextState.triggered = triggered;
-            nextState.lastTrigger = triggeredAt;
-
-            if (triggered && user) {
-              const defaultMessage = `${target.label} alert triggered (${digitalValue ? 'HIGH' : 'LOW'}) on ${device.name}`;
-              const alertMessage = target.message?.trim() || defaultMessage;
-
-              supabase
-                .from('alerts')
-                .insert({
-                  user_id: user.id,
-                  device_id: device.id,
-                  widget_id: target.id,
-                  type: 'alert_triggered',
-                  message: alertMessage,
-                  read: false,
-                  created_at: triggeredAt ?? undefined,
-                })
-                .then(({ error }) => {
-                  if (error) {
-                    console.error('Error creating alert notification:', error);
-                    toast({
-                      title: 'Notification failed',
-                      description: 'Could not record the alert notification.',
-                      variant: 'destructive',
-                    });
-                  }
-                });
-            }
-          } else if (target.type === 'servo') {
-            if (!isNumeric) return prev;
-            if (target.state?.angle === numericValue) return prev;
-            nextState.angle = numericValue;
-          } else {
-            if (!isNumeric) return prev;
-            if (target.state?.value === numericValue) return prev;
-            nextState.value = numericValue;
-          }
-
-          supabase
-            .from('widgets')
-            .update({ state: nextState })
-            .eq('id', target.id)
-            .then(({ error }) => {
-              if (error) {
-                console.error('Error persisting widget state:', error);
-              }
-            });
-
-          return prev.map((widget) =>
-            widget.id === target.id
-              ? {
-                  ...widget,
-                  state: nextState,
-                }
-              : widget
-          );
-        });
+            return widget;
+          }));
+        }
       } else if (category === 'status' && address === 'online') {
         const online = message === '1';
         setDeviceOnline(online);
@@ -188,7 +113,7 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
     });
 
     return cleanup;
-  }, [device, onMessage, toast, user]);
+  }, [device, onMessage]);
 
   const handleAddWidget = (type: 'switch' | 'gauge' | 'servo' | 'alert') => {
     setAddWidgetType(type);
@@ -291,7 +216,6 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
                   key={widget.id}
                   widget={widget}
                   device={device}
-                  allWidgets={widgets}
                   onUpdate={(updates) => handleWidgetUpdated(widget.id, updates)}
                   onDelete={() => handleWidgetDeleted(widget.id)}
                 />
@@ -302,7 +226,6 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
                   key={widget.id}
                   widget={widget}
                   device={device}
-                  allWidgets={widgets}
                   onUpdate={(updates) => handleWidgetUpdated(widget.id, updates)}
                   onDelete={() => handleWidgetDeleted(widget.id)}
                 />
@@ -313,7 +236,6 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
                   key={widget.id}
                   widget={widget}
                   device={device}
-                  allWidgets={widgets}
                   onUpdate={(updates) => handleWidgetUpdated(widget.id, updates)}
                   onDelete={() => handleWidgetDeleted(widget.id)}
                 />
@@ -323,7 +245,6 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
                 <AlertWidget
                   key={widget.id}
                   widget={widget}
-                  allWidgets={widgets}
                   onUpdate={(updates) => handleWidgetUpdated(widget.id, updates)}
                   onDelete={() => handleWidgetDeleted(widget.id)}
                 />
