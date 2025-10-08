@@ -83,6 +83,7 @@ export const Header = ({ onSettingsClick, onNotificationsClick, unreadAlerts, on
             variant="outline"
             size="icon"
             onClick={onAlertRulesClick}
+            className="btn-icon-bright"
           >
             <AlertTriangle className="h-5 w-5" />
           </Button>
@@ -91,7 +92,7 @@ export const Header = ({ onSettingsClick, onNotificationsClick, unreadAlerts, on
             variant="outline"
             size="icon"
             onClick={onNotificationsClick}
-            className="relative"
+            className="relative btn-icon-bright"
           >
             <Bell className="h-5 w-5" />
             {unreadAlerts > 0 && (
@@ -106,7 +107,7 @@ export const Header = ({ onSettingsClick, onNotificationsClick, unreadAlerts, on
           
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon">
+              <Button variant="outline" size="icon" className="btn-icon-bright">
                 <Settings className="h-5 w-5" />
               </Button>
             </DropdownMenuTrigger>

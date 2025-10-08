@@ -125,6 +125,11 @@ All colors MUST be HSL.
     @apply bg-secondary/80 text-secondary-foreground hover:bg-secondary;
   }
   
+  /* Bright icon buttons for header */
+  .dark .btn-icon-bright {
+    @apply bg-primary/20 text-primary-foreground border-2 border-primary/40 hover:bg-primary/30 hover:border-primary/60;
+  }
+  
   /* Improved icon visibility - much more prominent */
   .dark .icon-enhanced {
     @apply text-foreground hover:text-foreground bg-muted/20 hover:bg-muted/40 border border-muted-foreground/20 hover:border-muted-foreground/40;
