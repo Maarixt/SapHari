@@ -1,33 +1,37 @@
 import { useState } from 'react';
-import { Settings, Trash2 } from 'lucide-react';
+import { Settings, Trash2, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { EditWidgetDialog } from './EditWidgetDialog';
-
-interface Widget {
-  id: string;
-  type: 'alert';
-  label: string;
-  address: string;
-  pin: number;
-  trigger: number;
-  message: string;
-  state?: any;
-}
+import { Widget } from '@/lib/types';
 
 interface AlertWidgetProps {
   widget: Widget;
+  allWidgets: Widget[];
   onUpdate: (updates: Partial<Widget>) => void;
   onDelete: () => void;
 }
 
-export const AlertWidget = ({ widget, onUpdate, onDelete }: AlertWidgetProps) => {
+export const AlertWidget = ({ widget, allWidgets, onUpdate, onDelete }: AlertWidgetProps) => {
   const { toast } = useToast();
-  const [showEdit, setShowEdit] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+
+  const isTriggered = widget.state?.triggered || false;
+  const lastTrigger = widget.state?.lastTrigger;
+  const triggerLabel = widget.trigger === 0 ? 'Low' : 'High';
+  const pinLabel = widget.pin !== null && widget.pin !== undefined ? `GPIO ${widget.pin}` : null;
+  const metaItems = [widget.address, pinLabel, `Trigger: ${triggerLabel}`].filter(Boolean).map(String);
+
+  const handleEdit = () => {
+    setShowEditDialog(true);
+  };
 
   const handleDelete = async () => {
+    if (!confirm('Delete this alert widget?')) return;
+
     try {
       const { error } = await supabase
         .from('widgets')
@@ -36,45 +40,116 @@ export const AlertWidget = ({ widget, onUpdate, onDelete }: AlertWidgetProps) =>
 
       if (error) throw error;
       onDelete();
-    } catch (error) {
-      console.error('Error deleting widget:', error);
       toast({
-        title: 'Error',
-        description: 'Failed to delete widget',
-        variant: 'destructive'
+        title: "Widget deleted",
+        description: "Alert widget has been removed"
+      });
+    } catch (error: unknown) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : 'Failed to delete widget',
+        variant: "destructive"
       });
     }
   };
 
+  const handleAcknowledge = () => {
+    const updatedState = { ...(widget.state ?? {}), triggered: false };
+    onUpdate({
+      state: updatedState
+    });
+
+    supabase
+      .from('widgets')
+      .update({ state: updatedState })
+      .eq('id', widget.id)
+      .then(({ error }) => {
+        if (error) {
+          console.error('Error acknowledging alert:', error);
+          toast({
+            title: "Error",
+            description: "Failed to acknowledge alert",
+            variant: "destructive"
+          });
+        }
+      });
+  };
+
   return (
-    <Card className="bg-card border-border">
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
-          <div>
-            <h3 className="font-semibold">{widget.label}</h3>
-            <p className="text-sm text-muted-foreground">
-              {widget.address} • GPIO {widget.pin} • {widget.trigger === 1 ? 'HIGH' : 'LOW'}
-            </p>
-          </div>
+    <>
+      <Card className={`bg-card border ${isTriggered ? 'border-red-500 bg-red-50 dark:bg-red-950' : 'border-iot-border'}`}>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <h3 className="text-sm font-medium text-iot-text">{widget.label}</h3>
           <div className="flex gap-1">
-            <Button variant="ghost" size="icon" onClick={() => setShowEdit(true)}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleEdit}
+              className="h-8 w-8 p-0 text-iot-muted hover:text-iot-text"
+            >
               <Settings className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="icon" onClick={handleDelete}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleDelete}
+              className="h-8 w-8 p-0 text-iot-muted hover:text-red-500"
+            >
               <Trash2 className="h-4 w-4" />
             </Button>
           </div>
-        </div>
-      </CardHeader>
-      <CardContent className="text-sm text-muted-foreground">
-        {widget.message}
-      </CardContent>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            <div className="flex items-center justify-center">
+              <AlertTriangle 
+                className={`h-8 w-8 ${isTriggered ? 'text-red-500' : 'text-iot-muted'}`}
+              />
+            </div>
+            
+            <div className="text-center">
+              <Badge variant={isTriggered ? "destructive" : "secondary"}>
+                {isTriggered ? "ALERT" : "OK"}
+              </Badge>
+            </div>
+
+            {widget.message && (
+              <div className="text-sm text-center text-iot-muted">
+                {widget.message}
+              </div>
+            )}
+
+            {isTriggered && (
+              <Button 
+                size="sm" 
+                variant="outline" 
+                onClick={handleAcknowledge}
+                className="w-full"
+              >
+                Acknowledge
+              </Button>
+            )}
+
+            {lastTrigger && (
+              <div className="text-xs text-iot-muted text-center">
+                Last: {new Date(String(lastTrigger)).toLocaleString()}
+              </div>
+            )}
+            
+            {metaItems.length > 0 && (
+              <div className="text-xs text-iot-muted text-center">{metaItems.join(' • ')}</div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       <EditWidgetDialog
-        open={showEdit}
-        onOpenChange={setShowEdit}
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
         widget={widget}
+        allWidgets={allWidgets}
         onUpdate={onUpdate}
       />
-    </Card>
+    </>
   );
 };

@@ -12,38 +12,16 @@ import { AlertWidget } from '../widgets/AlertWidget';
 import { AddWidgetDialog } from '../widgets/AddWidgetDialog';
 import { CodeSnippetDialog } from '../widgets/CodeSnippetDialog';
 
-interface Device {
-  id: string;
-  device_id: string;
-  device_key: string;
-  name: string;
-  online: boolean;
-}
-
-interface Widget {
-  id: string;
-  type: 'switch' | 'gauge' | 'servo' | 'alert';
-  label: string;
-  address: string;
-  pin?: number;
-  echo_pin?: number;
-  gauge_type?: string;
-  min_value?: number;
-  max_value?: number;
-  override_mode?: boolean;
-  trigger?: number;
-  message?: string;
-  state: any;
-}
+import { Device, Widget, DeviceWithRole } from '@/lib/types';
 
 interface DeviceViewProps {
-  device: Device;
+  device: DeviceWithRole;
   onBack: () => void;
 }
 
 export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
   const { toast } = useToast();
-  const { publishMessage, onMessage } = useMQTT();
+  const { onMessage } = useMQTT();
   const [widgets, setWidgets] = useState<Widget[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddWidget, setShowAddWidget] = useState(false);
@@ -51,8 +29,16 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
   const [showCodeSnippet, setShowCodeSnippet] = useState(false);
   const [deviceOnline, setDeviceOnline] = useState(device.online);
 
+  // For now, assume owner role - this will be properly implemented when DeviceView gets role info
+  const userRole = 'owner';
+
+  useEffect(() => {
+    setDeviceOnline(device.online);
+  }, [device.online]);
+
   const loadWidgets = async () => {
     try {
+      setLoading(true);
       const { data, error } = await supabase
         .from('widgets')
         .select('*')
@@ -60,7 +46,12 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-      setWidgets(data || []);
+      setWidgets((data || []).map(item => ({
+        ...item,
+        type: item.type as 'switch' | 'gauge' | 'servo' | 'alert',
+        gauge_type: item.gauge_type as 'analog' | 'pir' | 'ds18b20' | 'ultrasonic' | null,
+        state: item.state as any
+      })));
     } catch (error) {
       console.error('Error loading widgets:', error);
       toast({
@@ -85,18 +76,69 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
       const address = parts[3];
 
       if (category === 'sensor') {
-        const value = parseFloat(message);
-        if (!isNaN(value)) {
-          setWidgets(prev => prev.map(widget => {
-            if (widget.address === address) {
-              return {
-                ...widget,
-                state: { ...widget.state, value }
-              };
+        setWidgets((prev) => {
+          const target = prev.find((widget) => widget.address === address);
+          if (!target) return prev;
+
+          const trimmed = message.trim();
+          const numericValue = Number(trimmed);
+          const isNumeric = !Number.isNaN(numericValue);
+          const nextState = { ...(target.state ?? {}) };
+
+          if (target.type === 'alert') {
+            const lowered = trimmed.toLowerCase();
+            let digitalValue: boolean | null = null;
+
+            if (!Number.isNaN(numericValue)) {
+              digitalValue = numericValue !== 0;
+            } else if (['true', 'high', 'on', '1'].includes(lowered)) {
+              digitalValue = true;
+            } else if (['false', 'low', 'off', '0'].includes(lowered)) {
+              digitalValue = false;
             }
-            return widget;
-          }));
-        }
+
+            if (digitalValue === null) {
+              return prev;
+            }
+
+            const expectHigh = (target.trigger ?? 1) !== 0;
+            const triggered = expectHigh ? digitalValue : !digitalValue;
+
+            if (triggered === Boolean(target.state?.triggered)) {
+              return prev;
+            }
+
+            nextState.triggered = triggered;
+            nextState.lastTrigger = triggered ? new Date().toISOString() : target.state?.lastTrigger;
+          } else if (target.type === 'servo') {
+            if (!isNumeric) return prev;
+            if (target.state?.angle === numericValue) return prev;
+            nextState.angle = numericValue;
+          } else {
+            if (!isNumeric) return prev;
+            if (target.state?.value === numericValue) return prev;
+            nextState.value = numericValue;
+          }
+
+          supabase
+            .from('widgets')
+            .update({ state: nextState as any })
+            .eq('id', target.id)
+            .then(({ error }) => {
+              if (error) {
+                console.error('Error persisting widget state:', error);
+              }
+            });
+
+          return prev.map((widget) =>
+            widget.id === target.id
+              ? {
+                  ...widget,
+                  state: nextState,
+                }
+              : widget
+          );
+        });
       } else if (category === 'status' && address === 'online') {
         const online = message === '1';
         setDeviceOnline(online);
@@ -216,6 +258,7 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
                   key={widget.id}
                   widget={widget}
                   device={device}
+                  allWidgets={widgets}
                   onUpdate={(updates) => handleWidgetUpdated(widget.id, updates)}
                   onDelete={() => handleWidgetDeleted(widget.id)}
                 />
@@ -226,6 +269,7 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
                   key={widget.id}
                   widget={widget}
                   device={device}
+                  allWidgets={widgets}
                   onUpdate={(updates) => handleWidgetUpdated(widget.id, updates)}
                   onDelete={() => handleWidgetDeleted(widget.id)}
                 />
@@ -236,6 +280,7 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
                   key={widget.id}
                   widget={widget}
                   device={device}
+                  allWidgets={widgets}
                   onUpdate={(updates) => handleWidgetUpdated(widget.id, updates)}
                   onDelete={() => handleWidgetDeleted(widget.id)}
                 />
@@ -245,6 +290,7 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
                 <AlertWidget
                   key={widget.id}
                   widget={widget}
+                  allWidgets={widgets}
                   onUpdate={(updates) => handleWidgetUpdated(widget.id, updates)}
                   onDelete={() => handleWidgetDeleted(widget.id)}
                 />

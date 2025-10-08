@@ -10,17 +10,22 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/hooks/use-toast';
 
 interface AddDeviceDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onAdd: (deviceData: { name: string; device_id: string; device_key: string }) => void;
+  onDeviceAdded: () => void;
 }
 
 const generateDeviceId = () => 'saph-' + Math.random().toString(36).slice(2, 8);
 const generateDeviceKey = () => Math.random().toString(36).slice(2, 10).toUpperCase();
 
-export const AddDeviceDialog = ({ open, onOpenChange, onAdd }: AddDeviceDialogProps) => {
+export const AddDeviceDialog = ({ open, onOpenChange, onDeviceAdded }: AddDeviceDialogProps) => {
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [name, setName] = useState('Device');
   const [deviceId, setDeviceId] = useState(generateDeviceId());
   const [deviceKey, setDeviceKey] = useState(generateDeviceKey());
@@ -28,20 +33,42 @@ export const AddDeviceDialog = ({ open, onOpenChange, onAdd }: AddDeviceDialogPr
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !deviceId.trim() || !deviceKey.trim()) return;
+    if (!name.trim() || !deviceId.trim() || !deviceKey.trim() || !user) return;
     
     setIsLoading(true);
     try {
-      await onAdd({
-        name: name.trim(),
-        device_id: deviceId.trim(),
-        device_key: deviceKey.trim()
+      const { error } = await supabase
+        .from('devices')
+        .insert({
+          name: name.trim(),
+          device_id: deviceId.trim(),
+          device_key: deviceKey.trim(),
+          owner_id: user.id,
+          user_id: user.id // Keep for backward compatibility
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Device added",
+        description: `${name} has been added successfully`
       });
+
+      onDeviceAdded();
       onOpenChange(false);
+      
       // Reset form
       setName('Device');
       setDeviceId(generateDeviceId());
       setDeviceKey(generateDeviceKey());
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message?.includes('duplicate') 
+          ? "A device with this ID already exists" 
+          : "Failed to add device",
+        variant: "destructive"
+      });
     } finally {
       setIsLoading(false);
     }

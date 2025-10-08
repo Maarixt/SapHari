@@ -2,54 +2,100 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { useMQTT } from '@/hooks/useMQTT';
+import { Device, Widget } from '@/lib/types';
 
 interface CodeSnippetDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  device: any;
-  widgets: any[];
+  device: Device;
+  widgets: Widget[];
 }
+
+const sanitizeMessage = (message: string) => message.replace(/"/g, '\\"');
+const formatTriggerLevel = (trigger?: number | null) => ((trigger ?? 1) === 0 ? 'LOW' : 'HIGH');
+
+const getSwitchState = (widget: Widget) => {
+  const raw = widget.state?.['value'];
+  if (typeof raw === 'boolean') return raw;
+  if (typeof raw === 'number') return raw >= 0.5;
+  if (typeof raw === 'string') {
+    return raw === '1' || raw.toLowerCase() === 'true';
+  }
+  return false;
+};
+
+const getServoAngle = (widget: Widget) => {
+  const raw = widget.state?.['angle'];
+  if (typeof raw === 'number') return raw;
+  if (typeof raw === 'string') {
+    const parsed = Number(raw);
+    if (!Number.isNaN(parsed)) {
+      return parsed;
+    }
+  }
+  return 90;
+};
+
+const formatGaugeType = (type?: string | null) => `GT_${(type || 'analog').toUpperCase()}`;
 
 export const CodeSnippetDialog = ({ open, onOpenChange, device, widgets }: CodeSnippetDialogProps) => {
   const { brokerSettings } = useMQTT();
-  
-  const generateCode = () => {
-    const switches = widgets.filter(w => w.type === 'switch').map(w => 
-      `{ "${w.address}", ${w.pin || -1}, false, ${w.override_mode ? 'true' : 'false'} }`
-    ).join(',\n  ') || '// none';
-    
-    const gauges = widgets.filter(w => w.type === 'gauge').map(w => 
-      `{ "${w.address}", GT_${w.gauge_type?.toUpperCase() || 'ANALOG'}, ${w.pin}, ${w.echo_pin || -1} }`
-    ).join(',\n  ') || '// none';
-    
-    const servos = widgets.filter(w => w.type === 'servo').map(w =>
-      `{ "${w.address}", ${w.pin}, ${w.state?.angle || 90}, false }`
-    ).join(',\n  ') || '// none';
 
-    const alerts = widgets.filter(w => w.type === 'alert').map(w =>
-      `{ "${w.address}", ${w.pin}, ${w.trigger}, "${(w.message || '').replace(/"/g, '\\"')}" }`
-    ).join(',\n  ') || '// none';
+  const brokerHost = (() => {
+    try {
+      return new URL(brokerSettings.url).hostname;
+    } catch {
+      return brokerSettings.url;
+    }
+  })();
+
+  const generateCode = () => {
+    const switches = widgets
+      .filter((w) => w.type === 'switch')
+      .map((w) =>
+        `{ "${w.address}", ${w.pin ?? -1}, ${getSwitchState(w) ? 'true' : 'false'}, ${w.override_mode ? 'true' : 'false'} }`
+      )
+      .join(',\n  ');
+
+    const gauges = widgets
+      .filter((w) => w.type === 'gauge')
+      .map((w) =>
+        `{ "${w.address}", ${formatGaugeType(w.gauge_type)}, ${w.pin ?? -1}, ${w.echo_pin ?? -1} }`
+      )
+      .join(',\n  ');
+
+    const servos = widgets
+      .filter((w) => w.type === 'servo')
+      .map((w) => `{ "${w.address}", ${w.pin ?? -1}, ${getServoAngle(w)}, false }`)
+      .join(',\n  ');
+
+    const alerts = widgets
+      .filter((w) => w.type === 'alert')
+      .map((w) =>
+        `{ "${w.address}", ${w.pin ?? -1}, "${formatTriggerLevel(w.trigger)}", "${sanitizeMessage(w.message || '')}" }`
+      )
+      .join(',\n  ');
 
     return `// SapHari Device Configuration
 #define DEVICE_ID   "${device.device_id}"
 #define DEVICE_KEY  "${device.device_key}"
-#define MQTT_BROKER "${new URL(brokerSettings.url).hostname}"
+#define MQTT_BROKER "${brokerHost}"
 #define MQTT_PORT   1883
 
 SwitchMap SWITCHES[] = {
-  ${switches}
+  ${switches || '// none'}
 };
 
 GaugeMap GAUGES[] = {
-  ${gauges}
+  ${gauges || '// none'}
 };
 
 ServoMap SERVOS[] = {
-  ${servos}
+  ${servos || '// none'}
 };
 
 AlertMap ALERTS[] = {
-  ${alerts}
+  ${alerts || '// none'}
 };
 int NUM_ALERTS = sizeof(ALERTS)/sizeof(ALERTS[0]);`;
   };

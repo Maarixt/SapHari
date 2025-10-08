@@ -62,47 +62,6 @@ export type Database = {
           },
         ]
       }
-      alert_rules: {
-        Row: {
-          id: string
-          user_id: string
-          device_id: string
-          pin: string
-          trigger_state: string
-          message: string
-          channel: string
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          device_id: string
-          pin: string
-          trigger_state: string
-          message: string
-          channel: string
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          device_id?: string
-          pin?: string
-          trigger_state?: string
-          message?: string
-          channel?: string
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "alert_rules_device_id_fkey"
-            columns: ["device_id"]
-            isOneToOne: false
-            referencedRelation: "devices"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       broker_settings: {
         Row: {
           created_at: string
@@ -170,23 +129,23 @@ export type Database = {
         Row: {
           created_at: string
           display_name: string | null
+          email: string | null
           id: string
           updated_at: string
-          user_id: string
         }
         Insert: {
           created_at?: string
           display_name?: string | null
-          id?: string
+          email?: string | null
+          id: string
           updated_at?: string
-          user_id: string
         }
         Update: {
           created_at?: string
           display_name?: string | null
+          email?: string | null
           id?: string
           updated_at?: string
-          user_id?: string
         }
         Relationships: []
       }
@@ -200,13 +159,13 @@ export type Database = {
           id: string
           label: string
           max_value: number | null
-          min_value: number | null
           message: string | null
+          min_value: number | null
           override_mode: boolean | null
           pin: number | null
-          trigger: number | null
           state: Json | null
           type: string
+          trigger: number | null
           updated_at: string
         }
         Insert: {
@@ -218,13 +177,13 @@ export type Database = {
           id?: string
           label: string
           max_value?: number | null
-          min_value?: number | null
           message?: string | null
+          min_value?: number | null
           override_mode?: boolean | null
           pin?: number | null
-          trigger?: number | null
           state?: Json | null
           type: string
+          trigger?: number | null
           updated_at?: string
         }
         Update: {
@@ -236,13 +195,13 @@ export type Database = {
           id?: string
           label?: string
           max_value?: number | null
-          min_value?: number | null
           message?: string | null
+          min_value?: number | null
           override_mode?: boolean | null
           pin?: number | null
-          trigger?: number | null
           state?: Json | null
           type?: string
+          trigger?: number | null
           updated_at?: string
         }
         Relationships: [
