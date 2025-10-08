@@ -80,7 +80,7 @@ export const Header = ({ onSettingsClick, onNotificationsClick, unreadAlerts, on
           </Badge>
 
           <Button
-            variant="ghost"
+            variant="outline"
             size="icon"
             onClick={onAlertRulesClick}
           >
@@ -88,7 +88,7 @@ export const Header = ({ onSettingsClick, onNotificationsClick, unreadAlerts, on
           </Button>
 
           <Button
-            variant="ghost"
+            variant="outline"
             size="icon"
             onClick={onNotificationsClick}
             className="relative"
@@ -106,7 +106,7 @@ export const Header = ({ onSettingsClick, onNotificationsClick, unreadAlerts, on
           
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
+              <Button variant="outline" size="icon">
                 <Settings className="h-5 w-5" />
               </Button>
             </DropdownMenuTrigger>

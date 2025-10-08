@@ -62,7 +62,8 @@ export const useDevices = () => {
 
           (widgets || []).forEach(widget => {
             // Check if this is an alert widget stored as 'switch' type with isAlert flag
-            if (widget.type === 'switch' && widget.state?.isAlert === true) {
+            const state = widget.state as any;
+            if (widget.type === 'switch' && state?.isAlert === true) {
               counts.alerts++;
             } else if (widget.type === 'switch') {
               counts.switches++;

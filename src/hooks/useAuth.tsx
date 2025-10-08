@@ -110,9 +110,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
       
       // Force clear any remaining session data from localStorage
-      const supabaseUrl = supabase.supabaseUrl;
-      const projectId = supabaseUrl.split('//')[1].split('.')[0];
-      localStorage.removeItem(`sb-${projectId}-auth-token`);
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      if (supabaseUrl) {
+        const projectId = supabaseUrl.split('//')[1].split('.')[0];
+        localStorage.removeItem(`sb-${projectId}-auth-token`);
+      }
       
       // Clear all Supabase-related localStorage items
       Object.keys(localStorage).forEach(key => {
