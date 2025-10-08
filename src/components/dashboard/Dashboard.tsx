@@ -5,12 +5,15 @@ import { DeviceView } from '../devices/DeviceView';
 import { BrokerSettingsDialog } from './BrokerSettingsDialog';
 import { NotificationsDialog } from './NotificationsDialog';
 import { AlertRuleDialog } from './AlertRuleDialog';
+import { MasterDashboard } from './MasterDashboard';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useMasterAccount } from '@/hooks/useMasterAccount';
 import { DeviceWithRole } from '@/lib/types';
 
 export const Dashboard = () => {
   const { user } = useAuth();
+  const { isMaster } = useMasterAccount();
   const [selectedDevice, setSelectedDevice] = useState<DeviceWithRole | null>(null);
   const [showBrokerSettings, setShowBrokerSettings] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -55,6 +58,11 @@ export const Dashboard = () => {
       subscription.unsubscribe();
     };
   }, [user]);
+
+  // Show Master Dashboard if user is master account
+  if (isMaster) {
+    return <MasterDashboard />;
+  }
 
   return (
     <div className="min-h-screen bg-background dark">

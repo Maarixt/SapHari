@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Cpu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { DeviceCard } from './DeviceCard';
 import { AddDeviceDialog } from './AddDeviceDialog';
+import { SimulatorModal } from '@/components/simulator/SimulatorModal';
 import { useDevices } from '@/hooks/useDevices';
 import { DeviceWithRole } from '@/lib/types';
 
@@ -15,6 +16,8 @@ interface DeviceListProps {
 export const DeviceList = ({ onDeviceSelect }: DeviceListProps) => {
   const { devices, loading, refetch } = useDevices();
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showSim, setShowSim] = useState(false);
+  const [simFullscreen, setSimFullscreen] = useState(false);
 
   const handleAddDevice = () => {
     refetch();
@@ -57,10 +60,19 @@ export const DeviceList = ({ onDeviceSelect }: DeviceListProps) => {
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-semibold">Devices</h2>
-        <Button onClick={() => setShowAddDialog(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Device
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => {
+            setSimFullscreen(true);
+            setShowSim(true);
+          }} variant="outline">
+            <Cpu className="mr-2 h-4 w-4" />
+            Simulator
+          </Button>
+          <Button onClick={() => setShowAddDialog(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Device
+          </Button>
+        </div>
       </div>
 
       {devices.length === 0 ? (
@@ -88,6 +100,15 @@ export const DeviceList = ({ onDeviceSelect }: DeviceListProps) => {
         open={showAddDialog}
         onOpenChange={setShowAddDialog}
         onDeviceAdded={handleAddDevice}
+      />
+
+      <SimulatorModal 
+        open={showSim} 
+        onOpenChange={(open) => {
+          setShowSim(open);
+          if (!open) setSimFullscreen(false);
+        }} 
+        initialFullscreen={simFullscreen}
       />
     </div>
   );

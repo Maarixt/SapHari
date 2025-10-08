@@ -1,0 +1,66 @@
+import { supabase } from '@/integrations/supabase/client';
+import { SimState } from './types';
+
+export interface CircuitData {
+  id: string;
+  user_id: string;
+  name: string;
+  json: SimState;
+  created_at: string;
+}
+
+export async function saveCircuit(name: string, state: SimState, userId: string): Promise<string> {
+  const { data, error } = await supabase
+    .from('sim_circuits')
+    .insert({
+      user_id: userId,
+      name,
+      json: state,
+    })
+    .select('id')
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to save circuit: ${error.message}`);
+  }
+
+  return data.id;
+}
+
+export async function loadCircuits(): Promise<CircuitData[]> {
+  const { data, error } = await supabase
+    .from('sim_circuits')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    throw new Error(`Failed to load circuits: ${error.message}`);
+  }
+
+  return data || [];
+}
+
+export async function loadCircuit(id: string): Promise<CircuitData | null> {
+  const { data, error } = await supabase
+    .from('sim_circuits')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to load circuit: ${error.message}`);
+  }
+
+  return data;
+}
+
+export async function deleteCircuit(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('sim_circuits')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    throw new Error(`Failed to delete circuit: ${error.message}`);
+  }
+}

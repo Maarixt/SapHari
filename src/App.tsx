@@ -8,6 +8,7 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import NotFound from "./pages/NotFound";
 import { AuthProvider } from "@/hooks/useAuth";
+import { MasterAccountProvider } from "@/hooks/useMasterAccount";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
@@ -20,22 +21,24 @@ const App = () => (
         <Toaster />
         <Sonner />
         <AuthProvider>
-          <BrowserRouter>
-            <Routes>
-              <Route path="/login" element={<Login />} />
-              <Route path="/signup" element={<Signup />} />
-              <Route
-                path="/"
-                element={
-                  <AuthGuard>
-                    <Index />
-                  </AuthGuard>
-                }
-              />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
+          <MasterAccountProvider>
+            <BrowserRouter>
+              <Routes>
+                <Route path="/login" element={<Login />} />
+                <Route path="/signup" element={<Signup />} />
+                <Route
+                  path="/"
+                  element={
+                    <AuthGuard>
+                      <Index />
+                    </AuthGuard>
+                  }
+                />
+                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+          </MasterAccountProvider>
         </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>
