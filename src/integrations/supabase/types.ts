@@ -126,27 +126,9 @@ export type Database = {
         Relationships: []
       }
       profiles: {
-        Row: {
-          created_at: string
-          display_name: string | null
-          email: string | null
-          id: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          display_name?: string | null
-          email?: string | null
-          id: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          display_name?: string | null
-          email?: string | null
-          id?: string
-          updated_at?: string
-        }
+        Row: {}
+        Insert: {}
+        Update: {}
         Relationships: []
       }
       widgets: {
@@ -159,13 +141,11 @@ export type Database = {
           id: string
           label: string
           max_value: number | null
-          message: string | null
           min_value: number | null
           override_mode: boolean | null
           pin: number | null
           state: Json | null
           type: string
-          trigger: number | null
           updated_at: string
         }
         Insert: {
@@ -177,13 +157,11 @@ export type Database = {
           id?: string
           label: string
           max_value?: number | null
-          message?: string | null
           min_value?: number | null
           override_mode?: boolean | null
           pin?: number | null
           state?: Json | null
           type: string
-          trigger?: number | null
           updated_at?: string
         }
         Update: {
@@ -195,13 +173,11 @@ export type Database = {
           id?: string
           label?: string
           max_value?: number | null
-          message?: string | null
           min_value?: number | null
           override_mode?: boolean | null
           pin?: number | null
           state?: Json | null
           type?: string
-          trigger?: number | null
           updated_at?: string
         }
         Relationships: [
