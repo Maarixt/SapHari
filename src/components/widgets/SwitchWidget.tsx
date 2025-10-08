@@ -120,10 +120,10 @@ export const SwitchWidget = ({ widget, device, allWidgets, onUpdate, onDelete }:
             </p>
           </div>
           <div className="flex gap-1">
-            <Button variant="ghost" size="icon" onClick={() => setShowEdit(true)}>
+            <Button variant="ghost" size="icon" className="ghost-enhanced" onClick={() => setShowEdit(true)}>
               <Settings className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="icon" onClick={handleDelete}>
+            <Button variant="ghost" size="icon" className="ghost-enhanced" onClick={handleDelete}>
               <Trash2 className="h-4 w-4" />
             </Button>
           </div>
@@ -139,6 +139,7 @@ export const SwitchWidget = ({ widget, device, allWidgets, onUpdate, onDelete }:
             checked={currentState === 1}
             onCheckedChange={handleToggle}
             disabled={isToggling}
+            className="toggle-enhanced"
           />
         </div>
         

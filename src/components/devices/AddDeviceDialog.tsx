@@ -20,7 +20,7 @@ interface AddDeviceDialogProps {
   onDeviceAdded: () => void;
 }
 
-const generateDeviceId = () => 'saph-' + Math.random().toString(36).slice(2, 8);
+const generateDeviceId = () => `saph-${Math.random().toString(36).slice(2, 8)}`;
 const generateDeviceKey = () => Math.random().toString(36).slice(2, 10).toUpperCase();
 
 export const AddDeviceDialog = ({ open, onOpenChange, onDeviceAdded }: AddDeviceDialogProps) => {
@@ -37,17 +37,22 @@ export const AddDeviceDialog = ({ open, onOpenChange, onDeviceAdded }: AddDevice
     
     setIsLoading(true);
     try {
+      // Debug: Log user info
+      console.log('User ID:', user.id);
+      console.log('User email:', user.email);
       const { error } = await supabase
         .from('devices')
         .insert({
           name: name.trim(),
           device_id: deviceId.trim(),
           device_key: deviceKey.trim(),
-          owner_id: user.id,
-          user_id: user.id // Keep for backward compatibility
+          user_id: user.id
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
 
       toast({
         title: "Device added",
@@ -62,11 +67,12 @@ export const AddDeviceDialog = ({ open, onOpenChange, onDeviceAdded }: AddDevice
       setDeviceId(generateDeviceId());
       setDeviceKey(generateDeviceKey());
     } catch (error: any) {
+      console.error('Device creation error:', error);
       toast({
         title: "Error",
         description: error.message?.includes('duplicate') 
           ? "A device with this ID already exists" 
-          : "Failed to add device",
+          : error.message || "Failed to add device",
         variant: "destructive"
       });
     } finally {

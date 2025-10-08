@@ -3,6 +3,8 @@ import mqtt, { MqttClient } from 'mqtt';
 import { useAuth } from './useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from './use-toast';
+import { validateMQTTTopic, validateMQTTMessage, validateSapHariTopic } from '@/lib/mqttValidation';
+import { mqttPublishLimiter, mqttSubscribeLimiter, withRateLimit } from '@/lib/rateLimiter';
 
 interface BrokerSettings {
   url: string;
@@ -71,6 +73,9 @@ export const MQTTProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     if (!user || !brokerSettings.url) return;
 
+    // Only reconnect if URL or credentials changed
+    const connectionKey = `${brokerSettings.url}-${brokerSettings.username}-${brokerSettings.password}`;
+    
     const connectMQTT = () => {
       try {
         setStatus('connecting');
@@ -130,7 +135,7 @@ export const MQTTProvider = ({ children }: { children: React.ReactNode }) => {
         mqttClient.end(true);
       }
     };
-  }, [user, brokerSettings]);
+  }, [user, brokerSettings.url, brokerSettings.username, brokerSettings.password]);
 
   const updateBrokerSettings = async (settings: BrokerSettings) => {
     if (!user) return;
@@ -163,14 +168,101 @@ export const MQTTProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const publishMessage = (topic: string, payload: string, retain = false) => {
-    if (client && connected) {
+    if (!client || !connected) {
+      toast({
+        title: "MQTT Error",
+        description: "Not connected to MQTT broker",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Check rate limit
+    if (!mqttPublishLimiter.isAllowed('publish')) {
+      const remainingTime = mqttPublishLimiter.getRemainingTime('publish');
+      toast({
+        title: "Rate Limit Exceeded",
+        description: `Too many publish requests. Try again in ${Math.ceil(remainingTime / 1000)} seconds.`,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Validate topic
+    const topicValidation = validateSapHariTopic(topic);
+    if (!topicValidation.isValid) {
+      toast({
+        title: "Invalid Topic",
+        description: topicValidation.error || "Topic validation failed",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Validate message
+    const messageValidation = validateMQTTMessage(payload);
+    if (!messageValidation.isValid) {
+      toast({
+        title: "Invalid Message",
+        description: messageValidation.error || "Message validation failed",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
       client.publish(topic, payload, { retain });
+    } catch (error) {
+      console.error('Error publishing message:', error);
+      toast({
+        title: "Publish Error",
+        description: "Failed to publish message",
+        variant: "destructive"
+      });
     }
   };
 
   const subscribeToTopic = (topic: string) => {
-    if (client && connected) {
+    if (!client || !connected) {
+      toast({
+        title: "MQTT Error",
+        description: "Not connected to MQTT broker",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Check rate limit
+    if (!mqttSubscribeLimiter.isAllowed('subscribe')) {
+      const remainingTime = mqttSubscribeLimiter.getRemainingTime('subscribe');
+      toast({
+        title: "Rate Limit Exceeded",
+        description: `Too many subscribe requests. Try again in ${Math.ceil(remainingTime / 1000)} seconds.`,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Validate topic
+    const topicValidation = validateMQTTTopic(topic);
+    if (!topicValidation.isValid) {
+      toast({
+        title: "Invalid Topic",
+        description: topicValidation.error || "Topic validation failed",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
       client.subscribe(topic);
+    } catch (error) {
+      console.error('Error subscribing to topic:', error);
+      toast({
+        title: "Subscribe Error",
+        description: "Failed to subscribe to topic",
+        variant: "destructive"
+      });
     }
   };
 

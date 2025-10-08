@@ -27,15 +27,65 @@ export const useDevices = () => {
         
       if (deviceError) throw deviceError;
 
-      // Convert to DeviceWithRole format
-      const devicesWithRoles: DeviceWithRole[] = (deviceData || []).map(device => ({
-        ...device,
-        owner_id: device.user_id || user.id,
-        userRole: 'owner' as Role,
-        collaborators: []
-      }));
+      // Load widget counts for each device
+      const devicesWithCounts = await Promise.all(
+        (deviceData || []).map(async (device) => {
+          // Get widget counts for this device
+          const { data: widgets, error: widgetError } = await supabase
+            .from('widgets')
+            .select('type, state')
+            .eq('device_id', device.id);
 
-      setDevices(devicesWithRoles);
+          if (widgetError) {
+            console.error('Error loading widgets for device:', device.id, widgetError);
+            return {
+              ...device,
+              owner_id: device.user_id || user.id,
+              userRole: 'owner' as Role,
+              collaborators: [],
+              widget_counts: {
+                switches: 0,
+                gauges: 0,
+                servos: 0,
+                alerts: 0
+              }
+            };
+          }
+
+          // Calculate widget counts
+          const counts = {
+            switches: 0,
+            gauges: 0,
+            servos: 0,
+            alerts: 0
+          };
+
+          (widgets || []).forEach(widget => {
+            // Check if this is an alert widget stored as 'switch' type with isAlert flag
+            if (widget.type === 'switch' && widget.state?.isAlert === true) {
+              counts.alerts++;
+            } else if (widget.type === 'switch') {
+              counts.switches++;
+            } else if (widget.type === 'gauge') {
+              counts.gauges++;
+            } else if (widget.type === 'servo') {
+              counts.servos++;
+            } else if (widget.type === 'alert') {
+              counts.alerts++;
+            }
+          });
+
+          return {
+            ...device,
+            owner_id: device.user_id || user.id,
+            userRole: 'owner' as Role,
+            collaborators: [],
+            widget_counts: counts
+          };
+        })
+      );
+
+      setDevices(devicesWithCounts);
     } catch (err: any) {
       console.error('Error loading devices:', err);
       setError(err.message);

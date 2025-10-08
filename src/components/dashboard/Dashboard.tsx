@@ -72,7 +72,10 @@ export const Dashboard = () => {
             onBack={() => setSelectedDevice(null)}
           />
         ) : (
-          <DeviceList onDeviceSelect={setSelectedDevice} />
+          <DeviceList 
+            onDeviceSelect={setSelectedDevice}
+            key={selectedDevice ? 'device-selected' : 'device-list'} // Force re-render when returning from device
+          />
         )}
       </main>
       

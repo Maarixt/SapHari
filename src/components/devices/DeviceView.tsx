@@ -187,7 +187,7 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
-          <Button variant="outline" onClick={onBack}>
+          <Button variant="outline" onClick={onBack} className="btn-outline-enhanced">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back
           </Button>
@@ -204,23 +204,23 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
         </div>
         
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => handleAddWidget('switch')}>
+          <Button variant="outline" className="btn-outline-enhanced" onClick={() => handleAddWidget('switch')}>
             <Plus className="mr-2 h-4 w-4" />
             Switch
           </Button>
-          <Button variant="outline" onClick={() => handleAddWidget('gauge')}>
+          <Button variant="outline" className="btn-outline-enhanced" onClick={() => handleAddWidget('gauge')}>
             <Plus className="mr-2 h-4 w-4" />
             Gauge
           </Button>
-          <Button variant="outline" onClick={() => handleAddWidget('servo')}>
+          <Button variant="outline" className="btn-outline-enhanced" onClick={() => handleAddWidget('servo')}>
             <Plus className="mr-2 h-4 w-4" />
             Servo
           </Button>
-          <Button variant="outline" onClick={() => handleAddWidget('alert')}>
+          <Button variant="outline" className="btn-outline-enhanced" onClick={() => handleAddWidget('alert')}>
             <Plus className="mr-2 h-4 w-4" />
             Alert
           </Button>
-          <Button variant="outline" onClick={() => setShowCodeSnippet(true)}>
+          <Button variant="outline" className="btn-outline-enhanced" onClick={() => setShowCodeSnippet(true)}>
             <Code className="mr-2 h-4 w-4" />
             Code Snippet
           </Button>
@@ -235,15 +235,15 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
               <Plus className="mr-2 h-4 w-4" />
               Add Switch
             </Button>
-            <Button variant="outline" onClick={() => handleAddWidget('gauge')}>
+            <Button variant="outline" className="btn-outline-enhanced" onClick={() => handleAddWidget('gauge')}>
               <Plus className="mr-2 h-4 w-4" />
               Add Gauge
             </Button>
-            <Button variant="outline" onClick={() => handleAddWidget('servo')}>
+            <Button variant="outline" className="btn-outline-enhanced" onClick={() => handleAddWidget('servo')}>
               <Plus className="mr-2 h-4 w-4" />
               Add Servo
             </Button>
-            <Button variant="outline" onClick={() => handleAddWidget('alert')}>
+            <Button variant="outline" className="btn-outline-enhanced" onClick={() => handleAddWidget('alert')}>
               <Plus className="mr-2 h-4 w-4" />
               Add Alert
             </Button>
@@ -252,7 +252,28 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {widgets.map((widget) => {
-            if (widget.type === 'switch') {
+            // Check if this is an alert widget stored as 'switch' type with isAlert flag
+            const isAlertWidget = widget.type === 'switch' && widget.state?.isAlert === true;
+            
+            if (isAlertWidget) {
+              // Create a modified widget object with alert properties for AlertWidget component
+              const alertWidget = {
+                ...widget,
+                type: 'alert' as const,
+                trigger: widget.state?.trigger || 0,
+                message: widget.state?.message || ''
+              };
+              
+              return (
+                <AlertWidget
+                  key={widget.id}
+                  widget={alertWidget}
+                  allWidgets={widgets}
+                  onUpdate={(updates) => handleWidgetUpdated(widget.id, updates)}
+                  onDelete={() => handleWidgetDeleted(widget.id)}
+                />
+              );
+            } else if (widget.type === 'switch') {
               return (
                 <SwitchWidget
                   key={widget.id}

@@ -117,7 +117,7 @@ export const GaugeWidget = ({ widget, device, allWidgets, onUpdate, onDelete }: 
               variant="ghost"
               size="sm"
               onClick={handleEdit}
-              className="h-8 w-8 p-0 text-iot-muted hover:text-iot-text"
+              className="h-8 w-8 p-0 ghost-enhanced"
             >
               <Settings className="h-4 w-4" />
             </Button>
@@ -125,7 +125,7 @@ export const GaugeWidget = ({ widget, device, allWidgets, onUpdate, onDelete }: 
               variant="ghost"
               size="sm"
               onClick={handleDelete}
-              className="h-8 w-8 p-0 text-iot-muted hover:text-red-500"
+              className="h-8 w-8 p-0 ghost-enhanced"
             >
               <Trash2 className="h-4 w-4" />
             </Button>

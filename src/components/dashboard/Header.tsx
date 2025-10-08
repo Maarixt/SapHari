@@ -1,9 +1,10 @@
-import { Bell, Settings, LogOut, AlertTriangle } from 'lucide-react';
+import { Bell, Settings, LogOut, AlertTriangle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useMQTT } from '@/hooks/useMQTT';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,14 +23,32 @@ export const Header = ({ onSettingsClick, onNotificationsClick, unreadAlerts, on
   const { status } = useMQTT();
   const { signOut } = useAuth();
   const navigate = useNavigate();
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   const handleSignOut = async () => {
+    if (isSigningOut) return; // Prevent multiple clicks
+    
+    setIsSigningOut(true);
     try {
       await signOut();
+      // Navigate to login page regardless of Supabase response
       navigate('/login', { replace: true });
     } catch (error) {
       console.error('Sign out failed:', error);
+      // Even if there's an error, try to navigate to login
+      // The AuthGuard will handle the authentication check
+      navigate('/login', { replace: true });
+    } finally {
+      setIsSigningOut(false);
     }
+  };
+
+  const handleForceSignOut = () => {
+    // Force clear everything and navigate
+    localStorage.clear();
+    sessionStorage.clear();
+    navigate('/login', { replace: true });
+    window.location.reload();
   };
 
   const getStatusColor = () => {
@@ -95,12 +114,26 @@ export const Header = ({ onSettingsClick, onNotificationsClick, unreadAlerts, on
               <DropdownMenuItem onClick={onSettingsClick}>
                 MQTT Settings
               </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={handleForceSignOut}
+                className="text-destructive focus:text-destructive"
+              >
+                Force Sign Out
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <Button variant="outline" onClick={handleSignOut}>
-            <LogOut className="mr-2 h-4 w-4" />
-            Sign Out
+          <Button 
+            variant="outline" 
+            onClick={handleSignOut}
+            disabled={isSigningOut}
+          >
+            {isSigningOut ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <LogOut className="mr-2 h-4 w-4" />
+            )}
+            {isSigningOut ? 'Signing Out...' : 'Sign Out'}
           </Button>
         </div>
       </div>

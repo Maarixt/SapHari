@@ -235,12 +235,21 @@ export const AddWidgetDialog = ({
           return;
         }
 
+        // Use 'switch' type for alert widgets since 'alert' is not allowed in the database
+        widgetData.type = 'switch';
         widgetData.pin = pin;
-        widgetData.trigger = triggerLevel === 'high' ? 1 : 0;
-        widgetData.message = message;
-        widgetData.state = { triggered: false, lastTrigger: null };
+        // Store alert-specific data in the state
+        widgetData.state = { 
+          triggered: false, 
+          lastTrigger: null,
+          trigger: triggerLevel === 'high' ? 1 : 0,
+          message: message,
+          isAlert: true // Flag to identify this as an alert widget
+        };
       }
 
+      console.log('Creating widget with data:', widgetData);
+      
       const { error } = await supabase.from('widgets').insert({
         device_id: widgetData.device_id as string,
         type: widgetData.type as string,
@@ -252,11 +261,13 @@ export const AddWidgetDialog = ({
         min_value: widgetData.min_value as number | null,
         max_value: widgetData.max_value as number | null,
         override_mode: widgetData.override_mode as boolean | null,
-        trigger: widgetData.trigger as number | null,
-        message: widgetData.message as string | null,
         state: widgetData.state as any
       });
-      if (error) throw error;
+      
+      if (error) {
+        console.error('Widget creation error:', error);
+        throw error;
+      }
 
       onWidgetAdded();
       onOpenChange(false);

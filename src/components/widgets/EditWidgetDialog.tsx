@@ -263,12 +263,15 @@ export const EditWidgetDialog = ({ open, onOpenChange, widget, allWidgets, onUpd
         }
 
         updates.pin = pin;
-        updates.trigger = triggerLevel === 'high' ? 1 : 0;
-        updates.message = message;
+        // Store alert-specific data in the state since trigger and message columns don't exist in DB
+        updates.state = {
+          ...widget.state,
+          trigger: triggerLevel === 'high' ? 1 : 0,
+          message: message
+        };
 
         localUpdates.pin = pin;
-        localUpdates.trigger = triggerLevel === 'high' ? 1 : 0;
-        localUpdates.message = message;
+        localUpdates.state = updates.state;
       }
 
       const { error } = await supabase.from('widgets').update(updates).eq('id', widget.id);
