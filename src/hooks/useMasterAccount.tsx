@@ -1,6 +1,6 @@
-// src/hooks/useMasterAccount.tsx
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { UserRole, isMasterAccount, getRolePermissions } from '@/lib/roles';
+import { supabase } from '@/integrations/supabase/client';
 
 interface MasterAccountContextType {
   userRole: UserRole;
@@ -31,23 +31,25 @@ export const MasterAccountProvider = ({ children }: MasterAccountProviderProps) 
     const checkMasterSession = async () => {
       try {
         const storedRole = localStorage.getItem('saphari_user_role') as UserRole;
-        if (storedRole && isMasterAccount(storedRole)) {
+        const sessionToken = localStorage.getItem('saphari_master_session');
+        
+        if (storedRole && isMasterAccount(storedRole) && sessionToken) {
           // Verify session is still valid
-          const response = await fetch('/api/auth/verify-master-session', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ role: storedRole })
+          const { data, error } = await supabase.functions.invoke('verify-master-session', {
+            body: { sessionToken }
           });
           
-          if (response.ok) {
-            setUserRole(storedRole);
+          if (!error && data?.ok) {
+            setUserRole('master');
           } else {
             localStorage.removeItem('saphari_user_role');
+            localStorage.removeItem('saphari_master_session');
           }
         }
       } catch (error) {
         console.error('Failed to verify master session:', error);
         localStorage.removeItem('saphari_user_role');
+        localStorage.removeItem('saphari_master_session');
       }
     };
 
@@ -59,49 +61,21 @@ export const MasterAccountProvider = ({ children }: MasterAccountProviderProps) 
     setError(null);
 
     try {
-      // Master account validation
-      const masterAccounts = [
-        { email: 'master@saphari.com', password: 'MasterSapHari2024!', twoFactor: '123456' },
-        { email: 'root@integron.com', password: 'RootIntegron2024!', twoFactor: '654321' },
-        { email: 'admin@saphari.io', password: 'AdminSapHari2024!', twoFactor: '111111' }
-      ];
+      // Call master-login edge function
+      const { data, error: loginError } = await supabase.functions.invoke('master-login', {
+        body: { email, password, twoFactorCode }
+      });
 
-      const masterAccount = masterAccounts.find(account => account.email === email);
-      
-      if (!masterAccount) {
-        setError('Invalid master account credentials');
-        return false;
-      }
-
-      if (masterAccount.password !== password) {
-        setError('Invalid password');
-        return false;
-      }
-
-      // 2FA validation (optional but recommended for master accounts)
-      if (twoFactorCode && masterAccount.twoFactor !== twoFactorCode) {
-        setError('Invalid 2FA code');
+      if (loginError || !data?.ok) {
+        setError(data?.error || 'Invalid master credentials');
         return false;
       }
 
       // Set master role
       setUserRole('master');
       localStorage.setItem('saphari_user_role', 'master');
+      localStorage.setItem('saphari_master_session', data.sessionToken);
       localStorage.setItem('saphari_master_login_time', new Date().toISOString());
-
-      // Log master login for audit
-      await fetch('/api/audit/log', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'MASTER_LOGIN',
-          userId: 'master',
-          userEmail: email,
-          details: 'Master account login successful',
-          ipAddress: '127.0.0.1', // In real app, get from request
-          timestamp: new Date().toISOString()
-        })
-      });
 
       return true;
     } catch (error) {
@@ -114,22 +88,18 @@ export const MasterAccountProvider = ({ children }: MasterAccountProviderProps) 
   };
 
   const logout = () => {
+    const sessionToken = localStorage.getItem('saphari_master_session');
+    const email = localStorage.getItem('saphari_master_email');
+    
     // Log master logout for audit
-    fetch('/api/audit/log', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'MASTER_LOGOUT',
-        userId: 'master',
-        userEmail: 'master@saphari.com',
-        details: 'Master account logout',
-        ipAddress: '127.0.0.1',
-        timestamp: new Date().toISOString()
-      })
+    supabase.functions.invoke('master-logout', {
+      body: { sessionToken, email }
     }).catch(console.error);
 
     setUserRole('user');
     localStorage.removeItem('saphari_user_role');
+    localStorage.removeItem('saphari_master_session');
+    localStorage.removeItem('saphari_master_email');
     localStorage.removeItem('saphari_master_login_time');
   };
 

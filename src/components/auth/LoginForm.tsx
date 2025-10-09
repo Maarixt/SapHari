@@ -91,7 +91,7 @@ export const LoginForm = ({ initialMode = 'login' }: LoginFormProps) => {
               {isLoading ? 'Loading...' : (isSignUp ? 'Sign Up' : 'Sign In')}
             </Button>
           </form>
-          <div className="mt-4 text-center">
+          <div className="mt-4 space-y-2 text-center">
             <Button
               variant="link"
               onClick={() => {
@@ -102,6 +102,19 @@ export const LoginForm = ({ initialMode = 'login' }: LoginFormProps) => {
             >
               {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
             </Button>
+            {!isSignUp && (
+              <div className="mt-2 pt-2 border-t border-border">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate('/master-login')}
+                  disabled={isLoading}
+                  className="text-xs text-muted-foreground hover:text-amber-600"
+                >
+                  🔐 Master Account Access
+                </Button>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

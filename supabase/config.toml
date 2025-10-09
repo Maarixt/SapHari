@@ -1,1 +1,10 @@
 project_id = "wrdeomgtkbehvbfhiprm"
+
+[functions.master-login]
+verify_jwt = false
+
+[functions.verify-master-session]
+verify_jwt = false
+
+[functions.master-logout]
+verify_jwt = false
