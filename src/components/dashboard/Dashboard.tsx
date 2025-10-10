@@ -84,6 +84,7 @@ export const Dashboard = () => {
       <AlertRuleDialog
         open={showAlertRules}
         onOpenChange={setShowAlertRules}
+        defaultDeviceId={selectedDevice?.id}
       />
 
               <SnippetStream

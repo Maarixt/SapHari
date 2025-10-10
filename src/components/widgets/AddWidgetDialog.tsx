@@ -57,6 +57,7 @@ export const AddWidgetDialog = ({
   existingWidgets,
   onWidgetAdded,
 }: AddWidgetDialogProps) => {
+  console.log('AddWidgetDialog props:', { open, device: device.id, type, existingWidgetsCount: existingWidgets.length });
   const { toast } = useToast();
   const [label, setLabel] = useState('');
   const [overrideMode, setOverrideMode] = useState(false);
