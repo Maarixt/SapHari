@@ -1,7 +1,9 @@
-import { Bell, Settings, LogOut, AlertTriangle, Loader2 } from 'lucide-react';
+import { Bell, Settings, LogOut, AlertTriangle, Loader2, Code, Cpu, RefreshCw } from 'lucide-react';
+import AlertsBell from '@/components/alerts/AlertsBell';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { useMQTT } from '@/hooks/useMQTT';
+import { useMqttStatus } from '@/hooks/useMqttStatus';
+import { reconnectMqtt } from '@/services/mqtt';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
@@ -14,13 +16,13 @@ import {
 
 interface HeaderProps {
   onSettingsClick: () => void;
-  onNotificationsClick: () => void;
-  unreadAlerts: number;
   onAlertRulesClick: () => void;
+  onSnippetStreamClick?: () => void;
+  onDeviceDemoClick?: () => void;
 }
 
-export const Header = ({ onSettingsClick, onNotificationsClick, unreadAlerts, onAlertRulesClick }: HeaderProps) => {
-  const { status } = useMQTT();
+export const Header = ({ onSettingsClick, onAlertRulesClick, onSnippetStreamClick, onDeviceDemoClick }: HeaderProps) => {
+  const { status, connected } = useMqttStatus();
   const { signOut } = useAuth();
   const navigate = useNavigate();
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -56,7 +58,7 @@ export const Header = ({ onSettingsClick, onNotificationsClick, unreadAlerts, on
       case 'connected': return 'bg-iot-online';
       case 'connecting': return 'bg-iot-warning';
       case 'error': return 'bg-iot-offline';
-      default: return 'bg-muted';
+      default: return 'bg-iot-offline';
     }
   };
 
@@ -70,72 +72,106 @@ export const Header = ({ onSettingsClick, onNotificationsClick, unreadAlerts, on
   };
 
   return (
-    <header className="border-b border-iot-border bg-card px-6 py-4">
+    <header className="border-b border-iot-border bg-card px-4 py-3">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-foreground">🌐 SapHari Dashboard</h1>
+        <h1 className="text-lg font-semibold text-foreground truncate">🌐 SapHari Dashboard</h1>
         
-        <div className="flex items-center gap-3">
-          <Badge variant="secondary" className={`${getStatusColor()} text-white`}>
-            MQTT: {getStatusText()}
-          </Badge>
-
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={onAlertRulesClick}
-            className="btn-icon-bright"
-          >
-            <AlertTriangle className="h-5 w-5" />
-          </Button>
-
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={onNotificationsClick}
-            className="relative btn-icon-bright"
-          >
-            <Bell className="h-5 w-5" />
-            {unreadAlerts > 0 && (
-              <Badge 
-                variant="destructive" 
-                className="absolute -right-1 -top-1 h-5 w-5 rounded-full p-0 text-xs"
+        <div className="flex items-center gap-2 min-w-0">
+          {/* Status Badge - Hide on very small screens */}
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary" className={`${getStatusColor()} text-white hidden sm:inline-flex`}>
+              MQTT: {getStatusText()}
+            </Badge>
+            {!connected && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={reconnectMqtt}
+                className="h-6 px-2 text-xs"
+                title="Reconnect to MQTT"
               >
-                {unreadAlerts}
-              </Badge>
-            )}
-          </Button>
-          
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon" className="btn-icon-bright">
-                <Settings className="h-5 w-5" />
+                <RefreshCw className="h-3 w-3 mr-1" />
+                Reconnect
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={onSettingsClick}>
-                MQTT Settings
-              </DropdownMenuItem>
-              <DropdownMenuItem 
-                onClick={handleForceSignOut}
-                className="text-destructive focus:text-destructive"
-              >
-                Force Sign Out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <Button 
-            variant="outline" 
-            onClick={handleSignOut}
-            disabled={isSigningOut}
-          >
-            {isSigningOut ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <LogOut className="mr-2 h-4 w-4" />
             )}
-            {isSigningOut ? 'Signing Out...' : 'Sign Out'}
-          </Button>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={onAlertRulesClick}
+              className="btn-icon-bright h-8 w-8"
+              title="Alert Rules"
+            >
+              <AlertTriangle className="h-4 w-4" />
+            </Button>
+
+            {onSnippetStreamClick && (
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={onSnippetStreamClick}
+                className="btn-icon-bright h-8 w-8"
+                title="Snippet Stream"
+              >
+                <Code className="h-4 w-4" />
+              </Button>
+            )}
+
+            {onDeviceDemoClick && (
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={onDeviceDemoClick}
+                className="btn-icon-bright h-8 w-8"
+                title="Device Control Demo"
+              >
+                <Cpu className="h-4 w-4" />
+              </Button>
+            )}
+
+            {/* Alerts Bell Component */}
+            <AlertsBell />
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon" className="btn-icon-bright h-8 w-8" title="Settings">
+                  <Settings className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={onSettingsClick}>
+                  MQTT Settings
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={handleForceSignOut}
+                  className="text-destructive focus:text-destructive"
+                >
+                  Force Sign Out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Sign Out Button - Hide text on small screens */}
+            <Button 
+              variant="outline" 
+              onClick={handleSignOut}
+              disabled={isSigningOut}
+              className="h-8 px-2 sm:px-3"
+              title="Sign Out"
+            >
+              {isSigningOut ? (
+                <Loader2 className="h-4 w-4 animate-spin sm:mr-2" />
+              ) : (
+                <LogOut className="h-4 w-4 sm:mr-2" />
+              )}
+              <span className="hidden sm:inline">
+                {isSigningOut ? 'Signing Out...' : 'Sign Out'}
+              </span>
+            </Button>
+          </div>
         </div>
       </div>
     </header>

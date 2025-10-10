@@ -16,7 +16,6 @@ import { useToast } from '@/hooks/use-toast';
 import { Device, Widget } from '@/lib/types';
 
 type GaugeType = 'analog' | 'pir' | 'ds18b20' | 'ultrasonic';
-type TriggerLevel = 'high' | 'low';
 
 const DIGITAL_PINS = [2, 4, 5, 12, 13, 14, 15, 16, 17, 18, 19, 21, 22, 23, 25, 26, 27, 32, 33];
 const ANALOG_PINS = [32, 33, 34, 35, 36, 39];
@@ -32,7 +31,7 @@ interface AddWidgetDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   device: Device;
-  type: 'switch' | 'gauge' | 'servo' | 'alert';
+  type: 'switch' | 'gauge' | 'servo';
   existingWidgets: Widget[];
   onWidgetAdded: () => void;
 }
@@ -66,8 +65,6 @@ export const AddWidgetDialog = ({
   const [echoPin, setEchoPin] = useState<number | undefined>();
   const [minValue, setMinValue] = useState<string>('0');
   const [maxValue, setMaxValue] = useState<string>('0');
-  const [triggerLevel, setTriggerLevel] = useState<TriggerLevel>('high');
-  const [message, setMessage] = useState('');
 
   const usedPins = useMemo(() => buildUsedPinSet(existingWidgets), [existingWidgets]);
 
@@ -82,8 +79,6 @@ export const AddWidgetDialog = ({
     const defaults = GAUGE_DEFAULTS['analog'];
     setMinValue(String(defaults.min));
     setMaxValue(String(defaults.max));
-    setTriggerLevel('high');
-    setMessage('');
   }, [open, type]);
 
   useEffect(() => {
@@ -111,7 +106,7 @@ export const AddWidgetDialog = ({
           : DIGITAL_PINS
         : DIGITAL_PINS;
 
-    const allowUsedPins = type === 'alert';
+    const allowUsedPins = false;
 
     return sourcePins.map((gpio) => ({
       value: gpio,
@@ -225,28 +220,6 @@ export const AddWidgetDialog = ({
         widgetData.state = { angle: 90 };
       }
 
-      if (type === 'alert') {
-        if (pin === undefined) {
-          toast({
-            title: 'GPIO pin required',
-            description: 'Select a GPIO pin for the alert trigger',
-            variant: 'destructive',
-          });
-          return;
-        }
-
-        // Use 'switch' type for alert widgets since 'alert' is not allowed in the database
-        widgetData.type = 'switch';
-        widgetData.pin = pin;
-        // Store alert-specific data in the state
-        widgetData.state = { 
-          triggered: false, 
-          lastTrigger: null,
-          trigger: triggerLevel === 'high' ? 1 : 0,
-          message: message,
-          isAlert: true // Flag to identify this as an alert widget
-        };
-      }
 
       console.log('Creating widget with data:', widgetData);
       
@@ -320,7 +293,7 @@ export const AddWidgetDialog = ({
             </div>
           )}
 
-          {(type !== 'switch' || !overrideMode) && type !== 'alert' && (
+          {(type !== 'switch' || !overrideMode) && (
             <div className="space-y-2">
               <Label>{type === 'gauge' && gaugeType === 'ultrasonic' ? 'Trig GPIO Pin' : 'GPIO Pin'}</Label>
               <Select
@@ -341,26 +314,6 @@ export const AddWidgetDialog = ({
             </div>
           )}
 
-          {type === 'alert' && (
-            <div className="space-y-2">
-              <Label>GPIO Pin</Label>
-              <Select
-                value={pin !== undefined ? String(pin) : undefined}
-                onValueChange={(value) => setPin(parseInt(value, 10))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select pin" />
-                </SelectTrigger>
-                <SelectContent>
-                  {pinOptions.map((option) => (
-                    <SelectItem key={option.value} value={String(option.value)} disabled={option.disabled}>
-                      GPIO {option.value}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
 
           {type === 'gauge' && gaugeType === 'ultrasonic' && (
             <div className="space-y-2">
@@ -396,27 +349,6 @@ export const AddWidgetDialog = ({
             </div>
           )}
 
-          {type === 'alert' && (
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Trigger Level</Label>
-                <Select value={triggerLevel} onValueChange={(value) => setTriggerLevel(value as TriggerLevel)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select trigger" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="high">High</SelectItem>
-                    <SelectItem value="low">Low</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Message</Label>
-                <Input value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Alert message" />
-              </div>
-            </div>
-          )}
 
           <Button type="submit" className="w-full">
             Add Widget

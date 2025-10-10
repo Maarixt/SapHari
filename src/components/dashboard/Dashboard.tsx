@@ -3,60 +3,46 @@ import { Header } from './Header';
 import { DeviceList } from '../devices/DeviceList';
 import { DeviceView } from '../devices/DeviceView';
 import { BrokerSettingsDialog } from './BrokerSettingsDialog';
-import { NotificationsDialog } from './NotificationsDialog';
 import { AlertRuleDialog } from './AlertRuleDialog';
+import { SnippetStream } from './SnippetStream';
 import { MasterDashboard } from './MasterDashboard';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useMasterAccount } from '@/hooks/useMasterAccount';
+import { Alerts } from '@/state/alertsEngine';
+import { seedAlertRules } from '@/dev/seedRules';
+import { connectMqtt } from '@/services/mqtt';
+import { DeviceControlDemo } from '@/components/demo/DeviceControlDemo';
+import { Toaster } from 'sonner';
 import { DeviceWithRole } from '@/lib/types';
 
 export const Dashboard = () => {
   const { user } = useAuth();
   const { isMaster } = useMasterAccount();
+  // Initialize alert engine
+  useEffect(() => {
+    // Seed example rules in development
+    if (import.meta.env.DEV) {
+      seedAlertRules();
+    }
+    console.log('Alert engine initialized');
+  }, []);
   const [selectedDevice, setSelectedDevice] = useState<DeviceWithRole | null>(null);
   const [showBrokerSettings, setShowBrokerSettings] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false);
   const [showAlertRules, setShowAlertRules] = useState(false);
-  const [unreadAlerts, setUnreadAlerts] = useState(0);
-
-  // Load unread alerts count
-  const loadUnreadAlerts = async () => {
-    if (!user) return;
-
-    try {
-      const { count, error } = await supabase
-        .from('alerts')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .eq('read', false);
-
-      if (error) throw error;
-      setUnreadAlerts(count || 0);
-    } catch (error) {
-      console.error('Error loading alerts:', error);
-    }
-  };
+  const [showSnippetStream, setShowSnippetStream] = useState(false);
+  const [showDeviceDemo, setShowDeviceDemo] = useState(false);
 
   useEffect(() => {
-    loadUnreadAlerts();
+    // Initialize MQTT connection
+    connectMqtt();
     
-    // Set up real-time subscription for alerts
-    const subscription = supabase
-      .channel('alerts')
-      .on('postgres_changes', { 
-        event: '*', 
-        schema: 'public', 
-        table: 'alerts',
-        filter: `user_id=eq.${user?.id}`
-      }, () => {
-        loadUnreadAlerts();
-      })
-      .subscribe();
-
-    return () => {
-      subscription.unsubscribe();
-    };
+    // Request notification permission once during app boot
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().then(permission => {
+        console.log('Notification permission:', permission);
+      });
+    }
   }, [user]);
 
   // Show Master Dashboard if user is master account
@@ -66,21 +52,23 @@ export const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-background dark">
-      <Header
-        onSettingsClick={() => setShowBrokerSettings(true)}
-        onNotificationsClick={() => setShowNotifications(true)}
-        unreadAlerts={unreadAlerts}
-        onAlertRulesClick={() => setShowAlertRules(true)}
-      />
+              <Header
+                onSettingsClick={() => setShowBrokerSettings(true)}
+                onAlertRulesClick={() => setShowAlertRules(true)}
+                onSnippetStreamClick={() => setShowSnippetStream(true)}
+                onDeviceDemoClick={() => setShowDeviceDemo(true)}
+              />
       
       <main>
-        {selectedDevice ? (
+        {showDeviceDemo ? (
+          <DeviceControlDemo onBack={() => setShowDeviceDemo(false)} />
+        ) : selectedDevice ? (
           <DeviceView
             device={selectedDevice}
             onBack={() => setSelectedDevice(null)}
           />
         ) : (
-          <DeviceList 
+          <DeviceList
             onDeviceSelect={setSelectedDevice}
             key={selectedDevice ? 'device-selected' : 'device-list'} // Force re-render when returning from device
           />
@@ -92,15 +80,22 @@ export const Dashboard = () => {
         onOpenChange={setShowBrokerSettings}
       />
       
-      <NotificationsDialog
-        open={showNotifications}
-        onOpenChange={setShowNotifications}
-        onAlertsRead={loadUnreadAlerts}
-      />
 
       <AlertRuleDialog
         open={showAlertRules}
         onOpenChange={setShowAlertRules}
+      />
+
+              <SnippetStream
+                className={showSnippetStream ? "fixed top-20 right-4 w-96 z-50" : "hidden"}
+                onClose={() => setShowSnippetStream(false)}
+              />
+
+      <Toaster 
+        position="top-right" 
+        expand={true}
+        richColors={true}
+        closeButton={true}
       />
     </div>
   );
