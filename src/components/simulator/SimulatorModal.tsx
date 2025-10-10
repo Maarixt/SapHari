@@ -16,8 +16,9 @@ import { simulateStep, getNetInfo, buildNets } from './engine';
 import { useSimulatorMQTT } from './mqttBridge';
 import { startLoop } from './runLoop';
 import { toast } from 'sonner';
-import { saveCircuit, loadCircuits, loadCircuit } from './supabase';
+// import { saveCircuit, loadCircuits, loadCircuit } from './supabase'; // TODO: Implement sim_circuits table
 import Editor from '@monaco-editor/react';
+import { supabase } from '@/integrations/supabase/client';
 import { runSimScript, stopSimScript } from './scriptRuntime';
 import { generateSketchFromState } from './sketchGenerator';
 import { cleanupBuzzerAudio } from './runLoop';
@@ -36,7 +37,7 @@ export const SimulatorModal = ({ open, onOpenChange, initialFullscreen = false }
     running: false,
     selectedId: undefined
   });
-  const [activeWireStart, setActiveWireStart] = useState<{compId: string; pinId: string} | null>(null);
+  const [activeWireStart, setActiveWireStart] = useState<{componentId: string; pinId: string} | null>(null);
   const [wireColor, setWireColor] = useState('red');
   const [simId] = useState(() => `sim-${nanoid(8)}`); // Stable simulator ID
   const [tab, setTab] = useState<'sketch' | 'simjs'>('sketch');
@@ -51,7 +52,7 @@ loop(() => {
   const [leftSidebarOpen, setLeftSidebarOpen] = useState(true);
   const [rightSidebarOpen, setRightSidebarOpen] = useState(true);
   const stageRef = useRef<any>(null);
-  const { publishMessage, onMessage, brokerSettings } = useMQTT();
+  const { publishMessage, onMessage, brokerSettings, connected } = useMQTT();
 
   // MQTT Bridge
   useSimulatorMQTT(state, setState, simId);
@@ -113,7 +114,7 @@ loop(() => {
 
   // Start wiring with pin blocking and toast notifications
   const beginWire = (compId: string, pinId: string) => {
-    if (activeWireStart && (activeWireStart.compId !== compId || activeWireStart.pinId !== pinId)) {
+    if (activeWireStart && (activeWireStart.componentId !== compId || activeWireStart.pinId !== pinId)) {
       // Check if target pin can be connected (allow multiple on power/ground)
       const toComp = state.components.find(c => c.id === compId);
       const toPin = toComp?.pins.find(p => p.id === pinId);
@@ -133,10 +134,10 @@ loop(() => {
       };
       setState(s => ({ ...s, wires: [...s.wires, newWire] }));
       setActiveWireStart(null);
-      toast.success(`Wire connected: ${activeWireStart.compId}:${activeWireStart.pinId} → ${compId}:${pinId}`);
+      toast.success(`Wire connected: ${activeWireStart.componentId}:${activeWireStart.pinId} → ${compId}:${pinId}`);
     } else {
       // Start a new wire
-      setActiveWireStart({ compId, pinId });
+      setActiveWireStart({ componentId: compId, pinId });
     }
   };
 
@@ -207,20 +208,33 @@ loop(() => {
 
   // Save circuit to Supabase
   const saveCircuitToSupabase = async () => {
+    // TODO: Implement after creating sim_circuits table
+    toast.error('Circuit saving not yet implemented - need to create sim_circuits table');
+    /*
     try {
       const name = prompt('Enter circuit name:');
       if (!name) return;
       
-      await saveCircuit(name, state);
+      const userId = (await supabase.auth.getUser()).data.user?.id;
+      if (!userId) {
+        toast.error('You must be logged in to save circuits');
+        return;
+      }
+      
+      await saveCircuit(name, state, userId);
       toast.success(`Circuit "${name}" saved successfully!`);
     } catch (error) {
       console.error('Failed to save circuit:', error);
       toast.error('Failed to save circuit');
     }
+    */
   };
 
   // Load circuit from Supabase
   const loadCircuitFromSupabase = async () => {
+    // TODO: Implement after creating sim_circuits table
+    toast.error('Circuit loading not yet implemented - need to create sim_circuits table');
+    /*
     try {
       const circuits = await loadCircuits();
       if (circuits.length === 0) {
@@ -250,14 +264,15 @@ loop(() => {
     } catch (error) {
       toast.error(`Failed to load circuits: ${error}`);
     }
+    */
   };
 
   // Connect to MQTT
   const connectMQTT = () => {
-    if (brokerSettings.connected) {
+    if (connected) {
       console.log(`Simulator ${simId} connected to MQTT`);
       // Publish initial status
-      publishMessage(`saphari/${simId}/status/online`, '1', { retain: true });
+      publishMessage(`saphari/${simId}/status/online`, '1', true);
     } else {
       console.log('Connecting to MQTT...');
       // MQTT connection logic would go here
