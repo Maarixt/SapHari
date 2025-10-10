@@ -11,8 +11,6 @@ interface CodeSnippetDialogProps {
   widgets: Widget[];
 }
 
-const sanitizeMessage = (message: string) => message.replace(/"/g, '\\"');
-const formatTriggerLevel = (trigger?: number | null) => ((trigger ?? 1) === 0 ? 'LOW' : 'HIGH');
 
 const getSwitchState = (widget: Widget) => {
   const raw = widget.state?.['value'];
@@ -69,12 +67,6 @@ export const CodeSnippetDialog = ({ open, onOpenChange, device, widgets }: CodeS
       .map((w) => `{ "${w.address}", ${w.pin ?? -1}, ${getServoAngle(w)}, false }`)
       .join(',\n  ');
 
-    const alerts = widgets
-      .filter((w) => w.type === 'alert')
-      .map((w) =>
-        `{ "${w.address}", ${w.pin ?? -1}, "${formatTriggerLevel(w.trigger)}", "${sanitizeMessage(w.message || '')}" }`
-      )
-      .join(',\n  ');
 
     return `// SapHari Device Configuration
 #define DEVICE_ID   "${device.device_id}"
@@ -94,10 +86,8 @@ ServoMap SERVOS[] = {
   ${servos || '// none'}
 };
 
-AlertMap ALERTS[] = {
-  ${alerts || '// none'}
-};
-int NUM_ALERTS = sizeof(ALERTS)/sizeof(ALERTS[0]);`;
+// Alert rules are now managed through the Alert Rules system
+// Use the Alert Rules dialog to configure notifications and code snippets`;
   };
 
   return (

@@ -12,8 +12,19 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { MasterAccountProvider } from "@/hooks/useMasterAccount";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+// Import simulation helper for development
+import "@/dev/simAlerts";
+import "@/dev/simFlow";
+import "@/dev/testMqtt";
+import "@/dev/testAlertEngine";
+import "@/dev/seedRules";
+import "@/dev/sim";
+import { connectMqtt } from "@/services/mqtt";
 
 const queryClient = new QueryClient();
+
+// Initialize MQTT connection
+connectMqtt();
 
 const App = () => (
   <ErrorBoundary>
@@ -23,7 +34,7 @@ const App = () => (
         <Sonner />
         <AuthProvider>
           <MasterAccountProvider>
-            <BrowserRouter>
+            <BrowserRouter future={{ v7_startTransition: true }}>
               <Routes>
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<Signup />} />

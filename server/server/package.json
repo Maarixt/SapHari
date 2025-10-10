@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "saphari-alerts-server": "file:.."
+  }
+}

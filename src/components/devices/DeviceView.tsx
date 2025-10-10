@@ -5,10 +5,10 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useMQTT } from '@/hooks/useMQTT';
+import { useDeviceStore } from '@/hooks/useDeviceStore';
 import { SwitchWidget } from '../widgets/SwitchWidget';
 import { GaugeWidget } from '../widgets/GaugeWidget';
 import { ServoWidget } from '../widgets/ServoWidget';
-import { AlertWidget } from '../widgets/AlertWidget';
 import { AddWidgetDialog } from '../widgets/AddWidgetDialog';
 import { CodeSnippetDialog } from '../widgets/CodeSnippetDialog';
 
@@ -22,19 +22,26 @@ interface DeviceViewProps {
 export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
   const { toast } = useToast();
   const { onMessage } = useMQTT();
+  const { 
+    device: deviceSnapshot,
+    isOnline, 
+    controlGpio, 
+    controlServo, 
+    controlGauge,
+    getGpioState,
+    getSensorValue
+  } = useDeviceStore(device.id);
+  
   const [widgets, setWidgets] = useState<Widget[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddWidget, setShowAddWidget] = useState(false);
-  const [addWidgetType, setAddWidgetType] = useState<'switch' | 'gauge' | 'servo' | 'alert'>('switch');
+  const [addWidgetType, setAddWidgetType] = useState<'switch' | 'gauge' | 'servo'>('switch');
   const [showCodeSnippet, setShowCodeSnippet] = useState(false);
-  const [deviceOnline, setDeviceOnline] = useState(device.online);
 
   // For now, assume owner role - this will be properly implemented when DeviceView gets role info
   const userRole = 'owner';
 
-  useEffect(() => {
-    setDeviceOnline(device.online);
-  }, [device.online]);
+  // Device online status is now managed by useDevice hook
 
   const loadWidgets = async () => {
     try {
@@ -48,7 +55,7 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
       if (error) throw error;
       setWidgets((data || []).map(item => ({
         ...item,
-        type: item.type as 'switch' | 'gauge' | 'servo' | 'alert',
+        type: item.type as 'switch' | 'gauge' | 'servo',
         gauge_type: item.gauge_type as 'analog' | 'pir' | 'ds18b20' | 'ultrasonic' | null,
         state: item.state as any
       })));
@@ -66,98 +73,60 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
 
   useEffect(() => {
     loadWidgets();
+  }, [device]);
 
-    // Set up MQTT message handler
-    const cleanup = onMessage((topic, message) => {
-      const parts = topic.split('/');
-      if (parts.length < 4 || parts[1] !== device.device_id) return;
+  // Update widget states based on device-reported state
+  useEffect(() => {
+    if (!deviceSnapshot) return;
 
-      const category = parts[2]; // sensor or status
-      const address = parts[3];
+    setWidgets((prev) => {
+      return prev.map((widget) => {
+        let newState = { ...(widget.state ?? {}) };
+        let hasChanges = false;
 
-      if (category === 'sensor') {
-        setWidgets((prev) => {
-          const target = prev.find((widget) => widget.address === address);
-          if (!target) return prev;
-
-          const trimmed = message.trim();
-          const numericValue = Number(trimmed);
-          const isNumeric = !Number.isNaN(numericValue);
-          const nextState = { ...(target.state ?? {}) };
-
-          if (target.type === 'alert') {
-            const lowered = trimmed.toLowerCase();
-            let digitalValue: boolean | null = null;
-
-            if (!Number.isNaN(numericValue)) {
-              digitalValue = numericValue !== 0;
-            } else if (['true', 'high', 'on', '1'].includes(lowered)) {
-              digitalValue = true;
-            } else if (['false', 'low', 'off', '0'].includes(lowered)) {
-              digitalValue = false;
-            }
-
-            if (digitalValue === null) {
-              return prev;
-            }
-
-            const expectHigh = (target.trigger ?? 1) !== 0;
-            const triggered = expectHigh ? digitalValue : !digitalValue;
-
-            if (triggered === Boolean(target.state?.triggered)) {
-              return prev;
-            }
-
-            nextState.triggered = triggered;
-            nextState.lastTrigger = triggered ? new Date().toISOString() : target.state?.lastTrigger;
-          } else if (target.type === 'servo') {
-            if (!isNumeric) return prev;
-            if (target.state?.angle === numericValue) return prev;
-            nextState.angle = numericValue;
-          } else {
-            if (!isNumeric) return prev;
-            if (target.state?.value === numericValue) return prev;
-            nextState.value = numericValue;
+        if (widget.type === 'switch' && widget.pin !== undefined) {
+          const reportedValue = getGpioState(widget.pin);
+          if (reportedValue !== undefined && widget.state?.value !== reportedValue) {
+            newState.value = reportedValue;
+            hasChanges = true;
           }
+        } else if (widget.type === 'servo' && widget.pin !== undefined) {
+          // For servo, we might need to get the value from sensors or a different source
+          // This depends on how the ESP32 reports servo positions
+          const reportedValue = getSensorValue(`servo_${widget.pin}`);
+          if (reportedValue !== undefined && widget.state?.angle !== reportedValue) {
+            newState.angle = reportedValue;
+            hasChanges = true;
+          }
+        } else if (widget.type === 'gauge' && widget.address) {
+          const reportedValue = getSensorValue(widget.address);
+          if (reportedValue !== undefined && widget.state?.value !== reportedValue) {
+            newState.value = reportedValue;
+            hasChanges = true;
+          }
+        }
 
+        if (hasChanges) {
+          // Persist state to database
           supabase
             .from('widgets')
-            .update({ state: nextState as any })
-            .eq('id', target.id)
+            .update({ state: newState as any })
+            .eq('id', widget.id)
             .then(({ error }) => {
               if (error) {
                 console.error('Error persisting widget state:', error);
               }
             });
 
-          return prev.map((widget) =>
-            widget.id === target.id
-              ? {
-                  ...widget,
-                  state: nextState,
-                }
-              : widget
-          );
-        });
-      } else if (category === 'status' && address === 'online') {
-        const online = message === '1';
-        setDeviceOnline(online);
-        
-        // Update device online status in database
-        supabase
-          .from('devices')
-          .update({ online })
-          .eq('id', device.id)
-          .then(({ error }) => {
-            if (error) console.error('Error updating device status:', error);
-          });
-      }
+          return { ...widget, state: newState };
+        }
+
+        return widget;
+      });
     });
+  }, [deviceSnapshot, getGpioState, getSensorValue]);
 
-    return cleanup;
-  }, [device, onMessage]);
-
-  const handleAddWidget = (type: 'switch' | 'gauge' | 'servo' | 'alert') => {
+  const handleAddWidget = (type: 'switch' | 'gauge' | 'servo') => {
     setAddWidgetType(type);
     setShowAddWidget(true);
   };
@@ -196,29 +165,43 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
             <p className="text-sm text-muted-foreground font-mono">{device.device_id}</p>
           </div>
           <Badge 
-            variant={deviceOnline ? "default" : "secondary"}
-            className={deviceOnline ? "bg-iot-online text-white" : "bg-iot-offline text-white"}
+            variant={isOnline ? "default" : "secondary"}
+            className={isOnline ? "bg-iot-online text-white" : "bg-iot-offline text-white"}
           >
-            {deviceOnline ? 'Online' : 'Offline'}
+            {isOnline ? 'Online' : 'Offline'}
           </Badge>
         </div>
         
         <div className="flex gap-2">
-          <Button variant="outline" className="btn-outline-enhanced" onClick={() => handleAddWidget('switch')}>
+          <Button 
+            variant="outline" 
+            className="btn-outline-enhanced" 
+            onClick={() => handleAddWidget('switch')}
+            disabled={!isOnline}
+            title={!isOnline ? "Device must be online to add widgets" : ""}
+          >
             <Plus className="mr-2 h-4 w-4" />
             Switch
           </Button>
-          <Button variant="outline" className="btn-outline-enhanced" onClick={() => handleAddWidget('gauge')}>
+          <Button 
+            variant="outline" 
+            className="btn-outline-enhanced" 
+            onClick={() => handleAddWidget('gauge')}
+            disabled={!isOnline}
+            title={!isOnline ? "Device must be online to add widgets" : ""}
+          >
             <Plus className="mr-2 h-4 w-4" />
             Gauge
           </Button>
-          <Button variant="outline" className="btn-outline-enhanced" onClick={() => handleAddWidget('servo')}>
+          <Button 
+            variant="outline" 
+            className="btn-outline-enhanced" 
+            onClick={() => handleAddWidget('servo')}
+            disabled={!isOnline}
+            title={!isOnline ? "Device must be online to add widgets" : ""}
+          >
             <Plus className="mr-2 h-4 w-4" />
             Servo
-          </Button>
-          <Button variant="outline" className="btn-outline-enhanced" onClick={() => handleAddWidget('alert')}>
-            <Plus className="mr-2 h-4 w-4" />
-            Alert
           </Button>
           <Button variant="outline" className="btn-outline-enhanced" onClick={() => setShowCodeSnippet(true)}>
             <Code className="mr-2 h-4 w-4" />
@@ -243,37 +226,12 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
               <Plus className="mr-2 h-4 w-4" />
               Add Servo
             </Button>
-            <Button variant="outline" className="btn-outline-enhanced" onClick={() => handleAddWidget('alert')}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Alert
-            </Button>
           </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {widgets.map((widget) => {
-            // Check if this is an alert widget stored as 'switch' type with isAlert flag
-            const isAlertWidget = widget.type === 'switch' && widget.state?.isAlert === true;
-            
-            if (isAlertWidget) {
-              // Create a modified widget object with alert properties for AlertWidget component
-              const alertWidget = {
-                ...widget,
-                type: 'alert' as const,
-                trigger: widget.state?.trigger || 0,
-                message: widget.state?.message || ''
-              };
-              
-              return (
-                <AlertWidget
-                  key={widget.id}
-                  widget={alertWidget}
-                  allWidgets={widgets}
-                  onUpdate={(updates) => handleWidgetUpdated(widget.id, updates)}
-                  onDelete={() => handleWidgetDeleted(widget.id)}
-                />
-              );
-            } else if (widget.type === 'switch') {
+            if (widget.type === 'switch') {
               return (
                 <SwitchWidget
                   key={widget.id}
@@ -301,16 +259,6 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
                   key={widget.id}
                   widget={widget}
                   device={device}
-                  allWidgets={widgets}
-                  onUpdate={(updates) => handleWidgetUpdated(widget.id, updates)}
-                  onDelete={() => handleWidgetDeleted(widget.id)}
-                />
-              );
-            } else if (widget.type === 'alert') {
-              return (
-                <AlertWidget
-                  key={widget.id}
-                  widget={widget}
                   allWidgets={widgets}
                   onUpdate={(updates) => handleWidgetUpdated(widget.id, updates)}
                   onDelete={() => handleWidgetDeleted(widget.id)}

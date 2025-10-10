@@ -7,6 +7,7 @@ import { DeviceCard } from './DeviceCard';
 import { AddDeviceDialog } from './AddDeviceDialog';
 import { SimulatorModal } from '@/components/simulator/SimulatorModal';
 import { useDevices } from '@/hooks/useDevices';
+import { useAllDevices } from '@/hooks/useDeviceStore';
 import { DeviceWithRole } from '@/lib/types';
 
 interface DeviceListProps {
@@ -15,6 +16,7 @@ interface DeviceListProps {
 
 export const DeviceList = ({ onDeviceSelect }: DeviceListProps) => {
   const { devices, loading, refetch } = useDevices();
+  const deviceStates = useAllDevices(); // Get real-time device states
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showSim, setShowSim] = useState(false);
   const [simFullscreen, setSimFullscreen] = useState(false);
@@ -85,14 +87,21 @@ export const DeviceList = ({ onDeviceSelect }: DeviceListProps) => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {devices.map((device) => (
-            <DeviceCard
-              key={device.id}
-              device={device}
-              onSelect={() => onDeviceSelect(device)}
-              onDelete={handleDeleteDevice}
-            />
-          ))}
+          {devices.map((device) => {
+            const deviceState = deviceStates[device.device_id];
+            return (
+              <DeviceCard
+                key={device.id}
+                device={{
+                  ...device,
+                  online: deviceState?.online ?? device.online, // Use real-time status if available
+                  lastSeen: deviceState?.lastSeen
+                }}
+                onSelect={() => onDeviceSelect(device)}
+                onDelete={handleDeleteDevice}
+              />
+            );
+          })}
         </div>
       )}
 
