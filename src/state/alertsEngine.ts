@@ -3,6 +3,8 @@ import { AlertsStore } from './alertsStore';
 import { AlertRule } from './alertsTypes';
 import { notifyBrowser } from '@/utils/browserNotify';
 import { toast } from 'sonner';
+import { aggregationService } from '@/services/aggregationService';
+import { supabase } from '@/integrations/supabase/client';
 
 function cmp(op: AlertRule['op'], left: any, right: any){
   switch(op){
@@ -53,7 +55,7 @@ function shouldFire(rule: AlertRule, value: any){
 }
 
 export const Alerts = {
-  evaluate(deviceId: string){
+  async evaluate(deviceId: string){
     const snap = DeviceStore.get(deviceId); if(!snap) return;
     const now = new Date();
     const rules = AlertsStore.listRules().filter(r=>r.isActive!==false && r.deviceId===deviceId);
@@ -83,7 +85,28 @@ export const Alerts = {
         channels: r.channels || ['app','toast','browser'],
         seen: false, ack: false,
       };
-      AlertsStore.pushHistory(entry);
+              AlertsStore.pushHistory(entry);
+
+              // Record alert in aggregation service
+              aggregationService.recordAlertTriggered(entry, deviceId, ''); // userId will be resolved
+
+              // Insert alert into database for master dashboard
+              try {
+                await supabase.from('alerts').insert({
+                  id: entry.id,
+                  rule_id: entry.ruleId,
+                  device_id: deviceId,
+                  severity: entry.severity,
+                  title: entry.ruleName,
+                  description: `${deviceId} • ${String(entry.value)}`,
+                  channels: entry.channels,
+                  created_at: new Date(entry.ts).toISOString(),
+                  acknowledged: entry.ack,
+                  seen: entry.seen
+                });
+              } catch (error) {
+                console.error('Failed to insert alert into database:', error);
+              }
 
       // Route: UI
       if(entry.channels.includes('toast')){

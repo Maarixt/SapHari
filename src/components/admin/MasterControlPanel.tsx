@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { AuditService } from '@/services/auditService';
 import { Switch } from '@/components/ui/switch';
 import { 
   Users, 
@@ -26,130 +27,43 @@ import {
   Plus,
   Download,
   Upload,
-  RefreshCw
+  RefreshCw,
+  BarChart3,
+  TrendingUp
 } from 'lucide-react';
 import { UserRole, getRolePermissions, isMasterAccount } from '@/lib/roles';
+import { useMasterData, MasterUser, MasterDevice, MasterAuditLog } from '@/hooks/useMasterData';
+import { MasterAggregationsDashboard } from '@/components/dashboard/MasterAggregationsDashboard';
+import { DiagnosticsFeed } from '@/components/dashboard/DiagnosticsFeed';
 
 interface MasterControlPanelProps {
   userRole: UserRole;
   onLogout: () => void;
 }
 
-interface SystemUser {
-  id: string;
-  email: string;
-  role: UserRole;
-  status: 'active' | 'suspended' | 'pending';
-  lastLogin: string;
-  deviceCount: number;
-  createdAt: string;
-}
-
-interface SystemDevice {
-  id: string;
-  name: string;
-  ownerId: string;
-  ownerEmail: string;
-  status: 'online' | 'offline' | 'error';
-  lastSeen: string;
-  firmwareVersion: string;
-  location?: string;
-}
-
-interface AuditLogEntry {
-  id: string;
-  timestamp: string;
-  userId: string;
-  userEmail: string;
-  action: string;
-  resource: string;
-  details: string;
-  ipAddress: string;
-}
+// Use types from useMasterData hook
 
 export const MasterControlPanel = ({ userRole, onLogout }: MasterControlPanelProps) => {
-  const [activeTab, setActiveTab] = useState('users');
-  const [selectedUser, setSelectedUser] = useState<SystemUser | null>(null);
-  const [selectedDevice, setSelectedDevice] = useState<SystemDevice | null>(null);
+  const [activeTab, setActiveTab] = useState('overview');
+  const [selectedUser, setSelectedUser] = useState<MasterUser | null>(null);
+  const [selectedDevice, setSelectedDevice] = useState<MasterDevice | null>(null);
   const [showSensitiveData, setShowSensitiveData] = useState(false);
   const [maintenanceMode, setMaintenanceMode] = useState(false);
 
-  // Mock data - in real implementation, this would come from API
-  const [users] = useState<SystemUser[]>([
-    {
-      id: '1',
-      email: 'admin@saphari.com',
-      role: 'admin',
-      status: 'active',
-      lastLogin: '2024-01-15T10:30:00Z',
-      deviceCount: 5,
-      createdAt: '2023-12-01T00:00:00Z'
-    },
-    {
-      id: '2',
-      email: 'dev@saphari.com',
-      role: 'developer',
-      status: 'active',
-      lastLogin: '2024-01-15T09:15:00Z',
-      deviceCount: 12,
-      createdAt: '2023-11-15T00:00:00Z'
-    },
-    {
-      id: '3',
-      email: 'user1@example.com',
-      role: 'user',
-      status: 'active',
-      lastLogin: '2024-01-14T16:45:00Z',
-      deviceCount: 2,
-      createdAt: '2024-01-01T00:00:00Z'
-    }
-  ]);
+  // Load real data from Supabase
+  const {
+    users,
+    devices,
+    auditLogs,
+    loading,
+    error,
+    refreshData,
+    updateUserRole,
+    deleteUser,
+    reassignDevice,
+    deleteDevice
+  } = useMasterData();
 
-  const [devices] = useState<SystemDevice[]>([
-    {
-      id: 'esp32-001',
-      name: 'Living Room Sensor',
-      ownerId: '1',
-      ownerEmail: 'admin@saphari.com',
-      status: 'online',
-      lastSeen: '2024-01-15T10:25:00Z',
-      firmwareVersion: 'v2.1.0',
-      location: 'Living Room'
-    },
-    {
-      id: 'esp32-002',
-      name: 'Kitchen Controller',
-      ownerId: '2',
-      ownerEmail: 'dev@saphari.com',
-      status: 'offline',
-      lastSeen: '2024-01-14T22:10:00Z',
-      firmwareVersion: 'v2.0.5',
-      location: 'Kitchen'
-    }
-  ]);
-
-  const [auditLogs] = useState<AuditLogEntry[]>([
-    {
-      id: '1',
-      timestamp: '2024-01-15T10:30:00Z',
-      userId: 'master',
-      userEmail: 'master@saphari.com',
-      action: 'USER_ROLE_CHANGED',
-      resource: 'user:2',
-      details: 'Changed role from developer to admin',
-      ipAddress: '192.168.1.100'
-    },
-    {
-      id: '2',
-      timestamp: '2024-01-15T09:15:00Z',
-      userId: 'master',
-      userEmail: 'master@saphari.com',
-      action: 'DEVICE_REASSIGNED',
-      resource: 'device:esp32-001',
-      details: 'Reassigned from user:3 to user:1',
-      ipAddress: '192.168.1.100'
-    }
-  ]);
 
   const permissions = getRolePermissions(userRole);
   const isMaster = isMasterAccount(userRole);
@@ -172,19 +86,76 @@ export const MasterControlPanel = ({ userRole, onLogout }: MasterControlPanelPro
     );
   }
 
-  const handleUserAction = (action: string, userId: string) => {
-    console.log(`Master action: ${action} on user ${userId}`);
-    // Implement actual user management logic
+  const handleUserAction = async (action: string, userId: string) => {
+    if (action === 'delete') {
+      if (confirm('Are you sure you want to delete this user? This will also delete all their devices and data.')) {
+        await deleteUser(userId);
+      }
+    } else if (action === 'suspend') {
+      // TODO: Implement suspend functionality
+      console.log(`Suspend user ${userId}`);
+    }
   };
 
-  const handleDeviceAction = (action: string, deviceId: string) => {
-    console.log(`Master action: ${action} on device ${deviceId}`);
-    // Implement actual device management logic
+  const handleDeviceAction = async (action: string, deviceId: string) => {
+    if (action === 'delete') {
+      if (confirm('Are you sure you want to delete this device? This will also delete all associated widgets.')) {
+        await deleteDevice(deviceId);
+      }
+    } else if (action === 'reassign') {
+      // TODO: Implement reassign functionality
+      console.log(`Reassign device ${deviceId}`);
+    } else if (action === 'reset') {
+      // TODO: Implement reset functionality
+      console.log(`Reset device ${deviceId}`);
+    }
   };
 
-  const handleSystemAction = (action: string) => {
+  const handleSystemAction = async (action: string) => {
     console.log(`Master system action: ${action}`);
-    // Implement actual system management logic
+    
+    try {
+      // Log the system action
+      await AuditService.logSystemAction(action, {}, await AuditService.getCurrentUserId());
+      
+      // Implement actual system management logic
+      switch (action) {
+        case 'deploy_update':
+          console.log('Deploying system update...');
+          break;
+        case 'restart_services':
+          console.log('Restarting services...');
+          break;
+        case 'backup_system':
+          console.log('Creating system backup...');
+          break;
+        case 'view_logs':
+          console.log('Viewing server logs...');
+          break;
+        case 'emergency_shutdown':
+          console.log('Emergency shutdown initiated...');
+          break;
+        case 'wipe_all_data':
+          console.log('Wiping all data...');
+          break;
+        case 'export_data':
+          console.log('Exporting all data...');
+          break;
+        case 'manage_api_keys':
+          console.log('Managing API keys...');
+          break;
+        case 'encryption_settings':
+          console.log('Configuring encryption settings...');
+          break;
+        case 'open_simulator':
+          console.log('Opening master simulator...');
+          break;
+        default:
+          console.log(`Unknown action: ${action}`);
+      }
+    } catch (error) {
+      console.error('Failed to execute system action:', error);
+    }
   };
 
   return (
@@ -262,15 +233,54 @@ export const MasterControlPanel = ({ userRole, onLogout }: MasterControlPanelPro
 
       {/* Master Control Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-7">
-          <TabsTrigger value="users">Users</TabsTrigger>
-          <TabsTrigger value="devices">Devices</TabsTrigger>
-          <TabsTrigger value="data">Data Logs</TabsTrigger>
-          <TabsTrigger value="security">Security</TabsTrigger>
-          <TabsTrigger value="simulator">Simulator</TabsTrigger>
-          <TabsTrigger value="system">System</TabsTrigger>
-          <TabsTrigger value="audit">Audit</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-9">
+          <TabsTrigger value="overview">
+            <BarChart3 className="h-4 w-4 mr-2" />
+            Overview
+          </TabsTrigger>
+          <TabsTrigger value="diagnostics">
+            <Activity className="h-4 w-4 mr-2" />
+            Diagnostics
+          </TabsTrigger>
+          <TabsTrigger value="users">
+            <Users className="h-4 w-4 mr-2" />
+            Users
+          </TabsTrigger>
+          <TabsTrigger value="devices">
+            <Cpu className="h-4 w-4 mr-2" />
+            Devices
+          </TabsTrigger>
+          <TabsTrigger value="data">
+            <Database className="h-4 w-4 mr-2" />
+            Data Logs
+          </TabsTrigger>
+          <TabsTrigger value="security">
+            <Shield className="h-4 w-4 mr-2" />
+            Security
+          </TabsTrigger>
+          <TabsTrigger value="simulator">
+            <Code className="h-4 w-4 mr-2" />
+            Simulator
+          </TabsTrigger>
+          <TabsTrigger value="system">
+            <Settings className="h-4 w-4 mr-2" />
+            System
+          </TabsTrigger>
+          <TabsTrigger value="audit">
+            <Bell className="h-4 w-4 mr-2" />
+            Audit
+          </TabsTrigger>
         </TabsList>
+
+        {/* Overview Tab */}
+        <TabsContent value="overview" className="space-y-4">
+          <MasterAggregationsDashboard />
+        </TabsContent>
+
+        {/* Diagnostics Tab */}
+        <TabsContent value="diagnostics" className="space-y-4">
+          <DiagnosticsFeed />
+        </TabsContent>
 
         {/* Users Tab */}
         <TabsContent value="users" className="space-y-4">
@@ -285,8 +295,28 @@ export const MasterControlPanel = ({ userRole, onLogout }: MasterControlPanelPro
               </div>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {users.map(user => (
+              {loading ? (
+                <div className="flex items-center justify-center p-8">
+                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+                  <span className="ml-2">Loading users...</span>
+                </div>
+              ) : error ? (
+                <div className="text-center p-8 text-red-600">
+                  <AlertTriangle className="mx-auto h-8 w-8 mb-2" />
+                  <p>Error loading users: {error}</p>
+                  <Button onClick={refreshData} className="mt-2">
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Retry
+                  </Button>
+                </div>
+              ) : users.length === 0 ? (
+                <div className="text-center p-8 text-muted-foreground">
+                  <Users className="mx-auto h-8 w-8 mb-2" />
+                  <p>No users found</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {users.map(user => (
                   <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg">
                     <div className="flex items-center gap-4">
                       <div>
@@ -320,6 +350,7 @@ export const MasterControlPanel = ({ userRole, onLogout }: MasterControlPanelPro
                   </div>
                 ))}
               </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -418,7 +449,7 @@ export const MasterControlPanel = ({ userRole, onLogout }: MasterControlPanelPro
                     </CardContent>
                   </Card>
                   <Card>
-                    <CardContent className="p4">
+                    <CardContent className="p-4">
                       <h4 className="font-medium mb-2">API Calls</h4>
                       <p className="text-2xl font-bold">45K</p>
                       <p className="text-sm text-muted-foreground">Last hour</p>

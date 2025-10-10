@@ -1,10 +1,11 @@
-import { Bell, Settings, LogOut, AlertTriangle, Loader2, Code, Cpu, RefreshCw } from 'lucide-react';
+import { Bell, Settings, LogOut, AlertTriangle, Loader2, Code, Cpu, RefreshCw, Crown } from 'lucide-react';
 import AlertsBell from '@/components/alerts/AlertsBell';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useMqttStatus } from '@/hooks/useMqttStatus';
 import { reconnectMqtt } from '@/services/mqtt';
 import { useAuth } from '@/hooks/useAuth';
+import { useMasterRole } from '@/components/auth/RequireRole';
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import {
@@ -24,6 +25,7 @@ interface HeaderProps {
 export const Header = ({ onSettingsClick, onAlertRulesClick, onSnippetStreamClick, onDeviceDemoClick }: HeaderProps) => {
   const { status, connected } = useMqttStatus();
   const { signOut } = useAuth();
+  const { hasRole: isMaster } = useMasterRole();
   const navigate = useNavigate();
   const [isSigningOut, setIsSigningOut] = useState(false);
 
@@ -145,6 +147,12 @@ export const Header = ({ onSettingsClick, onAlertRulesClick, onSnippetStreamClic
                 <DropdownMenuItem onClick={onSettingsClick}>
                   MQTT Settings
                 </DropdownMenuItem>
+                {isMaster && (
+                  <DropdownMenuItem onClick={() => navigate('/master')}>
+                    <Crown className="h-4 w-4 mr-2" />
+                    Master Dashboard
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem 
                   onClick={handleForceSignOut}
                   className="text-destructive focus:text-destructive"

@@ -3,7 +3,7 @@ import { AlertsStore } from '@/state/alertsStore';
 import { DeviceStore } from '@/state/deviceStore';
 
 // Test the alert engine with sample data
-export function testAlertEngine() {
+export async function testAlertEngine() {
   console.log('🧪 Testing Alert Engine...');
 
   // Add a test rule
@@ -34,14 +34,14 @@ export function testAlertEngine() {
 
   // Test normal temperature (should not trigger)
   console.log('🌡️ Testing normal temperature (25°C)...');
-  Alerts.evaluate('test_device');
+  await Alerts.evaluate('test_device');
 
   // Test high temperature (should trigger)
   console.log('🌡️ Testing high temperature (55°C)...');
   DeviceStore.upsertState('test_device', {
     sensors: { tempC: 55, humidity: 60 },
   });
-  Alerts.evaluate('test_device');
+  await Alerts.evaluate('test_device');
 
   // Test GPIO rule
   const gpioRule = {
@@ -64,7 +64,7 @@ export function testAlertEngine() {
   DeviceStore.upsertState('test_device', {
     gpio: { 2: 1, 4: 0 },
   });
-  Alerts.evaluate('test_device');
+  await Alerts.evaluate('test_device');
 
   console.log('🎉 Alert engine test completed!');
   console.log('📊 Current rules:', AlertsStore.listRules().length);
@@ -75,7 +75,7 @@ export function testAlertEngine() {
 // Expose to window for easy testing
 declare global {
   interface Window {
-    testAlertEngine: () => void;
+    testAlertEngine: () => Promise<void>;
   }
 }
 
