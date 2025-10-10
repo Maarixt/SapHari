@@ -63,11 +63,14 @@ class WebPushService {
 
     try {
       const registration = await navigator.serviceWorker.ready;
-      const subscription = await registration.pushManager.subscribe({
+      const nativeSubscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: this.urlBase64ToUint8Array(this.publicKey),
       });
 
+      // Convert to our format
+      const subscription = this.convertSubscription(nativeSubscription);
+      
       // Send subscription to server
       await this.sendSubscriptionToServer(subscription);
       
@@ -83,10 +86,11 @@ class WebPushService {
   async unsubscribe(): Promise<boolean> {
     try {
       const registration = await navigator.serviceWorker.ready;
-      const subscription = await registration.pushManager.getSubscription();
+      const nativeSubscription = await registration.pushManager.getSubscription();
       
-      if (subscription) {
-        await subscription.unsubscribe();
+      if (nativeSubscription) {
+        const subscription = this.convertSubscription(nativeSubscription);
+        await nativeSubscription.unsubscribe();
         await this.removeSubscriptionFromServer(subscription);
         toast.success('Web Push notifications disabled');
         return true;
@@ -147,6 +151,17 @@ class WebPushService {
       console.error('❌ Failed to remove subscription from server:', error);
       throw error;
     }
+  }
+
+  private convertSubscription(nativeSubscription: globalThis.PushSubscription): PushSubscription {
+    const jsonSub = nativeSubscription.toJSON();
+    return {
+      endpoint: nativeSubscription.endpoint,
+      keys: {
+        p256dh: jsonSub.keys?.p256dh || '',
+        auth: jsonSub.keys?.auth || ''
+      }
+    };
   }
 
   private urlBase64ToUint8Array(base64String: string): Uint8Array {

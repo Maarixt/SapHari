@@ -71,7 +71,7 @@ export const useAlertRules = () => {
     if (user) {
       loadRules();
     }
-  }, [user, loadRules]);
+  }, [user]);
 
   return {
     loading,

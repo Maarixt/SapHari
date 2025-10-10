@@ -1,4 +1,4 @@
-export type PinKind = 'power' | 'ground' | 'digital' | 'analog' | 'pwm' | 'onewire' | 'serial';
+export type PinKind = 'power' | 'ground' | 'digital' | 'analog' | 'pwm' | 'onewire' | 'serial' | 'i2c' | 'spi' | 'uart';
 
 export interface PinDef {
   id: string;           // within component
@@ -10,7 +10,7 @@ export interface PinDef {
 
 export interface SimComponent {
   id: string;
-  type: 'esp32' | 'led' | 'resistor' | 'button' | 'buzzer' | 'pot' | 'pir' | 'ultrasonic' | 'ds18b20' | 'servo' | 'power' | 'ground';
+  type: 'esp32' | 'led' | 'resistor' | 'button' | 'buzzer' | 'pot' | 'pir' | 'ultrasonic' | 'ds18b20' | 'servo' | 'power' | 'ground' | 'wire' | 'potentiometer';
   x: number; y: number; rotation?: number;
   props?: Record<string, any>; // e.g., { color: 'red', ohms: 220, name: 'MyComponent' }
   pins: PinDef[];

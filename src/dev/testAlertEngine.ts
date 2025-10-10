@@ -16,7 +16,7 @@ export function testAlertEngine() {
     op: '>' as const,
     value: 50,
     severity: 'critical' as const,
-    channels: ['toast', 'browser'] as const,
+    channels: ['toast', 'browser'],
     isActive: true,
     debounceMs: 5000,
   };
@@ -50,9 +50,9 @@ export function testAlertEngine() {
     deviceId: 'test_device',
     source: 'GPIO' as const,
     pin: 2,
-    whenPinEquals: 1,
+    whenPinEquals: 1 as 0 | 1,
     severity: 'warning' as const,
-    channels: ['toast'] as const,
+    channels: ['toast'],
     isActive: true,
   };
 
