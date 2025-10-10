@@ -1,0 +1,32 @@
+{
+  "name": "saphari-mqtt-bridge",
+  "version": "1.0.0",
+  "description": "MQTT Bridge service for SapHari IoT platform",
+  "main": "index.ts",
+  "scripts": {
+    "start": "ts-node index.ts",
+    "dev": "nodemon --exec ts-node index.ts",
+    "build": "tsc",
+    "docker:build": "docker build -t saphari-mqtt-bridge .",
+    "docker:run": "docker run --env-file .env saphari-mqtt-bridge"
+  },
+  "dependencies": {
+    "mqtt": "^5.3.4",
+    "@supabase/supabase-js": "^2.39.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0",
+    "ts-node": "^10.9.0",
+    "nodemon": "^3.0.0"
+  },
+  "keywords": [
+    "mqtt",
+    "iot",
+    "bridge",
+    "supabase",
+    "saphari"
+  ],
+  "author": "SapHari Team",
+  "license": "MIT"
+}

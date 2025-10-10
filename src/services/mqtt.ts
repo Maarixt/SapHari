@@ -1,6 +1,7 @@
 import mqtt from 'mqtt';
 import { DeviceStore } from '@/state/deviceStore';
 import { Alerts } from '@/state/alertsEngine';
+import { aggregationService } from '@/services/aggregationService';
 
 let client: mqtt.MqttClient;
 
@@ -36,6 +37,10 @@ export function sendCommand(deviceId: string, command: any) {
   try {
     client.publish(topic, payload);
     console.log(`📤 Sent command to ${deviceId}:`, command);
+    
+    // Record MQTT traffic
+    aggregationService.recordMQTTTraffic(deviceId, topic, payload.length, 'outbound');
+    
     return true;
   } catch (error) {
     console.error('Failed to send command:', error);
@@ -71,22 +76,44 @@ export function connectMqtt() {
 
   client.on('message', (topic, payload) => {
     const msg = payload.toString();
+    const messageSize = payload.length;
+    
+    // Record MQTT traffic
+    const [, deviceId] = topic.split('/');
+    aggregationService.recordMQTTTraffic(deviceId, topic, messageSize, 'inbound');
+    
     try {
       if (topic.endsWith('/status')) {
         const [, deviceId] = topic.split('/');
-        DeviceStore.setOnline(deviceId, msg === 'online');
+        const isOnline = msg === 'online';
+        DeviceStore.setOnline(deviceId, isOnline);
+        
+        // Record device status change
+        aggregationService.recordDeviceEvent(
+          deviceId,
+          '', // userId will be resolved from device ownership
+          'status_change',
+          { online: isOnline },
+          isOnline ? 'info' : 'warning',
+          `Device ${deviceId} ${isOnline ? 'came online' : 'went offline'}`
+        );
         return;
       }
 
       if (topic.endsWith('/state')) {
         const [, deviceId] = topic.split('/');
         const doc = JSON.parse(msg);
-        DeviceStore.upsertState(deviceId, {
+        const state = {
           gpio: doc.gpio || {},
           sensors: doc.sensors || {},
           online: true,
-        });
-        Alerts.evaluate(deviceId); // ALERTS ON REPORTED STATE
+        };
+        DeviceStore.upsertState(deviceId, state);
+        
+        // Record device state update
+        aggregationService.recordDeviceState(deviceId, '', state);
+        
+                Alerts.evaluate(deviceId).catch(console.error); // ALERTS ON REPORTED STATE
         return;
       }
 
@@ -100,7 +127,7 @@ export function connectMqtt() {
           const key = String(doc.path).replace(/^sensors\./, '');
           DeviceStore.upsertState(deviceId, { sensors: { [key]: doc.value }, online: true });
         }
-        Alerts.evaluate(deviceId);
+                Alerts.evaluate(deviceId).catch(console.error);
         return;
       }
 

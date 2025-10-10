@@ -79,7 +79,7 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
   useEffect(() => {
     if (!deviceSnapshot) return;
 
-    setWidgets((prev) => {
+        setWidgets((prev) => {
       return prev.map((widget) => {
         let newState = { ...(widget.state ?? {}) };
         let hasChanges = false;
