@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { useMqttStatus } from '@/hooks/useMqttStatus';
 import { reconnectMqtt } from '@/services/mqtt';
 import { useAuth } from '@/hooks/useAuth';
-import { useMasterRole } from '@/components/auth/RequireRole';
+import { useMasterAccount } from '@/hooks/useMasterAccount';
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import {
@@ -25,18 +25,27 @@ interface HeaderProps {
 export const Header = ({ onSettingsClick, onAlertRulesClick, onSnippetStreamClick, onDeviceDemoClick }: HeaderProps) => {
   const { status, connected } = useMqttStatus();
   const { signOut } = useAuth();
-  const { hasRole: isMaster } = useMasterRole();
+  const { isMaster, logout: masterLogout } = useMasterAccount();
   const navigate = useNavigate();
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   const handleSignOut = async () => {
     if (isSigningOut) return; // Prevent multiple clicks
     
+    console.log('Header logout clicked, isMaster:', isMaster);
     setIsSigningOut(true);
     try {
-      await signOut();
-      // Navigate to login page regardless of Supabase response
-      navigate('/login', { replace: true });
+      // Check if user is master and handle accordingly
+      if (isMaster) {
+        console.log('Calling master logout');
+        masterLogout();
+        return; // masterLogout handles navigation
+      } else {
+        console.log('Calling regular signOut');
+        await signOut();
+        // Navigate to login page regardless of Supabase response
+        navigate('/login', { replace: true });
+      }
     } catch (error) {
       console.error('Sign out failed:', error);
       // Even if there's an error, try to navigate to login

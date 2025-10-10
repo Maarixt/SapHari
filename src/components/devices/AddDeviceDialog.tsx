@@ -13,6 +13,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { RefreshCw } from 'lucide-react';
 
 interface AddDeviceDialogProps {
   open: boolean;
@@ -30,6 +31,11 @@ export const AddDeviceDialog = ({ open, onOpenChange, onDeviceAdded }: AddDevice
   const [deviceId, setDeviceId] = useState(generateDeviceId());
   const [deviceKey, setDeviceKey] = useState(generateDeviceKey());
   const [isLoading, setIsLoading] = useState(false);
+
+  const regenerateCredentials = () => {
+    setDeviceId(generateDeviceId());
+    setDeviceKey(generateDeviceKey());
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,7 +92,7 @@ export const AddDeviceDialog = ({ open, onOpenChange, onDeviceAdded }: AddDevice
         <DialogHeader>
           <DialogTitle>Add Device</DialogTitle>
           <DialogDescription>
-            Add a new IoT device to your dashboard. Each device needs a unique ID and key.
+            Add a new IoT device to your dashboard. Device ID and key are auto-generated and cannot be changed.
           </DialogDescription>
         </DialogHeader>
         
@@ -103,25 +109,40 @@ export const AddDeviceDialog = ({ open, onOpenChange, onDeviceAdded }: AddDevice
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="device-id">Device ID</Label>
+            <Label htmlFor="device-id">Device ID <span className="text-xs text-muted-foreground">(Auto-generated)</span></Label>
             <Input
               id="device-id"
               value={deviceId}
-              onChange={(e) => setDeviceId(e.target.value)}
+              readOnly
               placeholder="saph-abc123"
               required
+              className="font-mono bg-muted"
             />
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="device-key">Device Key</Label>
+            <Label htmlFor="device-key">Device Key <span className="text-xs text-muted-foreground">(Auto-generated)</span></Label>
             <Input
               id="device-key"
               value={deviceKey}
-              onChange={(e) => setDeviceKey(e.target.value)}
+              readOnly
               placeholder="ABCD1234"
               required
+              className="font-mono bg-muted"
             />
+          </div>
+          
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={regenerateCredentials}
+              className="text-xs"
+            >
+              <RefreshCw className="h-3 w-3 mr-1" />
+              Regenerate Credentials
+            </Button>
           </div>
           
           <DialogFooter>

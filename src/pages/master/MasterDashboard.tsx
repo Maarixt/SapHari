@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertTriangle, RefreshCw, Users, Cpu, Database, Activity, TestTube } from 'lucide-react';
 import { fetchMasterMetrics, fetchFleetKPIs, fetchDeviceHealth, fetchRecentEvents } from '@/lib/api';
+import { useMasterAccount } from '@/hooks/useMasterAccount';
 
 // Error state component
 function ErrorState({ title, description, onRetry }: { 
@@ -245,6 +246,7 @@ function DevicesTab() {
 
 // Main master dashboard component
 export default function MasterDashboard() {
+  const { logout } = useMasterAccount();
   const [kpis, setKpis] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -459,7 +461,7 @@ export default function MasterDashboard() {
                 <Database className="h-4 w-4 mr-2" />
                 Wipe All Data
               </Button>
-              <Button variant="destructive" size="sm">
+              <Button variant="destructive" size="sm" onClick={logout}>
                 <Users className="h-4 w-4 mr-2" />
                 Logout Master
               </Button>

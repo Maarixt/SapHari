@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,21 +6,29 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Shield, Lock, KeyRound, AlertTriangle } from 'lucide-react';
 import { useMasterAccount } from '@/hooks/useMasterAccount';
+import { FullPageLoader } from '@/components/ui/FullPageLoader';
 
 export default function MasterLogin() {
   const navigate = useNavigate();
-  const { loginAsMaster, isLoading, error } = useMasterAccount();
+  const { loginAsMaster, isLoading, error, isMaster } = useMasterAccount();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [twoFactorCode, setTwoFactorCode] = useState('');
   const [showTwoFactor, setShowTwoFactor] = useState(false);
+
+  // Redirect if already logged in as master
+  useEffect(() => {
+    if (isMaster) {
+      navigate('/master', { replace: true });
+    }
+  }, [isMaster, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     const success = await loginAsMaster(email, password, twoFactorCode);
     if (success) {
-      navigate('/');
+      navigate('/master');
     } else if (!showTwoFactor && email && password) {
       setShowTwoFactor(true);
     }

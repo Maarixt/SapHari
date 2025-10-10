@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { checkMasterRole, getUserRole } from '@/lib/api';
+import { useMasterAccount } from '@/hooks/useMasterAccount';
 import { Card, CardContent } from '@/components/ui/card';
 import { Loader2, Shield, XCircle } from 'lucide-react';
 
@@ -14,6 +15,7 @@ export function RequireRole({ role, children, fallback }: RequireRoleProps) {
   const [loading, setLoading] = useState(true);
   const [hasRole, setHasRole] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const { isMaster, userRole: masterUserRole } = useMasterAccount();
 
   useEffect(() => {
     const checkRole = async () => {
@@ -21,8 +23,9 @@ export function RequireRole({ role, children, fallback }: RequireRoleProps) {
         setLoading(true);
         
         if (role === 'master') {
-          const isMaster = await checkMasterRole(supabase);
+          // Use master account context instead of database check
           setHasRole(isMaster);
+          setUserRole(isMaster ? 'master' : null);
         } else {
           const roleResult = await getUserRole(supabase);
           setUserRole(roleResult);
@@ -37,7 +40,7 @@ export function RequireRole({ role, children, fallback }: RequireRoleProps) {
     };
 
     checkRole();
-  }, [supabase, role]);
+  }, [supabase, role, isMaster]);
 
   if (loading) {
     return (
@@ -107,6 +110,7 @@ export function RoleBasedContent({
 }) {
   const [loading, setLoading] = useState(true);
   const [hasRole, setHasRole] = useState(false);
+  const { isMaster } = useMasterAccount();
 
   useEffect(() => {
     const checkRole = async () => {
@@ -114,7 +118,7 @@ export function RoleBasedContent({
         setLoading(true);
         
         if (role === 'master') {
-          const isMaster = await checkMasterRole(supabase);
+          // Use master account context instead of database check
           setHasRole(isMaster);
         } else {
           const userRole = await getUserRole(supabase);
@@ -129,7 +133,7 @@ export function RoleBasedContent({
     };
 
     checkRole();
-  }, [supabase, role]);
+  }, [supabase, role, isMaster]);
 
   if (loading) {
     return (
@@ -152,6 +156,7 @@ export function useRole(role: string) {
   const [loading, setLoading] = useState(true);
   const [hasRole, setHasRole] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const { isMaster } = useMasterAccount();
 
   useEffect(() => {
     const checkRole = async () => {
@@ -159,8 +164,9 @@ export function useRole(role: string) {
         setLoading(true);
         
         if (role === 'master') {
-          const isMaster = await checkMasterRole(supabase);
+          // Use master account context instead of database check
           setHasRole(isMaster);
+          setUserRole(isMaster ? 'master' : null);
         } else {
           const roleResult = await getUserRole(supabase);
           setUserRole(roleResult);
@@ -175,7 +181,7 @@ export function useRole(role: string) {
     };
 
     checkRole();
-  }, [supabase, role]);
+  }, [supabase, role, isMaster]);
 
   return { loading, hasRole, userRole };
 }

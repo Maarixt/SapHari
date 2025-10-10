@@ -36,7 +36,9 @@ export const EditDeviceDialog = ({ open, onOpenChange, device, onSave }: EditDev
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Edit Device</DialogTitle>
-          <DialogDescription>Update the device name. ID and key remain unchanged.</DialogDescription>
+          <DialogDescription>
+            Update the device name. <strong>Device ID and key cannot be changed after creation</strong> as they are used for device authentication.
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={submit} className="space-y-4">
