@@ -127,6 +127,7 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
   }, [deviceSnapshot, getGpioState, getSensorValue]);
 
   const handleAddWidget = (type: 'switch' | 'gauge' | 'servo') => {
+    console.log('Adding widget of type:', type, 'for device:', device.id);
     setAddWidgetType(type);
     setShowAddWidget(true);
   };
@@ -177,8 +178,6 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
             variant="outline" 
             className="btn-outline-enhanced" 
             onClick={() => handleAddWidget('switch')}
-            disabled={!isOnline}
-            title={!isOnline ? "Device must be online to add widgets" : ""}
           >
             <Plus className="mr-2 h-4 w-4" />
             Switch
@@ -187,8 +186,6 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
             variant="outline" 
             className="btn-outline-enhanced" 
             onClick={() => handleAddWidget('gauge')}
-            disabled={!isOnline}
-            title={!isOnline ? "Device must be online to add widgets" : ""}
           >
             <Plus className="mr-2 h-4 w-4" />
             Gauge
@@ -197,8 +194,6 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
             variant="outline" 
             className="btn-outline-enhanced" 
             onClick={() => handleAddWidget('servo')}
-            disabled={!isOnline}
-            title={!isOnline ? "Device must be online to add widgets" : ""}
           >
             <Plus className="mr-2 h-4 w-4" />
             Servo

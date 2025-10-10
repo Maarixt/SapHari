@@ -55,9 +55,10 @@ import { NotificationSettings } from '@/components/notifications/NotificationSet
 interface AlertRuleDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  defaultDeviceId?: string; // selected device id passed from parent; alerts are scoped to this device
 }
 
-export const AlertRuleDialog = ({ open, onOpenChange }: AlertRuleDialogProps) => {
+export const AlertRuleDialog = ({ open, onOpenChange, defaultDeviceId }: AlertRuleDialogProps) => {
   const { toast } = useToast();
   const { user } = useAuth();
   const { devices } = useDevices();
@@ -70,7 +71,7 @@ export const AlertRuleDialog = ({ open, onOpenChange }: AlertRuleDialogProps) =>
   const [ruleName, setRuleName] = useState('');
   const [ruleDescription, setRuleDescription] = useState('');
   const [ruleEnabled, setRuleEnabled] = useState(true);
-  const [deviceId, setDeviceId] = useState('');
+  const [deviceId, setDeviceId] = useState(defaultDeviceId || '');
   const [source, setSource] = useState<'GPIO' | 'SENSOR' | 'LOGIC'>('GPIO');
   const [pin, setPin] = useState<number | undefined>(undefined);
   const [whenPinEquals, setWhenPinEquals] = useState<0 | 1>(1);
@@ -211,7 +212,7 @@ export const AlertRuleDialog = ({ open, onOpenChange }: AlertRuleDialogProps) =>
     setRuleName('');
     setRuleDescription('');
     setRuleEnabled(true);
-    setDeviceId('');
+    setDeviceId(defaultDeviceId || '');
     setSource('GPIO');
     setPin(undefined);
     setWhenPinEquals(1);
@@ -289,9 +290,11 @@ export const AlertRuleDialog = ({ open, onOpenChange }: AlertRuleDialogProps) =>
 
   useEffect(() => {
     if (open) {
+      // ensure the form is always scoped to selected device by default
+      if (!editingRule) setDeviceId(defaultDeviceId || '');
       loadRules();
     }
-  }, [open, user]);
+  }, [open, user, defaultDeviceId]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

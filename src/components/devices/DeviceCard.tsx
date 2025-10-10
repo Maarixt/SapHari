@@ -1,4 +1,4 @@
-import { Eye, Key, Trash2 } from 'lucide-react';
+import { Eye, Key, Trash2, Edit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -34,9 +34,10 @@ interface DeviceCardProps {
   device: Device;
   onSelect: () => void;
   onDelete: () => void;
+  onEdit?: () => void;
 }
 
-export const DeviceCard = ({ device, onSelect, onDelete }: DeviceCardProps) => {
+export const DeviceCard = ({ device, onSelect, onDelete, onEdit }: DeviceCardProps) => {
   const [showCredentials, setShowCredentials] = useState(false);
 
   return (
@@ -69,6 +70,11 @@ export const DeviceCard = ({ device, onSelect, onDelete }: DeviceCardProps) => {
             <Eye className="mr-2 h-4 w-4" />
             Open
           </Button>
+          {onEdit && (
+            <Button variant="outline" size="icon" onClick={onEdit}>
+              <Edit className="h-4 w-4" />
+            </Button>
+          )}
           <Button variant="outline" size="icon" onClick={() => setShowCredentials(true)}>
             <Key className="h-4 w-4" />
           </Button>
