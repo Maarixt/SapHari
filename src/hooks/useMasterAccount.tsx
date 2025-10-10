@@ -88,8 +88,12 @@ export const MasterAccountProvider = ({ children }: MasterAccountProviderProps) 
   };
 
   const logout = () => {
+    console.log('Master logout initiated');
     const sessionToken = localStorage.getItem('saphari_master_session');
     const email = localStorage.getItem('saphari_master_email');
+    
+    console.log('Session token:', sessionToken ? 'exists' : 'missing');
+    console.log('Email:', email || 'missing');
     
     // Log master logout for audit
     supabase.functions.invoke('master-logout', {
@@ -101,6 +105,11 @@ export const MasterAccountProvider = ({ children }: MasterAccountProviderProps) 
     localStorage.removeItem('saphari_master_session');
     localStorage.removeItem('saphari_master_email');
     localStorage.removeItem('saphari_master_login_time');
+    
+    console.log('LocalStorage cleared, navigating to master-login');
+    
+    // Force page reload to clear all state and navigate to master login
+    window.location.href = '/master-login';
   };
 
   const value: MasterAccountContextType = {

@@ -50,24 +50,24 @@ export const DeviceCredentialsDialog = ({ device, open, onOpenChange }: DeviceCr
         <DialogHeader>
           <DialogTitle>Device Credentials</DialogTitle>
           <DialogDescription>
-            Use these credentials to configure your ESP32 device.
+            Use these credentials to configure your ESP32 device. <strong>These credentials cannot be changed after device creation.</strong>
           </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-4">
           <div className="space-y-2">
             <Label>Device Name</Label>
-            <Input value={device.name} readOnly />
+            <Input value={device.name} readOnly className="bg-muted" />
           </div>
           
           <div className="space-y-2">
-            <Label>Device ID</Label>
-            <Input value={device.device_id} readOnly />
+            <Label>Device ID <span className="text-xs text-muted-foreground">(Permanent)</span></Label>
+            <Input value={device.device_id} readOnly className="bg-muted font-mono" />
           </div>
           
           <div className="space-y-2">
-            <Label>Device Key</Label>
-            <Input value={device.device_key} readOnly />
+            <Label>Device Key <span className="text-xs text-muted-foreground">(Permanent)</span></Label>
+            <Input value={device.device_key} readOnly className="bg-muted font-mono" />
           </div>
           
           <div className="space-y-2">
