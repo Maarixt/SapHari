@@ -1,13 +1,11 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import AppShell from '@/components/layout/AppShell';
-import PageHeader from '@/components/layout/PageHeader';
-import { KpiCard } from '@/components/master/KpiCard';
+import { MasterLayout } from '@/components/master/MasterLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AlertTriangle, RefreshCw, Users, Cpu, Database, Activity, TestTube, LogOut } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Users, Cpu, Database, Activity, TestTube } from 'lucide-react';
 import { fetchMasterMetrics, fetchFleetKPIs, fetchDeviceHealth, fetchRecentEvents } from '@/lib/api';
 import { useMasterAccount } from '@/hooks/useMasterAccount';
 
@@ -281,22 +279,7 @@ export default function MasterDashboard() {
   }, []);
 
   return (
-    <AppShell 
-      title="SapHari Master" 
-      actions={
-        <button 
-          onClick={logout}
-          className="px-3 py-2 rounded-xl bg-white border border-ink-200 text-ink-900 hover:bg-[var(--surface)] transition flex items-center gap-2"
-        >
-          <LogOut className="h-4 w-4" />
-          Logout
-        </button>
-      }
-    >
-      <PageHeader 
-        title="Master Control Panel" 
-        subtitle="System-wide monitoring and management" 
-      />
+    <MasterLayout title="Master Control Panel" subtitle="System-wide monitoring and management">
       <div className="space-y-6">
         {/* KPI Cards */}
         {loading ? (
@@ -310,25 +293,41 @@ export default function MasterDashboard() {
           <ErrorState title="Error loading master data" description={error} onRetry={loadKPIs} />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <KpiCard 
-              label="Total Users" 
-              value={String(kpis?.total_users || 0)} 
-            />
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Total Users</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{kpis?.total_users || 0}</div>
+              </CardContent>
+            </Card>
             
-            <KpiCard 
-              label="Online Devices" 
-              value={String(kpis?.devices_online || 0)} 
-            />
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Online Devices</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{kpis?.devices_online || 0}</div>
+              </CardContent>
+            </Card>
             
-            <KpiCard 
-              label="Data Storage" 
-              value="1.2TB" 
-            />
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Data Storage</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">1.2TB</div>
+              </CardContent>
+            </Card>
             
-            <KpiCard 
-              label="Uptime" 
-              value="99.9%" 
-            />
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Uptime</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">99.9%</div>
+              </CardContent>
+            </Card>
           </div>
         )}
 
@@ -470,6 +469,6 @@ export default function MasterDashboard() {
           </CardContent>
         </Card>
       </div>
-    </AppShell>
+    </MasterLayout>
   );
 }
