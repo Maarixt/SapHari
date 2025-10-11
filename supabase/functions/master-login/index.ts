@@ -139,9 +139,8 @@ Deno.serve(async (req) => {
     )
   } catch (error) {
     console.error('Master login error:', error)
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({ error: 'Authentication failed' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }

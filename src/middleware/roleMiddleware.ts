@@ -193,14 +193,14 @@ export function RoleGuard({
   });
 
   if (isLoading) {
-    return <div>Loading...</div>;
+    return React.createElement('div', null, 'Loading...');
   }
 
   if (!isAllowed) {
-    return fallback || <div>Access denied: {error}</div>;
+    return fallback || React.createElement('div', null, 'Access denied: ', error);
   }
 
-  return <>{children}</>;
+  return React.createElement(React.Fragment, null, children);
 }
 
 // Utility functions for common role checks
