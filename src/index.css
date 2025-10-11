@@ -45,36 +45,44 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Light theme (fallback) */
-    --background: 210 40% 98%;
-    --foreground: 222.2 84% 4.9%;
+    /* Modern Blue & White Theme */
+    --bg: #ffffff;
+    --surface: #f8fbff;
+    --surface-2: #eef4ff;
+    --text: #0f172a;
+    --muted: #475569;
+    --brand: #3f7aff;
+
+    /* Light theme (HSL for compatibility) */
+    --background: 0 0% 100%;
+    --foreground: 222 84% 5%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 222 84% 5%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 222 84% 5%;
 
-    --primary: 217 91% 60%;
+    --primary: 217 100% 62%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 214 100% 97%;
+    --secondary-foreground: 222 47% 11%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 214 32% 91%;
+    --muted-foreground: 215 16% 47%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 214 32% 91%;
+    --accent-foreground: 222 47% 11%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 217 91% 60%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 217 100% 62%;
 
-    --radius: 0.75rem;
+    --radius: 1rem;
     
     /* IoT Dashboard specific colors */
     --iot-bg: 222 47% 7%;
@@ -147,8 +155,14 @@ All colors MUST be HSL.
     @apply border-border;
   }
 
-  body {
-    @apply bg-background text-foreground;
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+  }
+
+  *:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
   }
 }
 

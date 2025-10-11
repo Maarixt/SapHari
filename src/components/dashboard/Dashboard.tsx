@@ -1,24 +1,29 @@
 import { useState, useEffect } from 'react';
-import { Header } from './Header';
+import { useNavigate } from 'react-router-dom';
+import AppShell from '@/components/layout/AppShell';
+import PageHeader from '@/components/layout/PageHeader';
+import { TileButton } from '@/components/ui/TileButton';
 import { DeviceList } from '../devices/DeviceList';
 import { DeviceView } from '../devices/DeviceView';
 import { BrokerSettingsDialog } from './BrokerSettingsDialog';
 import { AlertRuleDialog } from './AlertRuleDialog';
 import { SnippetStream } from './SnippetStream';
 import { MasterDashboard } from './MasterDashboard';
-import { supabase } from '@/integrations/supabase/client';
+import AlertBell from '@/components/alerts/AlertBell';
 import { useAuth } from '@/hooks/useAuth';
 import { useMasterAccount } from '@/hooks/useMasterAccount';
-import { Alerts } from '@/state/alertsEngine';
 import { seedAlertRules } from '@/dev/seedRules';
 import { connectMqtt } from '@/services/mqtt';
 import { DeviceControlDemo } from '@/components/demo/DeviceControlDemo';
 import { Toaster } from 'sonner';
 import { DeviceWithRole } from '@/lib/types';
+import { Settings } from 'lucide-react';
 
 export const Dashboard = () => {
   const { user } = useAuth();
   const { isMaster } = useMasterAccount();
+  const navigate = useNavigate();
+  
   // Initialize alert engine
   useEffect(() => {
     // Seed example rules in development
@@ -51,29 +56,58 @@ export const Dashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background dark">
-              <Header
-                onSettingsClick={() => setShowBrokerSettings(true)}
-                onAlertRulesClick={() => setShowAlertRules(true)}
-                onSnippetStreamClick={() => setShowSnippetStream(true)}
-                onDeviceDemoClick={() => setShowDeviceDemo(true)}
-              />
-      
-      <main>
-        {showDeviceDemo ? (
-          <DeviceControlDemo onBack={() => setShowDeviceDemo(false)} />
-        ) : selectedDevice ? (
-          <DeviceView
-            device={selectedDevice}
-            onBack={() => setSelectedDevice(null)}
+    <AppShell 
+      title="SapHari" 
+      actions={
+        <>
+          <AlertBell unread={0} />
+          <button 
+            onClick={() => setShowBrokerSettings(true)}
+            className="rounded-xl border border-ink-200 bg-white px-3 py-2 hover:bg-[var(--surface)]"
+          >
+            <Settings className="h-4 w-4" />
+          </button>
+        </>
+      }
+    >
+      {showDeviceDemo ? (
+        <DeviceControlDemo onBack={() => setShowDeviceDemo(false)} />
+      ) : selectedDevice ? (
+        <DeviceView
+          device={selectedDevice}
+          onBack={() => setSelectedDevice(null)}
+        />
+      ) : (
+        <>
+          <PageHeader 
+            title="Dashboard" 
+            subtitle="Control devices and monitor sensors in real-time." 
           />
-        ) : (
+          
+          <section className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <TileButton 
+              label="Add Device" 
+              icon="➕" 
+              onClick={() => {/* TODO: Add device dialog */}} 
+            />
+            <TileButton 
+              label="Circuit Simulator" 
+              icon="🧪" 
+              onClick={() => navigate('/simulator')} 
+            />
+            <TileButton 
+              label="Alerts" 
+              icon="🔔" 
+              onClick={() => setShowAlertRules(true)} 
+            />
+          </section>
+
           <DeviceList
             onDeviceSelect={setSelectedDevice}
-            key={selectedDevice ? 'device-selected' : 'device-list'} // Force re-render when returning from device
+            key={selectedDevice ? 'device-selected' : 'device-list'}
           />
-        )}
-      </main>
+        </>
+      )}
       
       <BrokerSettingsDialog
         open={showBrokerSettings}
@@ -98,6 +132,6 @@ export const Dashboard = () => {
         richColors={true}
         closeButton={true}
       />
-    </div>
+    </AppShell>
   );
 };

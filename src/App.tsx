@@ -8,12 +8,12 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import MasterLogin from "./pages/MasterLogin";
 import MasterDashboard from "./pages/master/MasterDashboard";
+import Simulator from "./pages/Simulator";
 import NotFound from "./pages/NotFound";
 import { AuthProvider } from "@/hooks/useAuth";
 import { MasterAccountProvider } from "@/hooks/useMasterAccount";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { RequireMaster } from "@/components/auth/RequireRole";
-import { MasterLayout } from "@/components/master/MasterLayout";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 // Import simulation helper for development
 import "@/dev/simAlerts";
@@ -56,6 +56,14 @@ const App = () => (
                       <RequireMaster>
                         <MasterDashboard />
                       </RequireMaster>
+                    </AuthGuard>
+                  }
+                />
+                <Route
+                  path="/simulator"
+                  element={
+                    <AuthGuard>
+                      <Simulator />
                     </AuthGuard>
                   }
                 />
