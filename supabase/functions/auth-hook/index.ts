@@ -61,7 +61,7 @@ serve(async (req) => {
     console.error('Auth hook error:', error)
     
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: 'Authentication hook failed' }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500 
@@ -173,7 +173,7 @@ async function handleUserSignedIn(supabaseClient: any, user: any) {
 
     // Check for expired roles
     const now = new Date()
-    const activeRoles = roles?.filter(role => 
+    const activeRoles = roles?.filter((role: any) => 
       !role.expires_at || new Date(role.expires_at) > now
     ) || []
 
@@ -251,7 +251,7 @@ export async function getUserRoles(supabaseClient: any, userId: string) {
 
     // Filter out expired roles
     const now = new Date()
-    return roles?.filter(role => 
+    return roles?.filter((role: any) => 
       !role.expires_at || new Date(role.expires_at) > now
     ) || []
 

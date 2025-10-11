@@ -170,15 +170,27 @@ export function useRoleGuard(options: RoleMiddlewareOptions) {
 }
 
 // Component wrapper for role-based access control
+interface RoleGuardProps extends RoleMiddlewareOptions {
+  children: React.ReactNode;
+  fallback?: React.ReactNode;
+}
+
 export function RoleGuard({ 
   children, 
   fallback, 
-  ...options 
-}: RoleMiddlewareOptions & {
-  children: React.ReactNode;
-  fallback?: React.ReactNode;
-}) {
-  const { isAllowed, isLoading, error } = useRoleGuard(options);
+  requiredRole,
+  requiredPermission,
+  resource,
+  resourceId,
+  tenantId
+}: RoleGuardProps) {
+  const { isAllowed, isLoading, error } = useRoleGuard({
+    requiredRole,
+    requiredPermission,
+    resource,
+    resourceId,
+    tenantId
+  });
 
   if (isLoading) {
     return <div>Loading...</div>;
