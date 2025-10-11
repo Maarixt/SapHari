@@ -1,5 +1,6 @@
 // Role-based access control middleware for API routes and components
 import { roleService } from '../services/roleService';
+import React, { useState, useEffect } from 'react';
 
 export interface RoleMiddlewareOptions {
   requiredRole?: 'user' | 'admin' | 'master';
@@ -197,7 +198,7 @@ export function RoleGuard({
   }
 
   if (!isAllowed) {
-    return fallback || React.createElement('div', null, 'Access denied: ', error);
+    return fallback || React.createElement('div', null, `Access denied: ${error}`);
   }
 
   return React.createElement(React.Fragment, null, children);
@@ -334,5 +335,3 @@ export const auditHelpers = {
 
 // Import supabase client
 import { supabase } from '../lib/supabase';
-import { useState, useEffect } from 'react';
-import React from 'react';
