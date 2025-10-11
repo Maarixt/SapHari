@@ -50,7 +50,8 @@ import {
 import { AlertsStore } from '@/state/alertsStore';
 import { SnippetBus } from '@/features/snippets/snippetBus';
 import { AlertRule } from '@/state/alertsTypes';
-import { NotificationSettings } from '@/components/notifications/NotificationSettings';
+// NotificationSettings component temporarily disabled
+// import { NotificationSettings } from '@/components/notifications/NotificationSettings';
 
 interface AlertRuleDialogProps {
   open: boolean;
@@ -563,7 +564,11 @@ export const AlertRuleDialog = ({ open, onOpenChange, defaultDeviceId }: AlertRu
           </TabsContent>
 
           <TabsContent value="notifications" className="space-y-4">
-            <NotificationSettings />
+            <Card>
+              <CardContent className="p-6">
+                <p className="text-muted-foreground">Notification settings temporarily unavailable</p>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
 

@@ -18,7 +18,8 @@ import {
   Eye,
   EyeOff
 } from 'lucide-react';
-import { MasterControlPanel } from '../admin/MasterControlPanel';
+// MasterControlPanel temporarily disabled
+// import { MasterControlPanel } from '../admin/MasterControlPanel';
 import { useMasterAccount } from '@/hooks/useMasterAccount';
 
 export const MasterDashboard = () => {
@@ -164,7 +165,11 @@ export const MasterDashboard = () => {
               Close Panel
             </Button>
           </div>
-          <MasterControlPanel userRole={userRole} onLogout={logout} />
+          <Card>
+            <CardContent className="p-6">
+              <p className="text-muted-foreground">Master Control Panel temporarily unavailable</p>
+            </CardContent>
+          </Card>
         </div>
       )}
 

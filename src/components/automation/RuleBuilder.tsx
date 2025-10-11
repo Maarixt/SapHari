@@ -19,7 +19,13 @@ import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Plus, Trash2, Save, Play, Pause, Settings } from 'lucide-react';
 import { toast } from 'sonner';
-import { automationService, AutomationRule, RuleCondition, RuleAction } from '@/services/automationService';
+// Automation service temporarily disabled
+// import { automationService, AutomationRule, RuleCondition, RuleAction } from '@/services/automationService';
+
+// Temporary type definitions
+type AutomationRule = any;
+type RuleCondition = any;
+type RuleAction = any;
 import { useAuth } from '@/hooks/useAuth';
 import { Device } from '@/lib/types';
 
@@ -192,18 +198,20 @@ export function RuleBuilder({ trigger, devices, onRuleSaved, editingRule }: Rule
         priority
       };
 
-      let savedRule: AutomationRule;
+      // Automation service temporarily disabled
+      toast.error('Automation service is temporarily unavailable');
+      return;
       
-      if (editingRule) {
-        savedRule = await automationService.updateRule(editingRule.id, ruleData);
-        toast.success('Automation rule updated successfully');
-      } else {
-        savedRule = await automationService.createRule(ruleData);
-        toast.success('Automation rule created successfully');
-      }
-
-      onRuleSaved?.(savedRule);
-      setOpen(false);
+      // let savedRule: AutomationRule;
+      // if (editingRule) {
+      //   savedRule = await automationService.updateRule(editingRule.id, ruleData);
+      //   toast.success('Automation rule updated successfully');
+      // } else {
+      //   savedRule = await automationService.createRule(ruleData);
+      //   toast.success('Automation rule created successfully');
+      // }
+      // onRuleSaved?.(savedRule);
+      // setOpen(false);
       
     } catch (error) {
       console.error('Failed to save rule:', error);

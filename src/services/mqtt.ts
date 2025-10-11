@@ -1,13 +1,17 @@
 import mqtt from 'mqtt';
 import { DeviceStore } from '@/state/deviceStore';
 import { Alerts } from '@/state/alertsEngine';
-import { aggregationService } from '@/services/aggregationService';
+// aggregationService temporarily disabled
+// import { aggregationService } from '@/services/aggregationService';
 import { useAuth } from '@/hooks/useAuth';
 // Temporarily commented out to fix import issues
 // import { commandService } from './commandService';
 // import { CommandAck, validateCommandAck } from '../lib/commandTypes';
-import { otaService, OTAUpdateProgress } from './otaService';
-import { automationService } from './automationService';
+// OTA service temporarily disabled
+// import { otaService, OTAUpdateProgress } from './otaService';
+type OTAUpdateProgress = any;
+// automationService temporarily disabled
+// import { automationService } from './automationService';
 
 let client: mqtt.MqttClient;
 
@@ -134,23 +138,23 @@ export function connectMqtt() {
       return;
     }
     
-    // Record MQTT traffic
-    aggregationService.recordMQTTTraffic(deviceId, topic, messageSize, 'inbound');
+    // Record MQTT traffic - temporarily disabled
+    // aggregationService.recordMQTTTraffic(deviceId, topic, messageSize, 'inbound');
     
     try {
       if (channel === 'status') {
         const isOnline = msg === 'online';
         DeviceStore.setOnline(deviceId, isOnline);
         
-        // Record device status change
-        aggregationService.recordDeviceEvent(
-          deviceId,
-          '', // userId will be resolved from device ownership
-          'status_change',
-          { online: isOnline },
-          isOnline ? 'info' : 'warning',
-          `Device ${deviceId} ${isOnline ? 'came online' : 'went offline'}`
-        );
+        // Record device status change - temporarily disabled
+        // aggregationService.recordDeviceEvent(
+        //   deviceId,
+        //   '', // userId will be resolved from device ownership
+        //   'status_change',
+        //   { online: isOnline },
+        //   isOnline ? 'info' : 'warning',
+        //   `Device ${deviceId} ${isOnline ? 'came online' : 'went offline'}`
+        // );
         return;
       }
 
@@ -163,11 +167,11 @@ export function connectMqtt() {
             };
             DeviceStore.upsertState(deviceId, state);
             
-            // Record device state update
-            aggregationService.recordDeviceState(deviceId, '', state);
+            // Record device state update - temporarily disabled
+            // aggregationService.recordDeviceState(deviceId, '', state);
             
-            // Process automation rules
-            automationService.processDeviceData(deviceId, doc).catch(console.error);
+            // Process automation rules - temporarily disabled
+            // automationService.processDeviceData(deviceId, doc).catch(console.error);
             
             Alerts.evaluate(deviceId).catch(console.error); // ALERTS ON REPORTED STATE
             return;
@@ -214,20 +218,20 @@ export function connectMqtt() {
               downloadedSize: otaData.downloadedSize || 0
             };
             
-            // Process OTA progress through OTA service
-            otaService.handleOTAProgress(progress);
+            // Process OTA progress through OTA service - temporarily disabled
+            // otaService.handleOTAProgress(progress);
             
             console.log(`📱 OTA Progress from ${deviceId}:`, progress);
             
-            // Record OTA event
-            aggregationService.recordDeviceEvent(
-              deviceId,
-              '', // userId will be resolved from device ownership
-              'ota_update',
-              progress,
-              progress.status === 'error' ? 'error' : 'info',
-              `OTA Update: ${progress.status} - ${progress.message}`
-            );
+            // Record OTA event - temporarily disabled
+            // aggregationService.recordDeviceEvent(
+            //   deviceId,
+            //   '', // userId will be resolved from device ownership
+            //   'ota_update',
+            //   progress,
+            //   progress.status === 'error' ? 'error' : 'info',
+            //   `OTA Update: ${progress.status} - ${progress.message}`
+            // );
           } else {
             console.warn(`Invalid OTA status format from ${deviceId}:`, msg);
           }
@@ -245,18 +249,18 @@ export function connectMqtt() {
           if (heartbeatData.deviceId && heartbeatData.timestamp) {
             console.log(`💓 Heartbeat from ${deviceId}:`, heartbeatData);
             
-            // Process heartbeat data for automation rules
-            automationService.processDeviceData(deviceId, heartbeatData).catch(console.error);
+            // Process heartbeat data for automation rules - temporarily disabled
+            // automationService.processDeviceData(deviceId, heartbeatData).catch(console.error);
             
-            // Record heartbeat event
-            aggregationService.recordDeviceEvent(
-              deviceId,
-              '', // userId will be resolved from device ownership
-              'heartbeat',
-              heartbeatData,
-              'info',
-              `Device heartbeat: ${heartbeatData.isHealthy ? 'healthy' : 'unhealthy'}`
-            );
+            // Record heartbeat event - temporarily disabled
+            // aggregationService.recordDeviceEvent(
+            //   deviceId,
+            //   '', // userId will be resolved from device ownership
+            //   'heartbeat',
+            //   heartbeatData,
+            //   'info',
+            //   `Device heartbeat: ${heartbeatData.isHealthy ? 'healthy' : 'unhealthy'}`
+            // );
           } else {
             console.warn(`Invalid heartbeat format from ${deviceId}:`, msg);
           }

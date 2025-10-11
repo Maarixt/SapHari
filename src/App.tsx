@@ -7,9 +7,7 @@ import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import MasterLogin from "./pages/MasterLogin";
-import MasterOverview from "./pages/master/Overview";
 import MasterDashboard from "./pages/master/MasterDashboard";
-import MasterQA from "./pages/master/QA";
 import NotFound from "./pages/NotFound";
 import { AuthProvider } from "@/hooks/useAuth";
 import { MasterAccountProvider } from "@/hooks/useMasterAccount";
@@ -21,12 +19,8 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import "@/dev/simAlerts";
 import "@/dev/simFlow";
 import "@/dev/testMqtt";
-import "@/dev/testAlertEngine";
 import "@/dev/seedRules";
 import "@/dev/sim";
-import "@/dev/testMasterAggregations";
-import "@/dev/testMasterDashboard";
-import "@/dev/testAggregations";
 import { connectMqtt } from "@/services/mqtt";
 
 const queryClient = new QueryClient();
@@ -61,18 +55,6 @@ const App = () => (
                     <AuthGuard>
                       <RequireMaster>
                         <MasterDashboard />
-                      </RequireMaster>
-                    </AuthGuard>
-                  }
-                />
-                <Route
-                  path="/master/qa"
-                  element={
-                    <AuthGuard>
-                      <RequireMaster>
-                        <MasterLayout title="QA Testing" subtitle="Test checklist for master dashboard functionality">
-                          <MasterQA />
-                        </MasterLayout>
                       </RequireMaster>
                     </AuthGuard>
                   }

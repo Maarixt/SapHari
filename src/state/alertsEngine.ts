@@ -3,7 +3,8 @@ import { AlertsStore } from './alertsStore';
 import { AlertRule } from './alertsTypes';
 import { notifyBrowser } from '@/utils/browserNotify';
 import { toast } from 'sonner';
-import { aggregationService } from '@/services/aggregationService';
+// aggregationService temporarily disabled
+// import { aggregationService } from '@/services/aggregationService';
 import { supabase } from '@/integrations/supabase/client';
 
 function cmp(op: AlertRule['op'], left: any, right: any){
@@ -87,26 +88,26 @@ export const Alerts = {
       };
               AlertsStore.pushHistory(entry);
 
-              // Record alert in aggregation service
-              aggregationService.recordAlertTriggered(entry, deviceId, ''); // userId will be resolved
+              // Record alert in aggregation service - temporarily disabled
+              // aggregationService.recordAlertTriggered(entry, deviceId, '');
 
-              // Insert alert into database for master dashboard
-              try {
-                await supabase.from('alerts').insert({
-                  id: entry.id,
-                  rule_id: entry.ruleId,
-                  device_id: deviceId,
-                  severity: entry.severity,
-                  title: entry.ruleName,
-                  description: `${deviceId} • ${String(entry.value)}`,
-                  channels: entry.channels,
-                  created_at: new Date(entry.ts).toISOString(),
-                  acknowledged: entry.ack,
-                  seen: entry.seen
-                });
-              } catch (error) {
-                console.error('Failed to insert alert into database:', error);
-              }
+              // Insert alert into database for master dashboard - temporarily disabled
+              // try {
+              //   await supabase.from('alerts').insert({
+              //     id: entry.id,
+              //     rule_id: entry.ruleId,
+              //     device_id: deviceId,
+              //     severity: entry.severity,
+              //     title: entry.ruleName,
+              //     description: `${deviceId} • ${String(entry.value)}`,
+              //     channels: entry.channels,
+              //     created_at: new Date(entry.ts).toISOString(),
+              //     acknowledged: entry.ack,
+              //     seen: entry.seen
+              //   });
+              // } catch (error) {
+              //   console.error('Failed to insert alert into database:', error);
+              // }
 
       // Route: UI
       if(entry.channels.includes('toast')){

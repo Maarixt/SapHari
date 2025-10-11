@@ -1,7 +1,8 @@
 // Device status service for MQTT publishing and aggregations
 
 import { sendCommand } from '@/services/mqtt';
-import { aggregationService } from '@/services/aggregationService';
+// aggregationService temporarily disabled
+// import { aggregationService } from '@/services/aggregationService';
 
 export interface DeviceStatus {
   online: boolean;
@@ -41,15 +42,15 @@ export class DeviceStatusService {
       if (success) {
         console.log(`📡 Published status for ${deviceId}:`, payload);
         
-        // Record in aggregations
-        await aggregationService.recordDeviceOnlineStatus(
-          deviceId,
-          '', // userId will be resolved from device ownership
-          status.online,
-          status.ip,
-          status.rssi,
-          status.battery_pct
-        );
+        // Record in aggregations - temporarily disabled
+        // await aggregationService.recordDeviceOnlineStatus(
+        //   deviceId,
+        //   '', // userId will be resolved from device ownership
+        //   status.online,
+        //   status.ip,
+        //   status.rssi,
+        //   status.battery_pct
+        // );
       } else {
         console.warn(`❌ Failed to publish status for ${deviceId}`);
       }
@@ -81,15 +82,15 @@ export class DeviceStatusService {
       if (success) {
         console.log(`📡 Published event for ${deviceId}:`, payload);
         
-        // Record in aggregations
-        await aggregationService.recordDeviceEvent(
-          deviceId,
-          '', // userId will be resolved from device ownership
-          event.code,
-          event.meta || {},
-          event.level,
-          event.message
-        );
+        // Record in aggregations - temporarily disabled
+        // await aggregationService.recordDeviceEvent(
+        //   deviceId,
+        //   '', // userId will be resolved from device ownership
+        //   event.code,
+        //   event.meta || {},
+        //   event.level,
+        //   event.message
+        // );
       } else {
         console.warn(`❌ Failed to publish event for ${deviceId}`);
       }
