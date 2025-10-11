@@ -4,7 +4,7 @@ export interface Snippet {
   value: any;
 }
 
-type SnipListener = (snippet: Snippet) => void;
+export type SnipListener = (snippet: Snippet) => void;
 let listeners: SnipListener[] = [];
 
 export const snippetBus = {
@@ -18,10 +18,16 @@ export const snippetBus = {
 };
 
 // Legacy exports for backward compatibility
+type LegacyListener = (code: string, meta?: Record<string, any>) => void;
 export const SnippetBus = {
-  on(fn: SnipListener) { return snippetBus.subscribe(fn); },
+  on(fn: LegacyListener) { 
+    const wrappedFn: SnipListener = (snippet) => {
+      fn(snippet.value, { deviceId: snippet.deviceId, key: snippet.key });
+    };
+    listeners.push(wrappedFn);
+    return () => { listeners = listeners.filter(f => f !== wrappedFn); };
+  },
   emitSnippet(code: string, meta?: Record<string, any>) { 
-    // Convert to new format if needed
     if (meta?.deviceId && meta?.key) {
       snippetBus.emit({ deviceId: meta.deviceId, key: meta.key, value: code });
     }

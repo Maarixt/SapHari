@@ -17,7 +17,9 @@ export function SensorDisplay({
   precision = 1 
 }: SensorDisplayProps){
   const [, setTick] = useState(0);
-  useEffect(()=>DeviceStore.subscribe(()=>setTick(x=>x+1)),[]);
+  useEffect(() => {
+    return DeviceStore.subscribe(() => setTick(x => x + 1));
+  }, []);
   
   const value = DeviceStore.get(deviceId)?.sensors?.[sensorKey] ?? null;
   

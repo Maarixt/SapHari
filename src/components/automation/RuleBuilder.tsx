@@ -572,7 +572,7 @@ export function RuleBuilder({ trigger, devices, onRuleSaved, editingRule }: Rule
                   {conditions.length > 1 && (
                     <div className="flex items-center space-x-2">
                       <Label>Logic:</Label>
-                      <Select value={conditionLogic} onValueChange={setConditionLogic}>
+                      <Select value={conditionLogic} onValueChange={(v: "AND" | "OR") => setConditionLogic(v)}>
                         <SelectTrigger className="w-32">
                           <SelectValue />
                         </SelectTrigger>

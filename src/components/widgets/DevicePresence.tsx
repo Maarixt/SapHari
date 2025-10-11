@@ -3,7 +3,9 @@ import { DeviceStore } from '@/state/deviceStore';
 
 export function DevicePresence({ deviceId }: { deviceId: string }){
   const [, setTick] = useState(0);
-  useEffect(()=>DeviceStore.subscribe(()=>setTick(x=>x+1)),[]);
+  useEffect(() => {
+    return DeviceStore.subscribe(() => setTick(x => x + 1));
+  }, []);
   const d = DeviceStore.get(deviceId);
   return (
     <span className={`inline-flex items-center gap-1 text-xs ${d?.online ? 'text-emerald-400' : 'text-rose-400'}`}>

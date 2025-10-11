@@ -7,7 +7,9 @@ export function GpioSwitch({ deviceId, pin }: { deviceId: string; pin: number })
   const { toast } = useToast();
   const [, setTick] = useState(0);
   
-  useEffect(()=>DeviceStore.subscribe(()=>setTick(x=>x+1)),[]);
+  useEffect(() => {
+    return DeviceStore.subscribe(() => setTick(x => x + 1));
+  }, []);
   
   const snap = DeviceStore.get(deviceId);
   const online = !!snap?.online;
