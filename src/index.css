@@ -46,7 +46,7 @@ All colors MUST be HSL.
 @layer base {
   :root {
     /* Light theme (fallback) */
-    --background: 210 40% 98%;
+    --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
 
     --card: 0 0% 100%;
@@ -84,6 +84,13 @@ All colors MUST be HSL.
     --iot-online: 142 69% 58%;
     --iot-offline: 0 84% 60%;
     --iot-warning: 45 93% 47%;
+    
+    /* SapHari theme variables */
+    --bg: #ffffff;
+    --surface: #f8fbff;
+    --surface-2: #eef4ff;
+    --text: #0f172a;
+    --brand: #3f7aff;
 
     --sidebar-background: 0 0% 98%;
 
@@ -149,6 +156,11 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+  }
+  
+  *:focus-visible {
+    outline: 2px solid hsl(var(--primary));
+    outline-offset: 2px;
   }
 }
 
