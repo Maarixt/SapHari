@@ -1,13 +1,16 @@
-import { ReactNode } from 'react';
+import React from "react";
 
-interface SurfaceCardProps {
-  children: ReactNode;
+export function SurfaceCard({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
   className?: string;
-}
-
-export function SurfaceCard({ children, className = "" }: SurfaceCardProps) {
+}) {
   return (
-    <div className={`rounded-2xl bg-white border border-ink-200 shadow-soft ${className}`}>
+    <div
+      className={`rounded-2xl bg-white border border-ink-200 shadow-soft ${className}`}
+    >
       {children}
     </div>
   );

@@ -1,12 +1,14 @@
-import { ReactNode } from 'react';
+import React from "react";
 
-interface AppShellProps {
+export default function AppShell({
+  title,
+  actions,
+  children,
+}: {
   title: string;
-  actions?: ReactNode;
-  children: ReactNode;
-}
-
-export default function AppShell({ title, actions, children }: AppShellProps) {
+  actions?: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
     <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
       <header className="sticky top-0 z-50 bg-white/70 backdrop-blur-md border-b border-ink-200">
