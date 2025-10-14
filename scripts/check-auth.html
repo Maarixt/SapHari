@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auth Check</title>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <h1>Authentication Check</h1>
+    <div id="result"></div>
+    
+    <script>
+        const SUPABASE_URL = 'https://wrdeomgtkbehvbfhiprm.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZGVvbWd0a2JlaHZiZmhpcHJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc1OTYxMTEsImV4cCI6MjA3MzE3MjExMX0.mZNoXWuvPUKZfHgkjtlg4IPP1vyHTxdehTs9yiOgPlE';
+        
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        async function checkAuth() {
+            const resultDiv = document.getElementById('result');
+            
+            try {
+                const { data: { user }, error } = await supabase.auth.getUser();
+                
+                if (error) {
+                    resultDiv.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+                    return;
+                }
+                
+                if (!user) {
+                    resultDiv.innerHTML = '<p style="color: orange;">No user logged in. Please log in as Omari Francis (omarifrancis846@gmail.com)</p>';
+                    return;
+                }
+                
+                resultDiv.innerHTML = `
+                    <p style="color: green;">✅ Logged in as: ${user.email}</p>
+                    <p>User ID: ${user.id}</p>
+                    <p>Now testing master access...</p>
+                `;
+                
+                // Test master access
+                const { data: canAccess, error: accessError } = await supabase.rpc('can_access_master_features');
+                
+                if (accessError) {
+                    resultDiv.innerHTML += `<p style="color: red;">Master access error: ${accessError.message}</p>`;
+                    return;
+                }
+                
+                if (canAccess) {
+                    resultDiv.innerHTML += '<p style="color: green;">✅ Master access: GRANTED</p>';
+                    resultDiv.innerHTML += '<p style="color: green;">The Users tab should now work!</p>';
+                } else {
+                    resultDiv.innerHTML += '<p style="color: red;">❌ Master access: DENIED</p>';
+                    resultDiv.innerHTML += '<p>This user does not have master role assigned.</p>';
+                }
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+            }
+        }
+        
+        checkAuth();
+    </script>
+</body>
+</html>

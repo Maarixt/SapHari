@@ -1,4 +1,5 @@
 import { SimState, SimComponent, Wire } from './types';
+// import { getSimulationBridge } from './integration/SimulationBridge';
 
 type NetId = string;
 
@@ -176,6 +177,13 @@ export function simulateComponents(state: SimState, nets: Net[]): SimState {
 
 // Main simulation step
 export function simulateStep(state: SimState): SimState {
+  // Try enhanced simulation first (commented out for now)
+  // const bridge = getSimulationBridge();
+  // if (bridge.isEnhancedModeActive()) {
+  //   return bridge.runSimulationStep(state);
+  // }
+  
+  // Fall back to original simulation
   // Build nets from current state
   const nets = buildNets(state);
   

@@ -1,0 +1,324 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Modern SapHari Design System - Blue/White Primary Palette */
+
+@layer base {
+  :root {
+    /* Light Theme - Clean Blue/White */
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    /* Primary Blue Palette */
+    --primary: 214 100% 50%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 40% 98%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    --muted: 210 40% 98%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 210 40% 96%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+
+    /* Status Colors */
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+    
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 214 100% 50%;
+
+    /* Modern Radius */
+    --radius: 1rem;
+    
+    /* IoT Dashboard specific colors */
+    --iot-bg: 0 0% 100%;
+    --iot-card: 0 0% 100%;
+    --iot-border: 214.3 31.8% 91.4%;
+    --iot-muted: 215.4 16.3% 46.9%;
+    --iot-online: 142 76% 36%;
+    --iot-offline: 0 84% 60%;
+    --iot-warning: 38 92% 50%;
+
+    /* Sidebar */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 214 100% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 40% 96%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 214.3 31.8% 91.4%;
+    --sidebar-ring: 214 100% 50%;
+  }
+
+  .dark {
+    /* Dark Theme - Professional Dark Blue */
+    --background: 222 47% 7%;
+    --foreground: 210 40% 98%;
+
+    --card: 222 47% 9%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222 47% 9%;
+    --popover-foreground: 210 40% 98%;
+
+    /* Primary Blue - Brighter for dark mode */
+    --primary: 214 100% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 215 20% 25%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 215 20% 25%;
+    --muted-foreground: 215 20% 75%;
+
+    --accent: 215 20% 25%;
+    --accent-foreground: 210 40% 98%;
+
+    /* Status Colors - Adjusted for dark mode */
+    --success: 142 76% 46%;
+    --success-foreground: 0 0% 100%;
+    
+    --warning: 38 92% 60%;
+    --warning-foreground: 0 0% 100%;
+    
+    --destructive: 0 84% 70%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 215 20% 30%;
+    --input: 215 20% 15%;
+    --ring: 214 100% 60%;
+
+    /* IoT Dashboard dark colors */
+    --iot-bg: 222 47% 7%;
+    --iot-card: 222 47% 9%;
+    --iot-border: 215 20% 30%;
+    --iot-muted: 215 20% 75%;
+    --iot-online: 142 76% 46%;
+    --iot-offline: 0 84% 70%;
+    --iot-warning: 38 92% 60%;
+
+    /* Sidebar dark */
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 214 100% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 214 100% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  /* Typography Scale */
+  h1 {
+    @apply text-3xl font-bold tracking-tight;
+  }
+
+  h2 {
+    @apply text-2xl font-semibold tracking-tight;
+  }
+
+  h3 {
+    @apply text-xl font-semibold tracking-tight;
+  }
+
+  h4 {
+    @apply text-lg font-semibold tracking-tight;
+  }
+
+  /* Focus styles for accessibility */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+}
+
+@layer components {
+  /* Modern Card Styles */
+  .card-modern {
+    @apply rounded-2xl border border-border/50 bg-card shadow-sm hover:shadow-md transition-shadow duration-200;
+  }
+
+  .card-modern-header {
+    @apply flex flex-row items-center justify-between space-y-0 pb-4;
+  }
+
+  /* Modern Button Styles */
+  .btn-modern {
+    @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .btn-modern-primary {
+    @apply bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm hover:shadow-md;
+  }
+
+  .btn-modern-secondary {
+    @apply bg-secondary text-secondary-foreground hover:bg-secondary/80 border border-border/50;
+  }
+
+  .btn-modern-outline {
+    @apply border border-border bg-background hover:bg-accent hover:text-accent-foreground shadow-sm hover:shadow-md;
+  }
+
+  .btn-modern-ghost {
+    @apply hover:bg-accent hover:text-accent-foreground;
+  }
+
+  /* Modern Input Styles */
+  .input-modern {
+    @apply flex h-10 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  /* KPI Card Styles */
+  .kpi-card {
+    @apply card-modern p-6;
+  }
+
+  .kpi-card-header {
+    @apply flex items-center justify-between mb-4;
+  }
+
+  .kpi-card-value {
+    @apply text-3xl font-bold tracking-tight;
+  }
+
+  .kpi-card-trend {
+    @apply flex items-center gap-1 text-sm text-muted-foreground mt-2;
+  }
+
+  /* Status Indicators */
+  .status-online {
+    @apply inline-flex items-center gap-1.5 rounded-full bg-success/10 px-2.5 py-1 text-xs font-medium text-success;
+  }
+
+  .status-offline {
+    @apply inline-flex items-center gap-1.5 rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-medium text-destructive;
+  }
+
+  .status-warning {
+    @apply inline-flex items-center gap-1.5 rounded-full bg-warning/10 px-2.5 py-1 text-xs font-medium text-warning;
+  }
+
+  /* Table Styles */
+  .table-modern {
+    @apply w-full caption-bottom text-sm;
+  }
+
+  .table-modern-header {
+    @apply [&_tr]:border-b;
+  }
+
+  .table-modern-body {
+    @apply [&_tr:last-child]:border-0;
+  }
+
+  .table-modern-row {
+    @apply border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted;
+  }
+
+  .table-modern-head {
+    @apply h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0;
+  }
+
+  .table-modern-cell {
+    @apply p-4 align-middle [&:has([role=checkbox])]:pr-0;
+  }
+
+  /* Loading States */
+  .skeleton {
+    @apply animate-pulse rounded-xl bg-muted;
+  }
+
+  .loading-spinner {
+    @apply h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent;
+  }
+
+  /* Micro-animations */
+  .fade-in {
+    animation: fade-in 0.2s ease-out;
+  }
+
+  .slide-in {
+    animation: slide-in-from-bottom 0.2s ease-out;
+  }
+
+  /* Responsive utilities */
+  .container-modern {
+    @apply mx-auto max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+
+  /* Focus management for reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    .fade-in,
+    .slide-in,
+    .animate-pulse,
+    .animate-spin {
+      animation: none;
+    }
+  }
+}
+
+@layer utilities {
+  /* Custom scrollbar */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.3);
+    border-radius: 3px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
+  }
+
+  /* Text utilities */
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Safe area utilities for mobile */
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}

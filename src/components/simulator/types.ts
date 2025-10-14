@@ -78,10 +78,12 @@ export const COMPONENT_DEFINITIONS: Record<string, Omit<SimComponent, 'id' | 'x'
   button: {
     type: 'button',
     rotation: 0,
-    props: {},
+    props: { bounceMs: 10, contactResistance: 0.08, orientation: 0 },
     pins: [
-      { id: 'pin1', label: '1', kind: 'digital', x: 0, y: 0 },
-      { id: 'pin2', label: '2', kind: 'digital', x: 10, y: 0 }
+      { id: 'A1', label: 'A1', kind: 'digital', x: 0, y: 0 },
+      { id: 'A2', label: 'A2', kind: 'digital', x: 10, y: 0 },
+      { id: 'B1', label: 'B1', kind: 'digital', x: 0, y: 10 },
+      { id: 'B2', label: 'B2', kind: 'digital', x: 10, y: 10 }
     ]
   },
   buzzer: {

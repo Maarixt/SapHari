@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Master Access Test</title>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background-color: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+        .error { background-color: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+        .warning { background-color: #fff3cd; border: 1px solid #ffeaa7; color: #856404; }
+        .info { background-color: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        pre { background-color: #f8f9fa; padding: 10px; border-radius: 5px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Master Access Test Tool</h1>
+        <p>This tool will help us debug the master access issue.</p>
+        
+        <div>
+            <button onclick="runAllTests()">Run All Tests</button>
+            <button onclick="clearResults()">Clear Results</button>
+        </div>
+        
+        <div id="results"></div>
+    </div>
+
+    <script>
+        // Supabase configuration
+        const SUPABASE_URL = 'https://wrdeomgtkbehvbfhiprm.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZGVvbWd0a2JlaHZiZmhpcHJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc1OTYxMTEsImV4cCI6MjA3MzE3MjExMX0.mZNoXWuvPUKZfHgkjtlg4IPP1vyHTxdehTs9yiOgPlE';
+        
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        function addResult(message, type = 'info') {
+            const resultsDiv = document.getElementById('results');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `test-result ${type}`;
+            resultDiv.innerHTML = message;
+            resultsDiv.appendChild(resultDiv);
+        }
+        
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+        
+        async function testCurrentUser() {
+            addResult('🔍 Testing current user authentication...', 'info');
+            
+            try {
+                const { data: { user }, error } = await supabase.auth.getUser();
+                
+                if (error) {
+                    addResult(`❌ Error getting current user: ${error.message}`, 'error');
+                    return null;
+                }
+                
+                if (!user) {
+                    addResult(`⚠️ No user is currently logged in`, 'warning');
+                    addResult(`Please log in as Omari Francis (omarifrancis846@gmail.com) first`, 'info');
+                    return null;
+                }
+                
+                addResult(`✅ Current user: ${user.email} (${user.id})`, 'success');
+                return user;
+            } catch (error) {
+                addResult(`❌ Error testing current user: ${error.message}`, 'error');
+                return null;
+            }
+        }
+        
+        async function testMasterAccess(user) {
+            addResult('🔐 Testing master access...', 'info');
+            
+            try {
+                const { data: canAccess, error } = await supabase.rpc('can_access_master_features');
+                
+                if (error) {
+                    addResult(`❌ Master access function error: ${error.message}`, 'error');
+                    return false;
+                }
+                
+                if (canAccess) {
+                    addResult(`✅ Master access: GRANTED`, 'success');
+                } else {
+                    addResult(`❌ Master access: DENIED`, 'error');
+                    addResult(`User ${user.email} does not have master role`, 'warning');
+                }
+                
+                return canAccess;
+            } catch (error) {
+                addResult(`❌ Error testing master access: ${error.message}`, 'error');
+                return false;
+            }
+        }
+        
+        async function testProfilesAccess() {
+            addResult('👥 Testing profiles access...', 'info');
+            
+            try {
+                const { data: profiles, error } = await supabase
+                    .from('profiles')
+                    .select('id, email, display_name, created_at')
+                    .order('created_at', { ascending: false });
+                
+                if (error) {
+                    addResult(`❌ Profiles access error: ${error.message}`, 'error');
+                    addResult(`<pre>${JSON.stringify(error, null, 2)}</pre>`, 'error');
+                    return false;
+                }
+                
+                addResult(`✅ Profiles access successful! Found ${profiles.length} profiles:`, 'success');
+                profiles.forEach(profile => {
+                    addResult(`   - ${profile.display_name || profile.email} (${profile.id})`, 'info');
+                });
+                
+                return true;
+            } catch (error) {
+                addResult(`❌ Error testing profiles access: ${error.message}`, 'error');
+                return false;
+            }
+        }
+        
+        async function testUserRoles() {
+            addResult('🔑 Testing user roles access...', 'info');
+            
+            try {
+                const { data: userRoles, error } = await supabase
+                    .from('user_roles')
+                    .select('user_id, role, created_at');
+                
+                if (error) {
+                    addResult(`❌ User roles access error: ${error.message}`, 'error');
+                    return false;
+                }
+                
+                addResult(`✅ User roles access successful! Found ${userRoles.length} role assignments:`, 'success');
+                userRoles.forEach(role => {
+                    addResult(`   - User ${role.user_id}: ${role.role}`, 'info');
+                });
+                
+                const masterRoles = userRoles.filter(r => r.role === 'master');
+                if (masterRoles.length > 0) {
+                    addResult(`✅ Found ${masterRoles.length} master role(s)`, 'success');
+                } else {
+                    addResult(`⚠️ No master roles found`, 'warning');
+                }
+                
+                return true;
+            } catch (error) {
+                addResult(`❌ Error testing user roles: ${error.message}`, 'error');
+                return false;
+            }
+        }
+        
+        async function runAllTests() {
+            clearResults();
+            addResult('🚀 Running all tests...', 'info');
+            
+            const user = await testCurrentUser();
+            if (!user) {
+                addResult('❌ Cannot proceed without authenticated user', 'error');
+                return;
+            }
+            
+            const hasMasterAccess = await testMasterAccess(user);
+            await testProfilesAccess();
+            await testUserRoles();
+            
+            addResult('', 'info');
+            if (hasMasterAccess) {
+                addResult('🎉 All tests completed! Master access is working correctly.', 'success');
+                addResult('The Users tab should now work properly in your Master Dashboard.', 'success');
+            } else {
+                addResult('⚠️ Tests completed with issues. Master access is not working.', 'warning');
+                addResult('Please ensure you are logged in as Omari Francis (omarifrancis846@gmail.com)', 'info');
+            }
+        }
+        
+        // Auto-run tests on page load
+        window.addEventListener('load', () => {
+            addResult('📋 Master Access Test Tool Ready', 'info');
+            addResult('Click "Run All Tests" to diagnose the master access issue.', 'info');
+        });
+    </script>
+</body>
+</html>
