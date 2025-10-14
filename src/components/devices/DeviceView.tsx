@@ -154,29 +154,42 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
   }
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="py-8">
+      <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-4">
-          <Button variant="outline" onClick={onBack} className="btn-outline-enhanced">
+          <Button 
+            variant="outline" 
+            onClick={onBack} 
+            className="shadow-sm hover:shadow-md transition-all duration-200"
+          >
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back
           </Button>
-          <div>
-            <h2 className="text-2xl font-semibold">{device.name}</h2>
-            <p className="text-sm text-muted-foreground font-mono">{device.device_id}</p>
+          <div className="flex items-center gap-3">
+            <div className={`p-2 rounded-xl ${isOnline ? 'bg-success/20' : 'bg-muted/20'}`}>
+              <Code className={`h-6 w-6 ${isOnline ? 'text-success' : 'text-muted-foreground'}`} />
+            </div>
+            <div>
+              <h2 className="text-3xl font-bold tracking-tight">{device.name}</h2>
+              <p className="text-sm text-muted-foreground font-mono">{device.device_id}</p>
+            </div>
           </div>
           <Badge 
-            variant={isOnline ? "default" : "secondary"}
-            className={isOnline ? "bg-iot-online text-white" : "bg-iot-offline text-white"}
+            variant="outline"
+            className={isOnline 
+              ? "bg-success/10 text-success border-success/20" 
+              : "bg-muted/10 text-muted-foreground border-muted/20"
+            }
           >
+            <div className={`h-2 w-2 rounded-full mr-2 ${isOnline ? 'bg-success animate-pulse' : 'bg-muted-foreground'}`}></div>
             {isOnline ? 'Online' : 'Offline'}
           </Badge>
         </div>
         
-        <div className="flex gap-2">
+        <div className="flex gap-3">
           <Button 
             variant="outline" 
-            className="btn-outline-enhanced" 
+            className="shadow-sm hover:shadow-md transition-all duration-200" 
             onClick={() => handleAddWidget('switch')}
           >
             <Plus className="mr-2 h-4 w-4" />
@@ -184,7 +197,7 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
           </Button>
           <Button 
             variant="outline" 
-            className="btn-outline-enhanced" 
+            className="shadow-sm hover:shadow-md transition-all duration-200" 
             onClick={() => handleAddWidget('gauge')}
           >
             <Plus className="mr-2 h-4 w-4" />
@@ -192,13 +205,17 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
           </Button>
           <Button 
             variant="outline" 
-            className="btn-outline-enhanced" 
+            className="shadow-sm hover:shadow-md transition-all duration-200" 
             onClick={() => handleAddWidget('servo')}
           >
             <Plus className="mr-2 h-4 w-4" />
             Servo
           </Button>
-          <Button variant="outline" className="btn-outline-enhanced" onClick={() => setShowCodeSnippet(true)}>
+          <Button 
+            variant="outline" 
+            className="shadow-sm hover:shadow-md transition-all duration-200" 
+            onClick={() => setShowCodeSnippet(true)}
+          >
             <Code className="mr-2 h-4 w-4" />
             Code Snippet
           </Button>
@@ -206,21 +223,38 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
       </div>
 
       {widgets.length === 0 ? (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground mb-4">No widgets yet. Add widgets to control and monitor your device.</p>
-          <div className="flex gap-2 justify-center">
-            <Button onClick={() => handleAddWidget('switch')}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Switch
-            </Button>
-            <Button variant="outline" className="btn-outline-enhanced" onClick={() => handleAddWidget('gauge')}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Gauge
-            </Button>
-            <Button variant="outline" className="btn-outline-enhanced" onClick={() => handleAddWidget('servo')}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Servo
-            </Button>
+        <div className="text-center py-16">
+          <div className="p-6 rounded-2xl bg-muted/30 border border-border/50 max-w-lg mx-auto">
+            <div className="p-3 rounded-xl bg-primary/10 w-fit mx-auto mb-4">
+              <Plus className="h-8 w-8 text-primary" />
+            </div>
+            <h3 className="text-lg font-semibold mb-2">No widgets yet</h3>
+            <p className="text-muted-foreground mb-6">Add widgets to control and monitor your device.</p>
+            <div className="flex gap-3 justify-center">
+              <Button 
+                onClick={() => handleAddWidget('switch')}
+                className="shadow-sm hover:shadow-md transition-all duration-200"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Add Switch
+              </Button>
+              <Button 
+                variant="outline" 
+                className="shadow-sm hover:shadow-md transition-all duration-200" 
+                onClick={() => handleAddWidget('gauge')}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Add Gauge
+              </Button>
+              <Button 
+                variant="outline" 
+                className="shadow-sm hover:shadow-md transition-all duration-200" 
+                onClick={() => handleAddWidget('servo')}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Add Servo
+              </Button>
+            </div>
           </div>
         </div>
       ) : (

@@ -14,40 +14,45 @@ export function MasterLayout({ children, title, subtitle }: MasterLayoutProps) {
   return (
     <RequireMaster>
       <div className="min-h-screen bg-background">
-        {/* Master Header */}
-        <div className="border-b bg-muted/50">
-          <div className="container mx-auto px-4 py-4">
+        {/* Modern Master Header */}
+        <div className="border-b border-border/50 bg-gradient-to-r from-background to-muted/30">
+          <div className="container-modern py-6">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2">
-                  <Crown className="h-6 w-6 text-yellow-600" />
-                  <h1 className="text-2xl font-bold">Master Dashboard</h1>
-                  <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
-                    <Shield className="h-3 w-3 mr-1" />
-                    Master Access
-                  </Badge>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-primary/10">
+                    <Crown className="h-6 w-6 text-primary" />
+                  </div>
+                  <div>
+                    <h1 className="text-2xl font-bold tracking-tight">Master Dashboard</h1>
+                    <p className="text-sm text-muted-foreground">System-wide monitoring and control</p>
+                  </div>
                 </div>
+                <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
+                  <Shield className="h-3 w-3 mr-1" />
+                  Master Access
+                </Badge>
               </div>
               
               <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Activity className="h-4 w-4" />
-                  <span>Live Monitoring</span>
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-success/10 text-success">
+                  <div className="h-2 w-2 bg-success rounded-full animate-pulse"></div>
+                  <span className="text-sm font-medium">Live Monitoring</span>
                 </div>
               </div>
             </div>
             
             {(title || subtitle) && (
-              <div className="mt-2">
-                {title && <h2 className="text-xl font-semibold">{title}</h2>}
-                {subtitle && <p className="text-muted-foreground">{subtitle}</p>}
+              <div className="mt-6 pt-6 border-t border-border/50">
+                {title && <h2 className="text-xl font-semibold tracking-tight">{title}</h2>}
+                {subtitle && <p className="text-muted-foreground mt-1">{subtitle}</p>}
               </div>
             )}
           </div>
         </div>
 
         {/* Master Content */}
-        <div className="container mx-auto px-4 py-6">
+        <div className="container-modern py-8">
           {children}
         </div>
       </div>

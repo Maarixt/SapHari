@@ -66,10 +66,10 @@ export const Header = ({ onSettingsClick, onAlertRulesClick, onSnippetStreamClic
 
   const getStatusColor = () => {
     switch (status) {
-      case 'connected': return 'bg-iot-online';
-      case 'connecting': return 'bg-iot-warning';
-      case 'error': return 'bg-iot-offline';
-      default: return 'bg-iot-offline';
+      case 'connected': return 'bg-success/10 text-success border-success/20';
+      case 'connecting': return 'bg-warning/10 text-warning border-warning/20';
+      case 'error': return 'bg-destructive/10 text-destructive border-destructive/20';
+      default: return 'bg-muted/10 text-muted-foreground border-muted/20';
     }
   };
 
@@ -83,14 +83,23 @@ export const Header = ({ onSettingsClick, onAlertRulesClick, onSnippetStreamClic
   };
 
   return (
-    <header className="border-b border-iot-border bg-card px-4 py-3">
+    <header className="border-b border-border/50 bg-gradient-to-r from-background to-muted/30 px-6 py-4 shadow-sm">
       <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-foreground truncate">🌐 SapHari Dashboard</h1>
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-primary/10">
+            <span className="text-2xl">🌐</span>
+          </div>
+          <div>
+            <h1 className="text-xl font-bold tracking-tight text-foreground">SapHari Dashboard</h1>
+            <p className="text-sm text-muted-foreground">IoT Device Management</p>
+          </div>
+        </div>
         
         <div className="flex items-center gap-2 min-w-0">
           {/* Status Badge - Hide on very small screens */}
           <div className="flex items-center gap-2">
-            <Badge variant="secondary" className={`${getStatusColor()} text-white hidden sm:inline-flex`}>
+            <Badge variant="outline" className={`${getStatusColor()} hidden sm:inline-flex`}>
+              <div className="h-2 w-2 rounded-full bg-current mr-2 animate-pulse"></div>
               MQTT: {getStatusText()}
             </Badge>
             {!connected && (
@@ -108,12 +117,12 @@ export const Header = ({ onSettingsClick, onAlertRulesClick, onSnippetStreamClic
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="icon"
               onClick={onAlertRulesClick}
-              className="btn-icon-bright h-8 w-8"
+              className="h-9 w-9 shadow-sm hover:shadow-md transition-all duration-200"
               title="Alert Rules"
             >
               <AlertTriangle className="h-4 w-4" />
@@ -124,7 +133,7 @@ export const Header = ({ onSettingsClick, onAlertRulesClick, onSnippetStreamClic
                 variant="outline"
                 size="icon"
                 onClick={onSnippetStreamClick}
-                className="btn-icon-bright h-8 w-8"
+                className="h-9 w-9 shadow-sm hover:shadow-md transition-all duration-200"
                 title="Snippet Stream"
               >
                 <Code className="h-4 w-4" />
@@ -136,7 +145,7 @@ export const Header = ({ onSettingsClick, onAlertRulesClick, onSnippetStreamClic
                 variant="outline"
                 size="icon"
                 onClick={onDeviceDemoClick}
-                className="btn-icon-bright h-8 w-8"
+                className="h-9 w-9 shadow-sm hover:shadow-md transition-all duration-200"
                 title="Device Control Demo"
               >
                 <Cpu className="h-4 w-4" />
@@ -148,7 +157,7 @@ export const Header = ({ onSettingsClick, onAlertRulesClick, onSnippetStreamClic
             
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon" className="btn-icon-bright h-8 w-8" title="Settings">
+                <Button variant="outline" size="icon" className="h-9 w-9 shadow-sm hover:shadow-md transition-all duration-200" title="Settings">
                   <Settings className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
@@ -176,7 +185,7 @@ export const Header = ({ onSettingsClick, onAlertRulesClick, onSnippetStreamClic
               variant="outline" 
               onClick={handleSignOut}
               disabled={isSigningOut}
-              className="h-8 px-2 sm:px-3"
+              className="h-9 px-3 shadow-sm hover:shadow-md transition-all duration-200"
               title="Sign Out"
             >
               {isSigningOut ? (

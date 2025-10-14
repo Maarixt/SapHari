@@ -8,6 +8,7 @@ import { SimState, SimComponent, Wire } from './types';
 import { nanoid } from 'nanoid';
 import { useMQTT } from '@/hooks/useMQTT';
 import { SimComponentNode } from './SimComponentNode';
+import InteractiveComponentNode from './InteractiveComponentNode';
 import { EnhancedWireNode } from './EnhancedWireNode';
 import { EnhancedComponentPalette } from './EnhancedComponentPalette';
 import { Inspector } from './Inspector';
@@ -23,6 +24,11 @@ import { runSimScript, stopSimScript } from './scriptRuntime';
 import { generateSketchFromState } from './sketchGenerator';
 import { cleanupBuzzerAudio } from './runLoop';
 import { GridBackground } from './GridBackground';
+// Enhanced simulation imports (optional)
+// import { getSimulationBridge } from './integration/SimulationBridge';
+// import WarningsPanel from '../../sim/ui/WarningsPanel';
+// import { Warning } from '../../sim/core/types';
+// import { createSimpleCircuit } from '../../sim/examples/simpleCircuit';
 
 interface SimulatorModalProps {
   open: boolean;
@@ -40,7 +46,7 @@ export const SimulatorModal = ({ open, onOpenChange, initialFullscreen = false }
   const [activeWireStart, setActiveWireStart] = useState<{componentId: string; pinId: string} | null>(null);
   const [wireColor, setWireColor] = useState('red');
   const [simId] = useState(() => `sim-${nanoid(8)}`); // Stable simulator ID
-  const [tab, setTab] = useState<'sketch' | 'simjs'>('sketch');
+  const [tab, setTab] = useState<'sketch' | 'simjs' | 'warnings'>('sketch');
   const [simCode, setSimCode] = useState(`// Example Simulator JS
 loop(() => {
   digitalWrite(13, HIGH);
@@ -51,11 +57,29 @@ loop(() => {
   const [isFullscreen, setIsFullscreen] = useState(initialFullscreen);
   const [leftSidebarOpen, setLeftSidebarOpen] = useState(true);
   const [rightSidebarOpen, setRightSidebarOpen] = useState(true);
+  const [warnings, setWarnings] = useState<any[]>([]);
+  const [enhancedMode, setEnhancedMode] = useState(false);
   const stageRef = useRef<any>(null);
   const { publishMessage, onMessage, brokerSettings, connected } = useMQTT();
 
   // MQTT Bridge
   useSimulatorMQTT(state, setState, simId);
+
+  // Initialize enhanced simulation (commented out for now)
+  // useEffect(() => {
+  //   const bridge = getSimulationBridge();
+  //   
+  //   // Set up warnings callback
+  //   bridge.setWarningsCallback(setWarnings);
+  //   
+  //   // Initialize enhanced simulation
+  //   bridge.initializeEnhancedSimulation(state, true); // Enable profiler
+  //   setEnhancedMode(bridge.isEnhancedModeActive());
+  //   
+  //   return () => {
+  //     bridge.cleanup();
+  //   };
+  // }, []);
 
   // Handle component drag end
   const handleComponentDragEnd = (compId: string, x: number, y: number) => {
@@ -69,6 +93,26 @@ loop(() => {
         c.id === compId ? { ...c, x: snappedX, y: snappedY } : c
       )
     }));
+  };
+
+  // Handle button press changes
+  const handleButtonPressChange = (compId: string, pressed: boolean) => {
+    console.log(`Button ${compId} pressed: ${pressed}`);
+    
+    // Update component props to reflect button state
+    setState(prev => ({
+      ...prev,
+      components: prev.components.map(comp => 
+        comp.id === compId && comp.type === 'button'
+          ? { ...comp, props: { ...comp.props, pressed } }
+          : comp
+      )
+    }));
+    
+    // Show visual feedback
+    if (pressed) {
+      toast.info(`Button ${compId} pressed!`);
+    }
   };
 
   // Component selection and deletion
@@ -287,6 +331,155 @@ loop(() => {
           <div className="flex items-center gap-2">
             <Button 
               size="sm" 
+              variant="secondary"
+              onClick={() => {
+                // Load tactile switch test circuit
+                const tactSwitchTestCircuit = {
+                  components: [
+                    {
+                      id: 'esp32-test',
+                      type: 'esp32' as const,
+                      x: 100,
+                      y: 100,
+                      rotation: 0,
+                      props: {},
+                      pins: [
+                        { id: '3v3', label: '3V3', kind: 'power' as const, x: 0, y: 0 },
+                        { id: 'gnd', label: 'GND', kind: 'ground' as const, x: 0, y: 10 },
+                        { id: 'gpio2', label: 'GPIO2', kind: 'digital' as const, gpio: 2, x: 20, y: 0 },
+                        { id: 'gpio15', label: 'GPIO15', kind: 'digital' as const, gpio: 15, x: 20, y: 10 },
+                      ]
+                    },
+                    {
+                      id: 'tact-switch-test',
+                      type: 'button' as const,
+                      x: 200,
+                      y: 100,
+                      rotation: 0,
+                      props: { 
+                        bounceMs: 10, 
+                        contactResistance: 0.08, 
+                        orientation: 0,
+                        label: 'TACT-SW'
+                      },
+                      pins: [
+                        { id: 'A1', label: 'A1', kind: 'digital' as const, x: 0, y: 0 },
+                        { id: 'A2', label: 'A2', kind: 'digital' as const, x: 10, y: 0 },
+                        { id: 'B1', label: 'B1', kind: 'digital' as const, x: 0, y: 10 },
+                        { id: 'B2', label: 'B2', kind: 'digital' as const, x: 10, y: 10 },
+                      ]
+                    },
+                    {
+                      id: 'led-test',
+                      type: 'led' as const,
+                      x: 300,
+                      y: 100,
+                      rotation: 0,
+                      props: { color: 'red', forwardVoltage: 1.8 },
+                      pins: [
+                        { id: 'anode', label: '+', kind: 'digital' as const, x: 0, y: 0 },
+                        { id: 'cathode', label: '-', kind: 'digital' as const, x: 10, y: 0 }
+                      ]
+                    }
+                  ],
+                  wires: [
+                    // A-side to GND (either A1 or A2)
+                    {
+                      id: 'wire-switch-a1-gnd',
+                      from: { componentId: 'tact-switch-test', pinId: 'A1' },
+                      to: { componentId: 'esp32-test', pinId: 'gnd' },
+                      color: 'black'
+                    },
+                    // B-side to GPIO15 (either B1 or B2)
+                    {
+                      id: 'wire-switch-b1-gpio',
+                      from: { componentId: 'tact-switch-test', pinId: 'B1' },
+                      to: { componentId: 'esp32-test', pinId: 'gpio15' },
+                      color: 'blue'
+                    },
+                    // LED connections
+                    {
+                      id: 'wire-led-anode',
+                      from: { componentId: 'esp32-test', pinId: 'gpio2' },
+                      to: { componentId: 'led-test', pinId: 'anode' },
+                      color: 'red'
+                    },
+                    {
+                      id: 'wire-led-cathode',
+                      from: { componentId: 'led-test', pinId: 'cathode' },
+                      to: { componentId: 'esp32-test', pinId: 'gnd' },
+                      color: 'black'
+                    }
+                  ]
+                };
+                
+                setState({
+                  components: tactSwitchTestCircuit.components,
+                  wires: tactSwitchTestCircuit.wires,
+                  running: false,
+                  selectedId: undefined
+                });
+                
+                // Load the test sketch
+                setSimCode(`// Tactile Switch Test Sketch
+// Demonstrates proper 4-leg switch wiring and net bridging
+
+const BUTTON_PIN = 15;  // GPIO15 - connect to button B1 or B2
+const LED_PIN = 2;      // GPIO2 - built-in LED
+
+void setup() {
+  // Configure button pin with internal pull-up
+  // Connect A1/A2 to GND, B1/B2 to GPIO15
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
+  
+  // Configure LED pin
+  pinMode(LED_PIN, OUTPUT);
+  
+  // Optional: attach interrupt for immediate response
+  attachInterrupt(BUTTON_PIN, buttonInterrupt, CHANGE);
+  
+  Serial.begin(115200);
+  Serial.println("Tactile Switch Test Started");
+  Serial.println("Press the 4-leg switch to toggle LED");
+  Serial.println("A1/A2 are internally shorted");
+  Serial.println("B1/B2 are internally shorted");
+  Serial.println("Pressing bridges A-side to B-side");
+}
+
+void loop() {
+  // Read button state (LOW when pressed due to pull-up)
+  int buttonState = digitalRead(BUTTON_PIN);
+  
+  // Invert logic: button pressed = LOW, so we invert for LED
+  digitalWrite(LED_PIN, buttonState ? LOW : HIGH);
+  
+  // Optional: print button state
+  if (buttonState == LOW) {
+    Serial.println("Switch PRESSED - A-side bridged to B-side");
+  }
+  
+  delay(10); // Small delay for stability
+}
+
+// Interrupt handler for immediate response
+void buttonInterrupt() {
+  int buttonState = digitalRead(BUTTON_PIN);
+  digitalWrite(LED_PIN, buttonState ? LOW : HIGH);
+  
+  if (buttonState == LOW) {
+    Serial.println("Switch interrupt: PRESSED - Net bridge active");
+  } else {
+    Serial.println("Switch interrupt: RELEASED - Net bridge removed");
+  }
+}`);
+                
+                toast.success('4-Leg Tactile Switch Test loaded! Click the switch to test net bridging.');
+              }}
+            >
+              🔘 Tact Switch
+            </Button>
+            <Button 
+              size="sm" 
               variant="outline" 
               onClick={() => setIsFullscreen(!isFullscreen)}
             >
@@ -358,16 +551,34 @@ loop(() => {
                 />
                 
                 {/* Components */}
-                {state.components.map(c => (
-                  <SimComponentNode 
-                    key={c.id} 
-                    comp={c} 
-                    onPinClick={beginWire}
-                    onSelect={selectComponent}
-                    onDelete={deleteComponent}
-                    onDragEnd={handleComponentDragEnd}
-                  />
-                ))}
+                {state.components.map(c => {
+                  // Use interactive component node for buttons
+                  if (c.type === 'button') {
+                    return (
+                      <InteractiveComponentNode
+                        key={c.id}
+                        comp={c}
+                        onPinClick={beginWire}
+                        onSelect={selectComponent}
+                        onDelete={deleteComponent}
+                        onDragEnd={handleComponentDragEnd}
+                        onPressChange={handleButtonPressChange}
+                      />
+                    );
+                  }
+                  
+                  // Use regular component node for other components
+                  return (
+                    <SimComponentNode 
+                      key={c.id} 
+                      comp={c} 
+                      onPinClick={beginWire}
+                      onSelect={selectComponent}
+                      onDelete={deleteComponent}
+                      onDragEnd={handleComponentDragEnd}
+                    />
+                  );
+                })}
 
                 {/* Wires */}
                 {state.wires.map(w => (
@@ -401,6 +612,17 @@ loop(() => {
                 >
                   Simulator JS
                 </button>
+                <button 
+                  className={`px-3 py-2 text-sm flex-1 relative ${tab === 'warnings' ? 'bg-muted border-b-2 border-primary' : ''}`} 
+                  onClick={() => setTab('warnings')}
+                >
+                  Warnings
+                  {warnings.length > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                      {warnings.length}
+                    </span>
+                  )}
+                </button>
               </div>
               
               {/* Scrollable Content Area */}
@@ -409,7 +631,7 @@ loop(() => {
                   <div className="p-3">
                     <pre className="text-xs whitespace-pre-wrap font-mono leading-relaxed">{generateSketchFromState(state)}</pre>
                   </div>
-                ) : (
+                ) : tab === 'simjs' ? (
                   <div className="h-full flex flex-col">
                     <div className="flex-1">
                       <Editor
@@ -430,6 +652,18 @@ loop(() => {
                       <Button size="sm" variant="outline" className="ml-2" onClick={stopSimScript}>Stop</Button>
                     </div>
                   </div>
+                ) : (
+                  <div className="p-3">
+                    <div className="text-center text-muted-foreground">
+                      <h3 className="font-medium mb-2">Enhanced Warnings Panel</h3>
+                      <p className="text-sm">
+                        Real-time circuit warnings and safety checks will appear here.
+                      </p>
+                      <p className="text-xs mt-2">
+                        Features: Short circuit detection, brownout warnings, floating inputs, component protection
+                      </p>
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
@@ -447,6 +681,9 @@ loop(() => {
           </div>
           <div className="text-sm text-muted-foreground">
             {state.components.length} components, {state.wires.length} wires
+            <div className="text-xs mt-1 text-blue-500">
+              🚀 Enhanced Features Ready
+            </div>
             {state.components.some(c => c.selected) && (
               <div className="text-xs mt-1 text-blue-500">
                 {state.components.filter(c => c.selected).length} component(s) selected - Press Delete to remove

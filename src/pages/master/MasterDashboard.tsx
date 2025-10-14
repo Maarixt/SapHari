@@ -5,9 +5,18 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AlertTriangle, RefreshCw, Users, Cpu, Database, Activity, TestTube } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Users, Cpu, Database, Activity, TestTube, Shield, BarChart3, Settings, TrendingUp, CheckCircle } from 'lucide-react';
 import { fetchMasterMetrics, fetchFleetKPIs, fetchDeviceHealth, fetchRecentEvents } from '@/lib/api';
 import { useMasterAccount } from '@/hooks/useMasterAccount';
+import { OverviewTab } from '@/components/master/OverviewTab';
+import { DiagnosticsTab } from '@/components/master/DiagnosticsTab';
+import { UsersTab } from '@/components/master/UsersTab';
+import { DevicesTab } from '@/components/master/DevicesTab';
+import { DataLogsTab } from '@/components/master/DataLogsTab';
+import { SecurityTab } from '@/components/master/SecurityTab';
+import { SystemTab } from '@/components/master/SystemTab';
+import { AuditTab } from '@/components/master/AuditTab';
+import { SimulatorTab } from '@/components/master/SimulatorTab';
 
 // Error state component
 function ErrorState({ title, description, onRetry }: { 
@@ -45,204 +54,6 @@ function EmptyState({ title }: { title: string }) {
   );
 }
 
-// Users tab component
-function UsersTab() {
-  const [users, setUsers] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const loadUsers = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const { data, error } = await supabase
-        .from('profiles')
-        .select(`
-          id, 
-          email, 
-          display_name, 
-          created_at
-        `)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      setUsers(data || []);
-    } catch (err) {
-      console.error('Error loading users:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load users');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadUsers();
-  }, []);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-32">
-        <div className="flex items-center gap-3">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
-          <span>Loading users...</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return <ErrorState title="Error loading users" description={error} onRetry={loadUsers} />;
-  }
-
-  if (users.length === 0) {
-    return <EmptyState title="No users found" />;
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold">User Management</h3>
-        <Button variant="outline" size="sm">
-          <Users className="h-4 w-4 mr-2" />
-          Create User
-        </Button>
-      </div>
-      
-      <div className="grid gap-4">
-        {users.map((user) => (
-          <Card key={user.id}>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="font-medium">{user.display_name || user.email}</h4>
-                  <p className="text-sm text-muted-foreground">{user.email}</p>
-                  <p className="text-xs text-muted-foreground">
-                    Joined: {new Date(user.created_at).toLocaleDateString()}
-                  </p>
-                </div>
-                <Badge variant="outline">Active</Badge>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// Devices tab component
-function DevicesTab() {
-  const [devices, setDevices] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const loadDevices = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const { data, error } = await supabase
-        .from('devices')
-        .select(`
-          id,
-          device_id,
-          name,
-          firmware_version,
-          created_at,
-          owner:profiles (
-            id,
-            email,
-            display_name
-          )
-        `)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      setDevices(data || []);
-    } catch (err) {
-      console.error('Error loading devices:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load devices');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadDevices();
-  }, []);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-32">
-        <div className="flex items-center gap-3">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
-          <span>Loading devices...</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return <ErrorState title="Error loading devices" description={error} onRetry={loadDevices} />;
-  }
-
-  if (devices.length === 0) {
-    return <EmptyState title="No devices found" />;
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold">Device Management</h3>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm">
-            Bulk Update
-          </Button>
-          <Button variant="outline" size="sm">
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Force Reset All
-          </Button>
-        </div>
-      </div>
-      
-      <div className="grid gap-4">
-        {devices.map((device) => (
-          <Card key={device.id}>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="font-medium">{device.name}</h4>
-                  <p className="text-sm text-muted-foreground">ID: {device.device_id}</p>
-                  <p className="text-sm text-muted-foreground">
-                    Owner: {device.owner?.display_name || device.owner?.email || 'Unknown'}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Created: {new Date(device.created_at).toLocaleDateString()}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-xs">
-                    {device.firmware_version || 'Unknown'}
-                  </Badge>
-                  <Badge variant="secondary" className="bg-gray-100 text-gray-600">
-                    Offline
-                  </Badge>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 // Main master dashboard component
 export default function MasterDashboard() {
@@ -292,91 +103,120 @@ export default function MasterDashboard() {
         ) : error ? (
           <ErrorState title="Error loading master data" description={error} onRetry={loadKPIs} />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Total Users</CardTitle>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10 hover:shadow-lg transition-all duration-300">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                <CardTitle className="text-sm font-medium text-primary">Total Users</CardTitle>
+                <div className="p-2 rounded-lg bg-primary/20">
+                  <Users className="h-5 w-5 text-primary" />
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{kpis?.total_users || 0}</div>
+                <div className="text-3xl font-bold text-primary">{kpis?.total_users || 0}</div>
+                <p className="text-sm text-primary/70 flex items-center gap-1 mt-2">
+                  <TrendingUp className="h-3 w-3" />
+                  +12% from last month
+                </p>
               </CardContent>
             </Card>
             
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Online Devices</CardTitle>
+            <Card className="border-success/20 bg-gradient-to-br from-success/5 to-success/10 hover:shadow-lg transition-all duration-300">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                <CardTitle className="text-sm font-medium text-success">Online Devices</CardTitle>
+                <div className="p-2 rounded-lg bg-success/20">
+                  <Cpu className="h-5 w-5 text-success" />
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{kpis?.devices_online || 0}</div>
+                <div className="text-3xl font-bold text-success">{kpis?.devices_online || 0}</div>
+                <p className="text-sm text-success/70 flex items-center gap-1 mt-2">
+                  <TrendingUp className="h-3 w-3" />
+                  +5 devices this hour
+                </p>
               </CardContent>
             </Card>
             
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Data Storage</CardTitle>
+            <Card className="border-warning/20 bg-gradient-to-br from-warning/5 to-warning/10 hover:shadow-lg transition-all duration-300">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                <CardTitle className="text-sm font-medium text-warning">Data Storage</CardTitle>
+                <div className="p-2 rounded-lg bg-warning/20">
+                  <Database className="h-5 w-5 text-warning" />
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">1.2TB</div>
+                <div className="text-3xl font-bold text-warning">1.2TB</div>
+                <p className="text-sm text-warning/70 flex items-center gap-1 mt-2">
+                  <TrendingUp className="h-3 w-3" />
+                  +2.1GB today
+                </p>
               </CardContent>
             </Card>
             
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Uptime</CardTitle>
+            <Card className="border-success/20 bg-gradient-to-br from-success/5 to-success/10 hover:shadow-lg transition-all duration-300">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                <CardTitle className="text-sm font-medium text-success">Uptime</CardTitle>
+                <div className="p-2 rounded-lg bg-success/20">
+                  <Activity className="h-5 w-5 text-success" />
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">99.9%</div>
+                <div className="text-3xl font-bold text-success">99.9%</div>
+                <p className="text-sm text-success/70 flex items-center gap-1 mt-2">
+                  <CheckCircle className="h-3 w-3" />
+                  Last 24h
+                </p>
               </CardContent>
             </Card>
           </div>
         )}
 
-        {/* Main Tabs */}
-        <Tabs defaultValue="overview" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-8">
-            <TabsTrigger value="overview" className="flex items-center gap-2">
+        {/* Modern Tabs */}
+        <Tabs defaultValue="overview" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-9 bg-muted/30 p-1 rounded-xl">
+            <TabsTrigger value="overview" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <Activity className="h-4 w-4" />
               Overview
             </TabsTrigger>
-            <TabsTrigger value="diagnostics" className="flex items-center gap-2">
+            <TabsTrigger value="diagnostics" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <Database className="h-4 w-4" />
               Diagnostics
             </TabsTrigger>
-            <TabsTrigger value="users" className="flex items-center gap-2">
+            <TabsTrigger value="users" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <Users className="h-4 w-4" />
               Users
             </TabsTrigger>
-            <TabsTrigger value="devices" className="flex items-center gap-2">
+            <TabsTrigger value="devices" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <Cpu className="h-4 w-4" />
               Devices
             </TabsTrigger>
-            <TabsTrigger value="data-logs">Data Logs</TabsTrigger>
-            <TabsTrigger value="security">Security</TabsTrigger>
-            <TabsTrigger value="simulator">Simulator</TabsTrigger>
-            <TabsTrigger value="system">System</TabsTrigger>
-            <TabsTrigger value="audit">Audit</TabsTrigger>
+            <TabsTrigger value="data-logs" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <BarChart3 className="h-4 w-4" />
+              Data Logs
+            </TabsTrigger>
+            <TabsTrigger value="security" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <Shield className="h-4 w-4" />
+              Security
+            </TabsTrigger>
+            <TabsTrigger value="simulator" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <TestTube className="h-4 w-4" />
+              Simulator
+            </TabsTrigger>
+            <TabsTrigger value="system" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <Settings className="h-4 w-4" />
+              System
+            </TabsTrigger>
+            <TabsTrigger value="audit" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <Database className="h-4 w-4" />
+              Audit
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>System Overview</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">Master dashboard overview coming soon...</p>
-              </CardContent>
-            </Card>
+            <OverviewTab />
           </TabsContent>
 
           <TabsContent value="diagnostics" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>System Diagnostics</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">Diagnostics panel coming soon...</p>
-              </CardContent>
-            </Card>
+            <DiagnosticsTab />
           </TabsContent>
 
           <TabsContent value="users" className="space-y-4">
@@ -388,25 +228,11 @@ export default function MasterDashboard() {
           </TabsContent>
 
           <TabsContent value="data-logs" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Data Logs</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">Data logs panel coming soon...</p>
-              </CardContent>
-            </Card>
+            <DataLogsTab />
           </TabsContent>
 
           <TabsContent value="security" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Security</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">Security panel coming soon...</p>
-              </CardContent>
-            </Card>
+            <SecurityTab />
           </TabsContent>
 
           <TabsContent value="simulator" className="space-y-4">
@@ -421,47 +247,37 @@ export default function MasterDashboard() {
           </TabsContent>
 
           <TabsContent value="system" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>System</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">System panel coming soon...</p>
-              </CardContent>
-            </Card>
+            <SystemTab />
           </TabsContent>
 
           <TabsContent value="audit" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Audit</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">Audit panel coming soon...</p>
-              </CardContent>
-            </Card>
+            <AuditTab />
+          </TabsContent>
+
+          <TabsContent value="simulator" className="space-y-4">
+            <SimulatorTab />
           </TabsContent>
         </Tabs>
 
         {/* Critical Actions */}
-        <Card className="border-red-200 bg-red-50">
+        <Card className="border-destructive/20 bg-gradient-to-r from-destructive/5 to-destructive/10">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-red-800">
+            <CardTitle className="flex items-center gap-2 text-destructive">
               <AlertTriangle className="h-5 w-5" />
               Critical Actions
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex gap-3">
-              <Button variant="destructive" size="sm">
+            <div className="flex flex-wrap gap-3">
+              <Button variant="destructive" size="sm" className="shadow-sm hover:shadow-md">
                 <AlertTriangle className="h-4 w-4 mr-2" />
                 Emergency Shutdown
               </Button>
-              <Button variant="destructive" size="sm">
+              <Button variant="destructive" size="sm" className="shadow-sm hover:shadow-md">
                 <Database className="h-4 w-4 mr-2" />
                 Wipe All Data
               </Button>
-              <Button variant="destructive" size="sm" onClick={logout}>
+              <Button variant="destructive" size="sm" onClick={logout} className="shadow-sm hover:shadow-md">
                 <Users className="h-4 w-4 mr-2" />
                 Logout Master
               </Button>

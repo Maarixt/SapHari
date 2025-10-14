@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Master Access Fix Verification</title>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .test-result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background-color: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+        .error { background-color: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+        .warning { background-color: #fff3cd; border: 1px solid #ffeaa7; color: #856404; }
+        .info { background-color: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        pre { background-color: #f8f9fa; padding: 10px; border-radius: 5px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Master Access Fix Verification</h1>
+        <p>This tool helps verify that the master access fixes are working correctly.</p>
+        
+        <div>
+            <button onclick="testMasterAccess()">Test Master Access</button>
+            <button onclick="testProfilesAccess()">Test Profiles Access</button>
+            <button onclick="testUserRoles()">Test User Roles</button>
+            <button onclick="runAllTests()">Run All Tests</button>
+        </div>
+        
+        <div id="results"></div>
+    </div>
+
+    <script>
+        // Supabase configuration
+        const SUPABASE_URL = 'https://wrdeomgtkbehvbfhiprm.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZGVvbWd0a2JlaHZiZmhpcHJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc1OTYxMTEsImV4cCI6MjA3MzE3MjExMX0.mZNoXWuvPUKZfHgkjtlg4IPP1vyHTxdehTs9yiOgPlE';
+        
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        function addResult(message, type = 'info') {
+            const resultsDiv = document.getElementById('results');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `test-result ${type}`;
+            resultDiv.innerHTML = message;
+            resultsDiv.appendChild(resultDiv);
+        }
+        
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+        
+        async function testMasterAccess() {
+            addResult('🔍 Testing master access functions...', 'info');
+            
+            try {
+                // Test can_access_master_features function
+                const { data: canAccess, error: accessError } = await supabase
+                    .rpc('can_access_master_features');
+                
+                if (accessError) {
+                    addResult(`❌ can_access_master_features error: ${accessError.message}`, 'error');
+                } else {
+                    addResult(`✅ can_access_master_features result: ${canAccess}`, canAccess ? 'success' : 'warning');
+                }
+                
+                // Test is_master_user function
+                const { data: isMaster, error: masterError } = await supabase
+                    .rpc('is_master_user');
+                
+                if (masterError) {
+                    addResult(`❌ is_master_user error: ${masterError.message}`, 'error');
+                } else {
+                    addResult(`✅ is_master_user result: ${isMaster}`, isMaster ? 'success' : 'warning');
+                }
+                
+            } catch (error) {
+                addResult(`❌ Master access test failed: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testProfilesAccess() {
+            addResult('👥 Testing profiles access...', 'info');
+            
+            try {
+                const { data: profiles, error: profilesError } = await supabase
+                    .from('profiles')
+                    .select('id, email, display_name, created_at')
+                    .order('created_at', { ascending: false });
+                
+                if (profilesError) {
+                    addResult(`❌ Profiles access error: ${profilesError.message}`, 'error');
+                    addResult(`<pre>${JSON.stringify(profilesError, null, 2)}</pre>`, 'error');
+                } else {
+                    addResult(`✅ Profiles access successful! Found ${profiles.length} profiles:`, 'success');
+                    profiles.forEach(profile => {
+                        addResult(`   - ${profile.display_name || profile.email} (${profile.id})`, 'info');
+                    });
+                }
+                
+            } catch (error) {
+                addResult(`❌ Profiles access test failed: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testUserRoles() {
+            addResult('🔐 Testing user roles access...', 'info');
+            
+            try {
+                const { data: userRoles, error: rolesError } = await supabase
+                    .from('user_roles')
+                    .select('user_id, role, created_at');
+                
+                if (rolesError) {
+                    addResult(`❌ User roles access error: ${rolesError.message}`, 'error');
+                } else {
+                    addResult(`✅ User roles access successful! Found ${userRoles.length} role assignments:`, 'success');
+                    userRoles.forEach(role => {
+                        addResult(`   - User ${role.user_id}: ${role.role}`, 'info');
+                    });
+                    
+                    const masterRoles = userRoles.filter(r => r.role === 'master');
+                    if (masterRoles.length > 0) {
+                        addResult(`✅ Found ${masterRoles.length} master role(s)`, 'success');
+                    } else {
+                        addResult(`⚠️ No master roles found`, 'warning');
+                    }
+                }
+                
+            } catch (error) {
+                addResult(`❌ User roles test failed: ${error.message}`, 'error');
+            }
+        }
+        
+        async function runAllTests() {
+            clearResults();
+            addResult('🚀 Running all tests...', 'info');
+            
+            await testMasterAccess();
+            await testProfilesAccess();
+            await testUserRoles();
+            
+            addResult('✅ All tests completed!', 'success');
+        }
+        
+        // Auto-run tests on page load
+        window.addEventListener('load', () => {
+            addResult('📋 Master Access Fix Verification Tool Ready', 'info');
+            addResult('Click the buttons above to test different aspects of the master access system.', 'info');
+        });
+    </script>
+</body>
+</html>
