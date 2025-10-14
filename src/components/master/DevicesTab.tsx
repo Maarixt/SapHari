@@ -54,7 +54,7 @@ import {
   Settings,
   AlertTriangle
 } from 'lucide-react';
-import { useMasterDevices, useUpdateDeviceStatus } from '@/hooks/useMasterDashboard';
+import { useMasterDevices } from '@/hooks/useMasterDashboard';
 import { useToast } from '@/hooks/use-toast';
 
 interface Device {
@@ -109,16 +109,18 @@ function DeviceStatusBadge({ online, lastSeen }: { online: boolean; lastSeen?: s
 
 function DeviceActions({ device }: { device: Device }) {
   const { toast } = useToast();
-  const updateDeviceStatus = useUpdateDeviceStatus();
 
   const handleAction = async (action: string) => {
+    toast({
+      title: "Feature not available",
+      description: "Device actions are coming soon.",
+      variant: "destructive"
+    });
+    return;
     try {
+      // Stub - mutations not implemented
       switch (action) {
         case 'reboot':
-          await updateDeviceStatus.mutateAsync({
-            deviceId: device.id,
-            status: { last_seen: new Date().toISOString() }
-          });
           toast({
             title: "Reboot command sent",
             description: `Reboot command sent to ${device.name}`,

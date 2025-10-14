@@ -56,7 +56,7 @@ import {
   Cpu,
   BarChart3
 } from 'lucide-react';
-import { useMasterApiKeys, useCreateApiKey, useMasterIpRules } from '@/hooks/useMasterDashboard';
+import { useMasterApiKeys, useMasterIpRules } from '@/hooks/useMasterDashboard';
 import { useToast } from '@/hooks/use-toast';
 
 interface Permission {
@@ -220,25 +220,14 @@ function CreateApiKeyDialog() {
     permissions: [] as string[]
   });
   const { toast } = useToast();
-  const createApiKey = useCreateApiKey();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      await createApiKey.mutateAsync(formData);
-      toast({
-        title: "API Key created successfully",
-        description: `API Key "${formData.name}" has been created.`,
-      });
-      setOpen(false);
-      setFormData({ name: '', permissions: [] });
-    } catch (error) {
-      toast({
-        title: "Error creating API key",
-        description: "Failed to create API key. Please try again.",
-        variant: "destructive",
-      });
-    }
+    toast({
+      title: "Feature not available",
+      description: "API key creation is coming soon.",
+      variant: "destructive"
+    });
   };
 
   return (
@@ -297,8 +286,8 @@ function CreateApiKeyDialog() {
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={createApiKey.isPending}>
-              {createApiKey.isPending ? 'Creating...' : 'Create API Key'}
+            <Button type="submit">
+              Create API Key
             </Button>
           </DialogFooter>
         </form>

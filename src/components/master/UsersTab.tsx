@@ -49,19 +49,19 @@ import {
   Calendar,
   Building
 } from 'lucide-react';
-import { useMasterUsers, useCreateUser, useUpdateUserRole } from '@/hooks/useMasterDashboard';
+import { useMasterUsers } from '@/hooks/useMasterDashboard';
 import { useToast } from '@/hooks/use-toast';
 
 interface User {
   id: string;
   email: string;
+  display_name?: string;
   full_name?: string;
   role: string;
-  tenant_id?: string;
-  last_login?: string;
-  status: string;
+  device_count?: number;
+  unread_alerts?: number;
   created_at: string;
-  tenants?: { name: string };
+  updated_at: string;
 }
 
 function UserRoleBadge({ role }: { role: string }) {
@@ -103,25 +103,14 @@ function CreateUserDialog() {
     status: 'active'
   });
   const { toast } = useToast();
-  const createUser = useCreateUser();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      await createUser.mutateAsync(formData);
-      toast({
-        title: "User created successfully",
-        description: `User ${formData.email} has been created.`,
-      });
-      setOpen(false);
-      setFormData({ email: '', full_name: '', role: 'user', status: 'active' });
-    } catch (error) {
-      toast({
-        title: "Error creating user",
-        description: "Failed to create user. Please try again.",
-        variant: "destructive",
-      });
-    }
+    toast({
+      title: "Feature not available",
+      description: "User creation is coming soon.",
+      variant: "destructive"
+    });
   };
 
   return (
@@ -187,8 +176,8 @@ function CreateUserDialog() {
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={createUser.isPending}>
-              {createUser.isPending ? 'Creating...' : 'Create User'}
+            <Button type="submit">
+              Create User
             </Button>
           </DialogFooter>
         </form>
@@ -199,15 +188,15 @@ function CreateUserDialog() {
 
 function UserActions({ user }: { user: User }) {
   const { toast } = useToast();
-  const updateUserRole = useUpdateUserRole();
 
   const handleRoleChange = async (newRole: string) => {
+    toast({
+      title: "Feature not available",
+      description: "Role updates are coming soon.",
+      variant: "destructive"
+    });
+    return;
     try {
-      await updateUserRole.mutateAsync({ userId: user.id, role: newRole });
-      toast({
-        title: "Role updated successfully",
-        description: `User role changed to ${newRole}.`,
-      });
     } catch (error) {
       toast({
         title: "Error updating role",
@@ -263,10 +252,9 @@ export function UsersTab() {
 
   const filteredUsers = users?.filter((user: User) => {
     const matchesSearch = user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.full_name?.toLowerCase().includes(searchTerm.toLowerCase());
+                         user.display_name?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole = roleFilter === 'all' || user.role === roleFilter;
-    const matchesStatus = statusFilter === 'all' || user.status === statusFilter;
-    return matchesSearch && matchesRole && matchesStatus;
+    return matchesSearch && matchesRole;
   }) || [];
 
   if (isLoading) {
@@ -391,23 +379,21 @@ export function UsersTab() {
                       <UserRoleBadge role={user.role} />
                     </TableCell>
                     <TableCell>
-                      <UserStatusBadge status={user.status} />
+                      <Badge variant="outline" className="bg-success/10 text-success">
+                        Active
+                      </Badge>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
                         <Building className="h-3 w-3" />
-                        {user.tenants?.name || 'Default'}
+                        Default
                       </div>
                     </TableCell>
                     <TableCell>
-                      {user.last_login ? (
-                        <div className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          {new Date(user.last_login).toLocaleDateString()}
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground">Never</span>
-                      )}
+                      <div className="flex items-center gap-1">
+                        <Calendar className="h-3 w-3" />
+                        {new Date(user.created_at).toLocaleDateString()}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">

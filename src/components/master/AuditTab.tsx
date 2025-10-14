@@ -49,16 +49,16 @@ import { useMasterAuditLogs } from '@/hooks/useMasterDashboard';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 
 interface AuditLog {
-  id: number;
+  id: string;
   action: string;
-  subject: string;
-  meta: any;
+  actor_email: string;
+  actor_role: string;
+  resource: string;
+  details: any;
+  ip_address: string;
+  user_agent: string;
+  timestamp: string;
   created_at: string;
-  profiles?: {
-    id: string;
-    email: string;
-    full_name?: string;
-  };
 }
 
 // Mock audit statistics
@@ -232,19 +232,19 @@ function AuditLogItem({ log }: { log: AuditLog }) {
           </span>
         </div>
         <p className="text-sm font-medium">
-          {log.profiles?.full_name || log.profiles?.email || 'System'} - {log.action}
+          {log.actor_email || 'System'} - {log.action}
         </p>
-        {log.subject && (
+        {log.resource && (
           <p className="text-xs text-muted-foreground mt-1">
-            Subject: {log.subject}
+            Resource: {log.resource}
           </p>
         )}
-        {log.meta && Object.keys(log.meta).length > 0 && (
+        {log.details && Object.keys(log.details).length > 0 && (
           <div className="mt-2 text-xs text-muted-foreground">
             <details>
               <summary className="cursor-pointer hover:text-foreground">View Details</summary>
               <pre className="mt-1 p-2 bg-gray-100 rounded text-xs overflow-x-auto">
-                {JSON.stringify(log.meta, null, 2)}
+                {JSON.stringify(log.details, null, 2)}
               </pre>
             </details>
           </div>
@@ -346,19 +346,16 @@ export function AuditTab() {
   const [userFilter, setUserFilter] = useState('all');
   const [timeFilter, setTimeFilter] = useState('24h');
 
-  const { data: auditLogs, isLoading } = useMasterAuditLogs({
-    action: actionFilter !== 'all' ? actionFilter : undefined
-  });
+  const { data: auditLogs, isLoading } = useMasterAuditLogs();
 
   const filteredLogs = auditLogs?.filter((log: AuditLog) => {
     const matchesSearch = log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         log.subject?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         log.profiles?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         log.profiles?.full_name?.toLowerCase().includes(searchTerm.toLowerCase());
+                         log.resource?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         log.actor_email?.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesUser = userFilter === 'all' || 
-                       (userFilter === 'system' && !log.profiles) ||
-                       (userFilter !== 'system' && log.profiles);
+                       (userFilter === 'system' && !log.actor_email) ||
+                       (userFilter !== 'system' && log.actor_email);
     
     return matchesSearch && matchesUser;
   }) || [];

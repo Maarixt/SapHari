@@ -342,7 +342,7 @@ export function SystemTab() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {systemStatus?.map((service: ServiceStatus) => (
+              {Array.isArray(systemStatus) && systemStatus.map((service: ServiceStatus) => (
                 <ServiceStatusCard key={service.component} service={service} />
               ))}
             </div>

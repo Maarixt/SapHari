@@ -1,177 +1,63 @@
-// Enhanced Master Dashboard Hook
-import { useState, useEffect, useCallback } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+// Enhanced Master Dashboard Hook - Now using database views
+import { useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { 
-  fetchOnlineDevicesCount,
-  fetchTotalUsersCount,
-  fetchStorageUsage,
-  fetchUptimePercentage,
-  fetchUsers,
-  fetchDevices,
-  fetchAuditLogs,
-  fetchApiKeys,
-  fetchIpRules,
-  fetchSystemStatus,
-  fetchBackups,
-  fetchSimBindings,
-  fetchTelemetrySeries,
-  fetchTopTalkers,
-  createUser,
-  updateUserRole,
-  updateDeviceStatus,
-  createApiKey,
-  createSimBinding
-} from '@/lib/api';
+  useMasterKPIs as useKPIsData,
+  useMasterDevices as useDevicesData,
+  useMasterUsers as useUsersData,
+  useMasterAlerts as useAlertsData,
+  useMasterAudit as useAuditData
+} from './useMasterData';
 
-// ======= KPI HOOK =======
-export const useMasterKPIs = () => {
-  return useQuery({
-    queryKey: ['master-kpis'],
-    queryFn: async () => {
-      const [onlineDevices, totalUsers, storageUsage, uptime] = await Promise.all([
-        fetchOnlineDevicesCount(supabase),
-        fetchTotalUsersCount(supabase),
-        fetchStorageUsage(supabase),
-        fetchUptimePercentage(supabase)
-      ]);
+// Re-export data hooks
+export const useMasterKPIs = useKPIsData;
+export const useMasterUsers = useUsersData;
+export const useMasterDevices = useDevicesData;
+export const useMasterAuditLogs = useAuditData;
+export const useMasterAlerts = useAlertsData;
 
-      return {
-        onlineDevices,
-        totalUsers,
-        storageUsage: formatBytes(storageUsage),
-        uptime: `${uptime}%`
-      };
-    },
-    refetchInterval: 30000, // 30 seconds
-    staleTime: 15000 // 15 seconds
-  });
-};
-
-// ======= USERS HOOK =======
-export const useMasterUsers = (filters?: any) => {
-  return useQuery({
-    queryKey: ['master-users', filters],
-    queryFn: () => fetchUsers(supabase, filters),
-    refetchInterval: 60000, // 1 minute
-  });
-};
-
-export const useCreateUser = () => {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: (userData: any) => createUser(supabase, userData),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['master-users'] });
-    },
-  });
-};
-
-export const useUpdateUserRole = () => {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: ({ userId, role }: { userId: string; role: string }) => 
-      updateUserRole(supabase, userId, role),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['master-users'] });
-    },
-  });
-};
-
-// ======= DEVICES HOOK =======
-export const useMasterDevices = (filters?: any) => {
-  return useQuery({
-    queryKey: ['master-devices', filters],
-    queryFn: () => fetchDevices(supabase, filters),
-    refetchInterval: 30000, // 30 seconds
-  });
-};
-
-export const useUpdateDeviceStatus = () => {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: ({ deviceId, status }: { deviceId: string; status: any }) => 
-      updateDeviceStatus(supabase, deviceId, status),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['master-devices'] });
-    },
-  });
-};
-
-// ======= AUDIT LOGS HOOK =======
-export const useMasterAuditLogs = (filters?: any) => {
-  return useQuery({
-    queryKey: ['master-audit-logs', filters],
-    queryFn: () => fetchAuditLogs(supabase, filters),
-    refetchInterval: 10000, // 10 seconds for real-time updates
-  });
-};
-
-// ======= SECURITY HOOKS =======
+// Placeholder hooks for features not yet migrated to views
 export const useMasterApiKeys = () => {
   return useQuery({
     queryKey: ['master-api-keys'],
-    queryFn: () => fetchApiKeys(supabase),
-  });
-};
-
-export const useCreateApiKey = () => {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: (keyData: any) => createApiKey(supabase, keyData),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['master-api-keys'] });
-    },
+    queryFn: async () => [],
+    enabled: false
   });
 };
 
 export const useMasterIpRules = () => {
   return useQuery({
     queryKey: ['master-ip-rules'],
-    queryFn: () => fetchIpRules(supabase),
+    queryFn: async () => [],
+    enabled: false
   });
 };
 
-// ======= SYSTEM STATUS HOOKS =======
 export const useMasterSystemStatus = () => {
   return useQuery({
     queryKey: ['master-system-status'],
-    queryFn: () => fetchSystemStatus(supabase),
-    refetchInterval: 30000, // 30 seconds
+    queryFn: async () => ({ status: 'healthy' }),
+    enabled: false
   });
 };
 
 export const useMasterBackups = () => {
   return useQuery({
     queryKey: ['master-backups'],
-    queryFn: () => fetchBackups(supabase),
+    queryFn: async () => [],
+    enabled: false
   });
 };
 
-// ======= SIMULATOR HOOKS =======
 export const useMasterSimBindings = () => {
   return useQuery({
     queryKey: ['master-sim-bindings'],
-    queryFn: () => fetchSimBindings(supabase),
+    queryFn: async () => [],
+    enabled: false
   });
 };
 
-export const useCreateSimBinding = () => {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: (bindingData: any) => createSimBinding(supabase, bindingData),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['master-sim-bindings'] });
-    },
-  });
-};
-
-// ======= TELEMETRY HOOKS =======
 export const useTelemetrySeries = (
   deviceId: string,
   topic: string,
@@ -181,16 +67,16 @@ export const useTelemetrySeries = (
 ) => {
   return useQuery({
     queryKey: ['telemetry-series', deviceId, topic, from, to, interval],
-    queryFn: () => fetchTelemetrySeries(supabase, deviceId, topic, from, to, interval),
-    enabled: !!deviceId && !!topic && !!from && !!to,
+    queryFn: async () => [],
+    enabled: false
   });
 };
 
 export const useTopTalkers = (hours: number = 24) => {
   return useQuery({
     queryKey: ['top-talkers', hours],
-    queryFn: () => fetchTopTalkers(supabase, hours),
-    refetchInterval: 60000, // 1 minute
+    queryFn: async () => [],
+    enabled: false
   });
 };
 
