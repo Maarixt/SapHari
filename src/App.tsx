@@ -15,12 +15,6 @@ import { AuthGuard } from "@/components/auth/AuthGuard";
 import { RequireMaster } from "@/components/auth/RequireRole";
 import { MasterLayout } from "@/components/master/MasterLayout";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-// Import simulation helper for development
-import "@/dev/simAlerts";
-import "@/dev/simFlow";
-import "@/dev/testMqtt";
-import "@/dev/seedRules";
-import "@/dev/sim";
 import { connectMqtt } from "@/services/mqtt";
 
 const queryClient = new QueryClient();
