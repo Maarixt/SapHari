@@ -75,9 +75,9 @@ export class AudioBus {
    * Resume audio context if suspended
    */
   private async resumeAudioContext(): Promise<void> {
-    if (this.audioContext && this.audioContext.state === 'suspended') {
+    if (this.audioContext && (this.audioContext as any).state === 'suspended') {
       try {
-        await this.audioContext.resume();
+        await (this.audioContext as any).resume();
       } catch (error) {
         console.error('Failed to resume audio context:', error);
       }
@@ -120,19 +120,19 @@ export class AudioBus {
     }
 
     try {
-      const oscillator = this.audioContext!.createOscillator();
-      const gainNode = this.audioContext!.createGain();
+      const oscillator = (this.audioContext as any)!.createOscillator();
+      const gainNode = (this.audioContext as any)!.createGain();
 
       oscillator.connect(gainNode);
-      gainNode.connect(this.audioContext!.destination);
+      gainNode.connect((this.audioContext as any)!.destination);
 
-      oscillator.frequency.setValueAtTime(frequency, this.audioContext!.currentTime);
+      oscillator.frequency.setValueAtTime(frequency, (this.audioContext as any)!.currentTime);
       oscillator.type = 'square'; // Buzzer-like sound
 
-      gainNode.gain.setValueAtTime(0, this.audioContext!.currentTime);
+      gainNode.gain.setValueAtTime(0, (this.audioContext as any)!.currentTime);
       gainNode.gain.linearRampToValueAtTime(
         volume * this.globalVolume,
-        this.audioContext!.currentTime + 0.01
+        (this.audioContext as any)!.currentTime + 0.01
       );
 
       oscillator.start();
@@ -179,7 +179,7 @@ export class AudioBus {
   updateToneFrequency(id: string, frequency: number): void {
     const source = this.sources.get(id);
     if (source && source.playing && source.oscillator && this.audioContext) {
-      source.oscillator.frequency.setValueAtTime(frequency, this.audioContext.currentTime);
+      source.oscillator.frequency.setValueAtTime(frequency, (this.audioContext as any).currentTime);
       source.frequency = frequency;
     }
   }
@@ -191,7 +191,7 @@ export class AudioBus {
     const source = this.sources.get(id);
     if (source && source.playing && source.gainNode && this.audioContext) {
       const targetVolume = volume * this.globalVolume;
-      source.gainNode.gain.setValueAtTime(targetVolume, this.audioContext.currentTime);
+      source.gainNode.gain.setValueAtTime(targetVolume, (this.audioContext as any).currentTime);
       source.volume = volume;
     }
   }
@@ -314,7 +314,7 @@ export class AudioBus {
    * Get audio context state
    */
   getAudioContextState(): string {
-    return this.audioContext?.state || 'not-initialized';
+    return (this.audioContext as any)?.state || 'not-initialized';
   }
 
   /**

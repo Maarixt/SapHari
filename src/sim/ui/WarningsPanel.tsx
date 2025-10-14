@@ -55,17 +55,17 @@ export const WarningsPanel: React.FC<WarningsPanelProps> = ({
 
   const warningGroups: WarningGroup[] = [
     {
-      severity: 'error',
+      severity: 'error' as const,
       count: groupedWarnings.error?.length || 0,
       warnings: groupedWarnings.error || []
     },
     {
-      severity: 'warning',
+      severity: 'warning' as const,
       count: groupedWarnings.warning?.length || 0,
       warnings: groupedWarnings.warning || []
     },
     {
-      severity: 'info',
+      severity: 'info' as const,
       count: groupedWarnings.info?.length || 0,
       warnings: groupedWarnings.info || []
     }
@@ -99,12 +99,12 @@ export const WarningsPanel: React.FC<WarningsPanelProps> = ({
     }
   };
 
-  const getSeverityColor = (severity: string) => {
+  const getSeverityColor = (severity: string): "default" | "destructive" => {
     switch (severity) {
       case 'error':
         return 'destructive';
       case 'warning':
-        return 'secondary';
+        return 'default';
       case 'info':
         return 'default';
       default:

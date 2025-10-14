@@ -3,8 +3,8 @@
  * Provides familiar Arduino functions for users to write sketches
  */
 
-import { 
-  ArduinoAPI, 
+import type { 
+  ArduinoAPI as ArduinoAPIType,
   GpioMode, 
   PinLevel, 
   InterruptHandler,
@@ -379,7 +379,7 @@ export function createArduinoAPI(): ArduinoSandbox {
 /**
  * Export Arduino API object for user sketches
  */
-export const ArduinoAPI: ArduinoAPI = {
+export const ArduinoAPI: ArduinoAPIType = {
   pinMode: (pin: number, mode: GpioMode) => getArduinoAPI().pinMode(pin, mode),
   digitalWrite: (pin: number, value: PinLevel) => getArduinoAPI().digitalWrite(pin, value),
   digitalRead: (pin: number) => getArduinoAPI().digitalRead(pin),

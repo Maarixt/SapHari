@@ -63,7 +63,7 @@ export const PARTS: Record<string, PartDefinition> = {
       { 
         key: 'orientation', 
         type: 'select', 
-        options: [0, 90, 180, 270], 
+        options: ['0', '90', '180', '270'], 
         label: 'Orientation' 
       },
     ],

@@ -18,7 +18,7 @@ export function createSimpleCircuit(): SimState {
   const esp32 = createESP32DevKit('esp32_1');
   const button = createPushButton('btn1', { 
     wiredTo: 'GND', 
-    bounceMs: 10 
+    bounceMs: '10' as any
   });
   const led = createLed('led1', { 
     color: 'red', 

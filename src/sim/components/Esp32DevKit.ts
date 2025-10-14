@@ -354,9 +354,8 @@ export class ESP32DevKit implements Component {
   setupPWM(channel: number, frequency: number, resolution: number): boolean {
     this.pwmChannels.set(channel, {
       frequency,
-      duty: 0,
-      resolution
-    });
+      duty: 0
+    } as any);
     return true;
   }
 

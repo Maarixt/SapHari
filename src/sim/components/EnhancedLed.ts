@@ -63,7 +63,7 @@ export class EnhancedLed implements Component {
       } else {
         // No series resistor - this is dangerous!
         current = this.props.maxCurrentmA / 1000; // Cap at max current
-        ctx.warn('LED_NO_RESISTOR', `LED (${this.id}) has no series resistor! Current limited to ${this.props.maxCurrentmA}mA.`, 'warning');
+        (ctx as any).warn('LED_NO_RESISTOR', `LED (${this.id}) has no series resistor! Current limited to ${this.props.maxCurrentmA}mA.`);
       }
 
       // Calculate brightness using tanh curve for smooth response
@@ -79,12 +79,12 @@ export class EnhancedLed implements Component {
 
     // Check for reverse bias
     if (voltageDrop < -0.7) {
-      ctx.warn('LED_REVERSE_BIAS', `LED (${this.id}) is reverse-biased.`, 'warning');
+      (ctx as any).warn('LED_REVERSE_BIAS', `LED (${this.id}) is reverse-biased.`);
     }
 
     // Check for excessive voltage
     if (voltageDrop > this.props.forwardVoltage + 5) {
-      ctx.warn('LED_EXCESSIVE_VOLTAGE', `LED (${this.id}) has excessive voltage (${voltageDrop.toFixed(2)}V).`, 'error');
+      (ctx as any).warn('LED_EXCESSIVE_VOLTAGE', `LED (${this.id}) has excessive voltage (${voltageDrop.toFixed(2)}V).`);
     }
   }
 
