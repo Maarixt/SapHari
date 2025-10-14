@@ -41,7 +41,7 @@ export const useDevices = () => {
             return {
               ...device,
               owner_id: device.user_id || user.id,
-              userRole: 'owner' as Role,
+              userRole: 'owner' as any,
               collaborators: [],
               widget_counts: {
                 switches: 0,
@@ -79,7 +79,7 @@ export const useDevices = () => {
           return {
             ...device,
             owner_id: device.user_id || user.id,
-            userRole: 'owner' as Role,
+            userRole: 'owner' as any,
             collaborators: [],
             widget_counts: counts
           };

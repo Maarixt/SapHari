@@ -67,7 +67,9 @@ export const EditWidgetDialog = ({ open, onOpenChange, widget, allWidgets, onUpd
       ? String(widget.max_value)
       : String(GAUGE_DEFAULTS[gaugeType].max)
   );
-  const [triggerLevel, setTriggerLevel] = useState<TriggerLevel>(widget.trigger === 0 ? 'low' : 'high');
+  const [triggerLevel, setTriggerLevel] = useState<TriggerLevel>(
+    typeof widget.trigger === 'string' ? (widget.trigger === '0' ? 'low' : 'high') : (widget.trigger === 0 ? 'low' : 'high')
+  );
   const [message, setMessage] = useState(widget.message || '');
 
   const usedPins = useMemo(() => buildUsedPinSet(allWidgets, widget.id), [allWidgets, widget.id]);
@@ -92,7 +94,9 @@ export const EditWidgetDialog = ({ open, onOpenChange, widget, allWidgets, onUpd
         ? String(widget.max_value)
         : String(GAUGE_DEFAULTS[initialGaugeType].max)
     );
-    setTriggerLevel(widget.trigger === 0 ? 'low' : 'high');
+    setTriggerLevel(
+      typeof widget.trigger === 'string' ? (widget.trigger === '0' ? 'low' : 'high') : (widget.trigger === 0 ? 'low' : 'high')
+    );
     setMessage(widget.message || '');
     previousGaugeType.current = initialGaugeType;
   }, [open, widget]);

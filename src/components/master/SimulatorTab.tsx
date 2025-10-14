@@ -39,7 +39,8 @@ interface TestMetrics {
 }
 
 export function SimulatorTab() {
-  const { data: devices } = useMasterDashboard();
+  const dashboardData = useMasterDashboard();
+  const devices = dashboardData.devices?.data;
   const [bindings, setBindings] = useState<SimulatorBinding[]>([]);
   const [selectedDevice, setSelectedDevice] = useState<string>('');
   const [script, setScript] = useState<string>('');
@@ -91,7 +92,7 @@ export function SimulatorTab() {
       script,
       enabled: false,
       created_at: new Date().toISOString(),
-      device_name: devices?.devices?.find(d => d.id === selectedDevice)?.name || 'Unknown Device'
+      device_name: devices?.find(d => d.id === selectedDevice)?.name || 'Unknown Device'
     };
 
     setBindings(prev => [...prev, newBinding]);
@@ -198,7 +199,7 @@ export function SimulatorTab() {
                       <SelectValue placeholder="Select a device" />
                     </SelectTrigger>
                     <SelectContent>
-                      {devices?.devices?.map((device) => (
+                      {devices?.map((device) => (
                         <SelectItem key={device.id} value={device.id}>
                           {device.name} ({device.device_id})
                         </SelectItem>

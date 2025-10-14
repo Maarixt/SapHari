@@ -4,6 +4,7 @@ export interface Device {
   id: string;
   device_id: string;
   name: string;
+  device_key: string;
   model?: string;
   firmware?: string;
   firmware_version?: string;
@@ -21,6 +22,10 @@ export interface Device {
     email: string;
     full_name: string;
   };
+}
+
+export interface DeviceWithRole extends Device {
+  role?: string;
 }
 
 export interface User {
@@ -230,14 +235,24 @@ export interface CommandFilters {
   command?: string;
 }
 
-// Widget types
+// Widget types - matching database schema
 export interface Widget {
   id: string;
-  type: string;
-  title: string;
-  config: Record<string, unknown>;
-  position: { x: number; y: number };
-  size: { width: number; height: number };
+  device_id: string;
+  type: 'gauge' | 'servo' | 'switch' | 'alert';
+  label: string;
+  address: string;
+  pin: number;
+  echo_pin?: number;
+  gauge_type?: 'analog' | 'pwm' | 'digital' | 'ultrasonic' | 'ds18b20' | 'pir';
+  min_value?: number;
+  max_value?: number;
+  override_mode?: boolean;
+  state?: any;
+  trigger?: string;
+  message?: string;
+  created_at: string;
+  updated_at: string;
 }
 
 // Notification types

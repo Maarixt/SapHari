@@ -2,7 +2,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { KPICard } from '@/components/ui/kpi-card';
 import { 
   Users, 
   Cpu, 
@@ -29,7 +28,7 @@ const mockSparklineData = [
   { time: '24:00', value: 47 },
 ];
 
-interface KPICardProps {
+interface KPICardLocalProps {
   title: string;
   value: string | number;
   icon: React.ReactNode;
@@ -39,7 +38,7 @@ interface KPICardProps {
   color?: 'default' | 'success' | 'warning' | 'destructive';
 }
 
-function KPICard({ title, value, icon, trend, trendValue, sparkline, color = 'default' }: KPICardProps) {
+function KPICardLocal({ title, value, icon, trend, trendValue, sparkline, color = 'default' }: KPICardLocalProps) {
   const colorClasses = {
     default: 'text-blue-600',
     success: 'text-green-600',
@@ -138,87 +137,43 @@ export function OverviewTab() {
     <div className="space-y-8">
       {/* Modern KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <KPICard
+        <KPICardLocal
           title="Total Users"
           value={kpis?.totalUsers || 0}
           icon={<Users className="h-5 w-5" />}
-          trend={{ value: 12, direction: 'up', period: 'vs last month' }}
-          sparkline={
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={mockSparklineData}>
-                <Line 
-                  type="monotone" 
-                  dataKey="value" 
-                  stroke="hsl(var(--primary))" 
-                  strokeWidth={2}
-                  dot={false}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          }
+          trend="up"
+          trendValue="12% vs last month"
+          sparkline
         />
         
-        <KPICard
+        <KPICardLocal
           title="Online Devices"
           value={kpis?.onlineDevices || 0}
           icon={<Cpu className="h-5 w-5" />}
-          trend={{ value: 5, direction: 'up', period: 'vs last hour' }}
-          variant="success"
-          sparkline={
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={mockSparklineData}>
-                <Line 
-                  type="monotone" 
-                  dataKey="value" 
-                  stroke="hsl(var(--success))" 
-                  strokeWidth={2}
-                  dot={false}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          }
+          trend="up"
+          trendValue="5% vs last hour"
+          color="success"
+          sparkline
         />
         
-        <KPICard
+        <KPICardLocal
           title="Data Storage"
           value={kpis?.storageUsage || '0 Bytes'}
           icon={<HardDrive className="h-5 w-5" />}
-          trend={{ value: 8, direction: 'up', period: 'vs last week' }}
-          variant="warning"
-          sparkline={
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={mockSparklineData}>
-                <Line 
-                  type="monotone" 
-                  dataKey="value" 
-                  stroke="hsl(var(--warning))" 
-                  strokeWidth={2}
-                  dot={false}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          }
+          trend="up"
+          trendValue="8% vs last week"
+          color="warning"
+          sparkline
         />
         
-        <KPICard
+        <KPICardLocal
           title="System Uptime"
           value={kpis?.uptime || '0%'}
           icon={<Activity className="h-5 w-5" />}
-          trend={{ value: 0.2, direction: 'up', period: 'vs last day' }}
-          variant="success"
-          sparkline={
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={mockSparklineData}>
-                <Line 
-                  type="monotone" 
-                  dataKey="value" 
-                  stroke="hsl(var(--success))" 
-                  strokeWidth={2}
-                  dot={false}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          }
+          trend="up"
+          trendValue="0.2% vs last day"
+          color="success"
+          sparkline
         />
       </div>
 
