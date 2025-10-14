@@ -51,15 +51,15 @@ export const Dashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background dark">
-              <Header
-                onSettingsClick={() => setShowBrokerSettings(true)}
-                onAlertRulesClick={() => setShowAlertRules(true)}
-                onSnippetStreamClick={() => setShowSnippetStream(true)}
-                onDeviceDemoClick={() => setShowDeviceDemo(true)}
-              />
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
+      <Header
+        onSettingsClick={() => setShowBrokerSettings(true)}
+        onAlertRulesClick={() => setShowAlertRules(true)}
+        onSnippetStreamClick={() => setShowSnippetStream(true)}
+        onDeviceDemoClick={() => setShowDeviceDemo(true)}
+      />
       
-      <main>
+      <main className="container-modern">
         {showDeviceDemo ? (
           <DeviceControlDemo onBack={() => setShowDeviceDemo(false)} />
         ) : selectedDevice ? (

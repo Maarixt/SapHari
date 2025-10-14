@@ -87,18 +87,28 @@ export const DeviceList = ({ onDeviceSelect }: DeviceListProps) => {
   }
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-semibold">Devices</h2>
-        <div className="flex gap-2">
-          <Button onClick={() => {
-            setSimFullscreen(true);
-            setShowSim(true);
-          }} variant="outline">
+    <div className="py-8">
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Devices</h2>
+          <p className="text-muted-foreground mt-1">Manage your IoT devices and sensors</p>
+        </div>
+        <div className="flex gap-3">
+          <Button 
+            onClick={() => {
+              setSimFullscreen(true);
+              setShowSim(true);
+            }} 
+            variant="outline"
+            className="shadow-sm hover:shadow-md transition-all duration-200"
+          >
             <Cpu className="mr-2 h-4 w-4" />
             Simulator
           </Button>
-          <Button onClick={() => setShowAddDialog(true)}>
+          <Button 
+            onClick={() => setShowAddDialog(true)}
+            className="shadow-sm hover:shadow-md transition-all duration-200"
+          >
             <Plus className="mr-2 h-4 w-4" />
             Add Device
           </Button>
@@ -106,12 +116,18 @@ export const DeviceList = ({ onDeviceSelect }: DeviceListProps) => {
       </div>
 
       {devices.length === 0 ? (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground mb-4">No devices yet. Add your first device to get started.</p>
-          <Button onClick={() => setShowAddDialog(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Device
-          </Button>
+        <div className="text-center py-16">
+          <div className="p-6 rounded-2xl bg-muted/30 border border-border/50 max-w-md mx-auto">
+            <div className="p-3 rounded-xl bg-primary/10 w-fit mx-auto mb-4">
+              <Cpu className="h-8 w-8 text-primary" />
+            </div>
+            <h3 className="text-lg font-semibold mb-2">No devices yet</h3>
+            <p className="text-muted-foreground mb-6">Add your first device to get started with IoT monitoring.</p>
+            <Button onClick={() => setShowAddDialog(true)} className="shadow-sm hover:shadow-md transition-all duration-200">
+              <Plus className="mr-2 h-4 w-4" />
+              Add Device
+            </Button>
+          </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
