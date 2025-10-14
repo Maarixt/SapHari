@@ -9,7 +9,7 @@ export function useSimulatorMQTT(state: SimState, setState: (f: any) => void, si
   useEffect(() => {
     if (!state.running) return;
     const t = setInterval(() => {
-      publishMessage(`saphari/${simId}/status/online`, '1', { retain: true });
+      publishMessage(`saphari/${simId}/status/online`, '1', true);
     }, 2000);
     return () => clearInterval(t);
   }, [state.running, publishMessage, simId]);
@@ -40,7 +40,7 @@ export function useSimulatorMQTT(state: SimState, setState: (f: any) => void, si
         } else if (cmd === 'read') {
           // data: { addr }
           const sensorValue = readSensorValue(state, data.addr);
-          publishMessage(`saphari/${simId}/sensor/${data.addr}`, String(sensorValue), { retain: true });
+          publishMessage(`saphari/${simId}/sensor/${data.addr}`, String(sensorValue), true);
         }
       } catch (e) {
         console.warn('Failed to process MQTT command:', e);
@@ -79,7 +79,7 @@ export function useSimulatorMQTT(state: SimState, setState: (f: any) => void, si
         if (comp.type === 'pot' || comp.type === 'pir' || comp.type === 'ultrasonic' || 
             comp.type === 'ds18b20' || comp.type === 'servo') {
           const value = readSensorValue(state, comp.id);
-          publishMessage(`saphari/${simId}/sensor/${comp.id}`, String(value), { retain: true });
+          publishMessage(`saphari/${simId}/sensor/${comp.id}`, String(value), true);
         }
       });
     }, 1000); // Publish sensor readings every second

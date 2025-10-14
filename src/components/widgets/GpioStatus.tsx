@@ -9,7 +9,9 @@ interface GpioStatusProps {
 
 export function GpioStatus({ deviceId, pin, label }: GpioStatusProps){
   const [, setTick] = useState(0);
-  useEffect(()=>DeviceStore.subscribe(()=>setTick(x=>x+1)),[]);
+  useEffect(() => {
+    return DeviceStore.subscribe(() => setTick(x => x + 1));
+  }, []);
   
   const value = DeviceStore.get(deviceId)?.gpio?.[pin] ?? null;
   

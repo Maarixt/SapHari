@@ -40,22 +40,21 @@ export function useDeviceStore(deviceId: string) {
 
   const isOnline = device?.online ?? false;
 
-  const controlGpio = (pin: number, value: 0 | 1) => {
-    const commandId = crypto.randomUUID();
-    CommandTracker.addCommand(commandId, deviceId, 'gpio', { pin, value });
-    // In a real implementation, this would publish to MQTT
-    console.log(`GPIO control: ${deviceId} pin ${pin} = ${value}`);
+  const controlGpio = async (pin: number, value: 0 | 1) => {
+    try {
+      await CommandTracker.toggleGpio(deviceId, pin, value);
+      console.log(`GPIO control: ${deviceId} pin ${pin} = ${value}`);
+    } catch (error) {
+      console.error('Failed to control GPIO:', error);
+      throw error;
+    }
   };
 
   const controlServo = (pin: number, angle: number) => {
-    const commandId = crypto.randomUUID();
-    CommandTracker.addCommand(commandId, deviceId, 'servo', { pin, angle });
     console.log(`Servo control: ${deviceId} pin ${pin} = ${angle}°`);
   };
 
   const controlGauge = (pin: number, value: number) => {
-    const commandId = crypto.randomUUID();
-    CommandTracker.addCommand(commandId, deviceId, 'gauge', { pin, value });
     console.log(`Gauge control: ${deviceId} pin ${pin} = ${value}`);
   };
 

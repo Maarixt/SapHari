@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Stage, Layer, Rect, Circle, Line, Text } from 'react-konva';
+import { Stage, Layer, Rect, Circle, Line, Text, Group } from 'react-konva';
 import { Component } from './ComponentPalette';
 import { SimComponent, SimState, createComponent, Wire, createWire } from './types';
 import { 
@@ -148,7 +148,7 @@ export const CircuitCanvas = ({ onComponentAdd }: CircuitCanvasProps) => {
     switch (component.type) {
       case 'esp32':
         return (
-          <group key={component.id}>
+          <Group key={component.id}>
             {/* ESP32 Body */}
             <Rect
               x={component.x + 20}
@@ -182,7 +182,7 @@ export const CircuitCanvas = ({ onComponentAdd }: CircuitCanvasProps) => {
               const isLeftSide = pin.x === 0;
               
               return (
-                <group key={`pin-${pin.id}`}>
+                <Group key={`pin-${pin.id}`}>
                   {/* Pin Circle */}
                   <Circle
                     x={pinX}
@@ -202,10 +202,10 @@ export const CircuitCanvas = ({ onComponentAdd }: CircuitCanvasProps) => {
                     fill="#ffffff"
                     align={isLeftSide ? 'right' : 'left'}
                   />
-                </group>
+                </Group>
               );
             })}
-          </group>
+          </Group>
         );
       
       case 'led':
@@ -221,7 +221,7 @@ export const CircuitCanvas = ({ onComponentAdd }: CircuitCanvasProps) => {
           white: '#f3f4f6'
         };
         return (
-          <group key={component.id}>
+          <Group key={component.id}>
             <Circle
               x={component.x}
               y={component.y}
@@ -246,13 +246,13 @@ export const CircuitCanvas = ({ onComponentAdd }: CircuitCanvasProps) => {
                 strokeWidth={1}
               />
             ))}
-          </group>
+          </Group>
         );
       
       case 'buzzer':
         const isActive = component.props?.active || false;
         return (
-          <group key={component.id}>
+          <Group key={component.id}>
             <Circle
               x={component.x}
               y={component.y}
@@ -277,13 +277,13 @@ export const CircuitCanvas = ({ onComponentAdd }: CircuitCanvasProps) => {
                 strokeWidth={1}
               />
             ))}
-          </group>
+          </Group>
         );
       
       case 'button':
         const isPressed = component.props?.pressed || false;
         return (
-          <group key={component.id}>
+          <Group key={component.id}>
             <Rect
               x={component.x - 10}
               y={component.y - 10}
@@ -310,12 +310,12 @@ export const CircuitCanvas = ({ onComponentAdd }: CircuitCanvasProps) => {
                 strokeWidth={1}
               />
             ))}
-          </group>
+          </Group>
         );
       
       case 'resistor':
         return (
-          <group key={component.id}>
+          <Group key={component.id}>
             <Rect
               x={component.x - 20}
               y={component.y - 5}
@@ -351,7 +351,7 @@ export const CircuitCanvas = ({ onComponentAdd }: CircuitCanvasProps) => {
               fill="#374151"
               align="center"
             />
-          </group>
+          </Group>
         );
       
       default:

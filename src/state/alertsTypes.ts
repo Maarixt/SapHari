@@ -1,6 +1,13 @@
 export type Severity = 'info' | 'warning' | 'critical';
 export type Channel = 'app' | 'toast' | 'browser' | 'push' | 'email' | 'slack' | 'discord' | 'telegram' | 'webhook';
 
+export interface AlertCondition {
+  key?: string;
+  op?: '>'|'>='|'<'|'<='|'=='|'!=';
+  value?: number | string;
+  address?: string; // For widget-based conditions
+}
+
 export type AlertRule = {
   id: string;
   name: string;

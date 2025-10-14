@@ -140,8 +140,7 @@ export const DeviceList = ({ onDeviceSelect }: DeviceListProps) => {
                 device={{
                   ...device,
                   // Presence: trust live state with staleness timeout; fallback offline
-                  online: !!(deviceState?.online && fresh),
-                  lastSeen: deviceState?.lastSeen
+                  online: !!(deviceState?.online && fresh)
                 }}
                 onSelect={() => onDeviceSelect(device)}
                 onDelete={() => handleDeleteDevice(device)}

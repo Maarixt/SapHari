@@ -43,7 +43,7 @@ export const EnhancedComponentPalette = ({
   const createComponent = (def: ComponentDefinition, x: number, y: number): SimComponent => {
     return {
       id: nanoid(8),
-      type: def.id,
+      type: def.id as 'esp32' | 'led' | 'resistor' | 'button' | 'buzzer' | 'pot' | 'pir' | 'ultrasonic' | 'ds18b20' | 'servo' | 'power' | 'ground' | 'wire' | 'potentiometer',
       name: def.name,
       x,
       y,

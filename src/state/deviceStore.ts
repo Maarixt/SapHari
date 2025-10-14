@@ -15,7 +15,10 @@ const devices: Record<string, DeviceSnapshot> = {};
 function notify(){ subs.forEach(f=>f()); }
 
 export const DeviceStore = {
-  subscribe(fn: Listener){ subs.push(fn); return () => subs = subs.filter(s=>s!==fn); },
+  subscribe(fn: Listener): () => void { 
+    subs.push(fn); 
+    return () => { subs = subs.filter(s => s !== fn); }; 
+  },
   get(id: string){ return devices[id]; },
   all(){ return devices; },
 

@@ -9,6 +9,10 @@ const TIMEOUT_MS = 5000;
 function makeReqId(){ return Math.random().toString(36).slice(2); }
 
 export const CommandTracker = {
+  addCommand(cmd: PendingCmd) {
+    pendings.set(cmd.reqId, cmd);
+  },
+
   async toggleGpio(deviceId: string, pin: number, desired: 0|1){
     // Block if offline
     const snap = DeviceStore.get(deviceId);

@@ -13,6 +13,9 @@ export interface Device {
   location?: { lat: number; lng: number } | null;
   tags?: string[];
   created_at: string;
+  updated_at: string;
+  user_id?: string; // For backward compatibility
+  lastSeen?: number; // For real-time status
   profiles?: {
     id: string;
     email: string;

@@ -219,7 +219,7 @@ export const SimComponentNode = ({ comp, onPinClick, onSelect, onDelete, onDragE
         width={w} 
         height={h} 
         cornerRadius={10} 
-        fill={comp.type === 'esp32' ? '#111827' : '#1f2937'} 
+        fill={(comp.type as string) === 'esp32' ? '#111827' : '#1f2937'} 
         stroke={comp.selected ? '#60a5fa' : '#374151'} 
         strokeWidth={comp.selected ? 3 : 1.5} 
         shadowBlur={comp.selected ? 16 : 4}
@@ -249,7 +249,7 @@ export const SimComponentNode = ({ comp, onPinClick, onSelect, onDelete, onDragE
       </Group>
 
       {/* Visual simulation feedback */}
-      {comp.type === 'buzzer' && isActive && (
+      {(comp.type as string) === 'buzzer' && isActive && (
         <Rect 
           x={4} 
           y={4} 
@@ -261,7 +261,7 @@ export const SimComponentNode = ({ comp, onPinClick, onSelect, onDelete, onDragE
         />
       )}
 
-      {comp.type === 'button' && isPressed && (
+      {(comp.type as string) === 'button' && isPressed && (
         <Rect 
           x={4} 
           y={4} 

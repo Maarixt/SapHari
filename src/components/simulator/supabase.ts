@@ -9,7 +9,10 @@ export interface CircuitData {
   created_at: string;
 }
 
+// TODO: Implement these functions after creating sim_circuits table in Supabase
 export async function saveCircuit(name: string, state: SimState, userId: string): Promise<string> {
+  throw new Error('sim_circuits table not yet created - please create the table first');
+  /*
   const { data, error } = await supabase
     .from('sim_circuits')
     .insert({
@@ -25,23 +28,29 @@ export async function saveCircuit(name: string, state: SimState, userId: string)
   }
 
   return data.id;
+  */
 }
 
 export async function loadCircuits(): Promise<CircuitData[]> {
+  throw new Error('sim_circuits table not yet created - please create the table first');
+  /*
   const { data, error } = await supabase
     .from('sim_circuits')
     .select('*')
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false});
 
   if (error) {
     throw new Error(`Failed to load circuits: ${error.message}`);
   }
 
   return data || [];
+  */
 }
 
 export async function loadCircuit(id: string): Promise<CircuitData | null> {
-  const { data, error } = await supabase
+  throw new Error('sim_circuits table not yet created - please create the table first');
+  /*
+  const { data, error} = await supabase
     .from('sim_circuits')
     .select('*')
     .eq('id', id)
@@ -52,9 +61,12 @@ export async function loadCircuit(id: string): Promise<CircuitData | null> {
   }
 
   return data;
+  */
 }
 
 export async function deleteCircuit(id: string): Promise<void> {
+  throw new Error('sim_circuits table not yet created - please create the table first');
+  /*
   const { error } = await supabase
     .from('sim_circuits')
     .delete()
@@ -63,4 +75,5 @@ export async function deleteCircuit(id: string): Promise<void> {
   if (error) {
     throw new Error(`Failed to delete circuit: ${error.message}`);
   }
+  */
 }
