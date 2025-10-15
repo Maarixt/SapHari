@@ -1,12 +1,8 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { MasterLayout } from '@/components/master/MasterLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AlertTriangle, RefreshCw, Users, Cpu, Database, Activity, TestTube, Shield, BarChart3, Settings, TrendingUp, CheckCircle } from 'lucide-react';
-import { fetchMasterMetrics, fetchFleetKPIs, fetchDeviceHealth, fetchRecentEvents } from '@/lib/api';
+import { AlertTriangle, Users, Cpu, Database, Activity, TestTube, Shield, BarChart3, Settings } from 'lucide-react';
 import { useMasterAccount } from '@/hooks/useMasterAccount';
 import { OverviewTab } from '@/components/master/OverviewTab';
 import { DiagnosticsTab } from '@/components/master/DiagnosticsTab';
@@ -18,157 +14,15 @@ import { SystemTab } from '@/components/master/SystemTab';
 import { AuditTab } from '@/components/master/AuditTab';
 import { SimulatorTab } from '@/components/master/SimulatorTab';
 
-// Error state component
-function ErrorState({ title, description, onRetry }: { 
-  title: string; 
-  description: string; 
-  onRetry: () => void; 
-}) {
-  return (
-    <Card className="border-red-200 bg-red-50">
-      <CardContent className="p-6">
-        <div className="flex items-center gap-3">
-          <AlertTriangle className="h-8 w-8 text-red-600" />
-          <div className="flex-1">
-            <h3 className="text-lg font-semibold text-red-800">{title}</h3>
-            <p className="text-red-600">{description}</p>
-          </div>
-          <Button variant="outline" onClick={onRetry} className="border-red-300 text-red-700 hover:bg-red-100">
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Retry
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-// Empty state component
-function EmptyState({ title }: { title: string }) {
-  return (
-    <Card>
-      <CardContent className="p-6 text-center">
-        <p className="text-muted-foreground">{title}</p>
-      </CardContent>
-    </Card>
-  );
-}
 
 
 // Main master dashboard component
 export default function MasterDashboard() {
   const { logout } = useMasterAccount();
-  const [kpis, setKpis] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const loadKPIs = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      // Try to fetch from Edge Function first
-      try {
-        const metrics = await fetchMasterMetrics(supabase);
-        setKpis(metrics.kpis);
-      } catch (edgeError) {
-        console.warn('Edge function failed, trying RPC:', edgeError);
-        // Fallback to RPC
-        const kpiData = await fetchFleetKPIs(supabase);
-        setKpis(kpiData);
-      }
-    } catch (err) {
-      console.error('Error loading KPIs:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load master data');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadKPIs();
-  }, []);
 
   return (
     <MasterLayout title="Master Control Panel" subtitle="System-wide monitoring and management">
       <div className="space-y-6">
-        {/* KPI Cards */}
-        {loading ? (
-          <div className="flex items-center justify-center h-32">
-            <div className="flex items-center gap-3">
-              <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
-              <span>Loading master data...</span>
-            </div>
-          </div>
-        ) : error ? (
-          <ErrorState title="Error loading master data" description={error} onRetry={loadKPIs} />
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10 hover:shadow-lg transition-all duration-300">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-                <CardTitle className="text-sm font-medium text-primary">Total Users</CardTitle>
-                <div className="p-2 rounded-lg bg-primary/20">
-                  <Users className="h-5 w-5 text-primary" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-primary">{kpis?.total_users || 0}</div>
-                <p className="text-sm text-primary/70 flex items-center gap-1 mt-2">
-                  <TrendingUp className="h-3 w-3" />
-                  +12% from last month
-                </p>
-              </CardContent>
-            </Card>
-            
-            <Card className="border-success/20 bg-gradient-to-br from-success/5 to-success/10 hover:shadow-lg transition-all duration-300">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-                <CardTitle className="text-sm font-medium text-success">Online Devices</CardTitle>
-                <div className="p-2 rounded-lg bg-success/20">
-                  <Cpu className="h-5 w-5 text-success" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-success">{kpis?.devices_online || 0}</div>
-                <p className="text-sm text-success/70 flex items-center gap-1 mt-2">
-                  <TrendingUp className="h-3 w-3" />
-                  +5 devices this hour
-                </p>
-              </CardContent>
-            </Card>
-            
-            <Card className="border-warning/20 bg-gradient-to-br from-warning/5 to-warning/10 hover:shadow-lg transition-all duration-300">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-                <CardTitle className="text-sm font-medium text-warning">Data Storage</CardTitle>
-                <div className="p-2 rounded-lg bg-warning/20">
-                  <Database className="h-5 w-5 text-warning" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-warning">1.2TB</div>
-                <p className="text-sm text-warning/70 flex items-center gap-1 mt-2">
-                  <TrendingUp className="h-3 w-3" />
-                  +2.1GB today
-                </p>
-              </CardContent>
-            </Card>
-            
-            <Card className="border-success/20 bg-gradient-to-br from-success/5 to-success/10 hover:shadow-lg transition-all duration-300">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-                <CardTitle className="text-sm font-medium text-success">Uptime</CardTitle>
-                <div className="p-2 rounded-lg bg-success/20">
-                  <Activity className="h-5 w-5 text-success" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-success">99.9%</div>
-                <p className="text-sm text-success/70 flex items-center gap-1 mt-2">
-                  <CheckCircle className="h-3 w-3" />
-                  Last 24h
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-        )}
 
         {/* Modern Tabs */}
         <Tabs defaultValue="overview" className="space-y-6">
