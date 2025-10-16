@@ -22,28 +22,12 @@ export function SensorDisplay({
   }, []);
   
   const value = DeviceStore.get(deviceId)?.sensors?.[sensorKey] ?? null;
-
-  // Auto-assign units when not explicitly provided
-  const autoUnit = (() => {
-    if (unit) return unit; // explicit override
-    const key = sensorKey.toLowerCase();
-    if (key.includes('ds18b20') || key.includes('temp')) return '°C';
-    if (key.includes('humidity') || key.includes('hum')) return '%';
-    if (key.includes('pressure')) return ' hPa';
-    if (key.includes('distance') || key.includes('ultrasonic')) return ' cm';
-    if (key.includes('voltage') || key.endsWith('v')) return ' V';
-    if (key.includes('current') || key.endsWith('a')) return ' A';
-    if (key.includes('power') || key.endsWith('w')) return ' W';
-    if (key.includes('speed') || key.includes('rpm')) return ' RPM';
-    if (key.includes('light') || key.includes('lux')) return ' lx';
-    return '';
-  })();
-
-  const displayValue = value === null
-    ? '—'
-    : typeof value === 'number'
-      ? `${value.toFixed(precision)}${autoUnit}`
-      : `${value}${autoUnit}`;
+  
+  const displayValue = value === null 
+    ? '—' 
+    : typeof value === 'number' 
+      ? `${value.toFixed(precision)}${unit}`
+      : `${value}${unit}`;
   
   return (
     <div className="text-sm">
