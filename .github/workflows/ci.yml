@@ -34,7 +34,7 @@ jobs:
       run: npx tsc --noEmit
       
     - name: Run tests
-      run: npm test
+      run: npm test -- --coverage --watchAll=false
       
     - name: Build application
       run: npm run build
@@ -63,9 +63,8 @@ jobs:
     - name: Install dependencies
       run: npm ci
       
-    - name: Run security audit (non-blocking)
-      run: |
-        npm audit --audit-level=moderate || echo "Security audit warnings detected (non-blocking)"
+    - name: Run security audit
+      run: npm audit --audit-level=moderate
       
     - name: Check for secrets
       uses: trufflesecurity/trufflehog@main
