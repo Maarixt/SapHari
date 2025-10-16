@@ -59,20 +59,24 @@ import { useToast } from '@/hooks/use-toast';
 
 interface Device {
   id: string;
-  device_id: string | null;
-  device_key: string | null;
-  name: string | null;
-  owner_id: string | null;
-  owner_name: string | null;
-  owner_email: string | null;
-  online: boolean | null;
-  created_at: string | null;
-  updated_at: string | null;
-  alert_count: number | null;
-  widget_count: number | null;
+  device_id: string;
+  name: string;
+  model?: string;
+  firmware?: string;
+  owner_id: string;
+  online: boolean;
+  last_seen?: string;
+  location?: { lat: number; lng: number };
+  tags?: string[];
+  created_at: string;
+  profiles?: {
+    id: string;
+    email: string;
+    full_name?: string;
+  };
 }
 
-function DeviceStatusBadge({ online }: { online: boolean | null }) {
+function DeviceStatusBadge({ online, lastSeen }: { online: boolean; lastSeen?: string }) {
   if (online) {
     return (
       <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
@@ -82,10 +86,23 @@ function DeviceStatusBadge({ online }: { online: boolean | null }) {
     );
   }
 
+  const getOfflineTime = (lastSeen: string) => {
+    const now = new Date();
+    const lastSeenDate = new Date(lastSeen);
+    const diffMs = now.getTime() - lastSeenDate.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffDays > 0) return `${diffDays}d ago`;
+    if (diffHours > 0) return `${diffHours}h ago`;
+    return `${diffMins}m ago`;
+  };
+
   return (
     <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
       <WifiOff className="h-3 w-3 mr-1" />
-      Offline
+      Offline {lastSeen ? getOfflineTime(lastSeen) : ''}
     </Badge>
   );
 }
@@ -239,24 +256,27 @@ function BulkActionsDialog() {
 export function DevicesTab() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [firmwareFilter, setFirmwareFilter] = useState('all');
   const [ownerFilter, setOwnerFilter] = useState('all');
 
   const { data: devices, isLoading, error } = useMasterDevices();
 
   const filteredDevices = devices?.filter((device: Device) => {
-    const matchesSearch = device.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         device.device_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         device.owner_email?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = device.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         device.device_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         device.model?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || 
                          (statusFilter === 'online' && device.online) ||
                          (statusFilter === 'offline' && !device.online);
+    const matchesFirmware = firmwareFilter === 'all' || device.firmware === firmwareFilter;
     const matchesOwner = ownerFilter === 'all' || device.owner_id === ownerFilter;
-    return matchesSearch && matchesStatus && matchesOwner;
+    return matchesSearch && matchesStatus && matchesFirmware && matchesOwner;
   }) || [];
 
+  const uniqueFirmwares = [...new Set(devices?.map((d: Device) => d.firmware).filter(Boolean))];
   const uniqueOwners = devices?.map((d: Device) => ({
     id: d.owner_id,
-    name: d.owner_name || d.owner_email || 'Unknown'
+    name: d.profiles?.full_name || d.profiles?.email || 'Unknown'
   })) || [];
 
   if (isLoading) {
@@ -383,6 +403,17 @@ export function DevicesTab() {
               </Select>
             </div>
 
+            <Select value={firmwareFilter} onValueChange={setFirmwareFilter}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="Firmware" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Firmware</SelectItem>
+                {uniqueFirmwares.map((fw) => (
+                  <SelectItem key={fw} value={fw}>{fw}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
             <Select value={ownerFilter} onValueChange={setOwnerFilter}>
               <SelectTrigger className="w-40">
@@ -429,32 +460,61 @@ export function DevicesTab() {
                     <div>
                       <div className="font-medium">{device.name}</div>
                       <div className="text-sm text-muted-foreground">ID: {device.device_id}</div>
+                      {device.model && (
+                        <div className="text-xs text-muted-foreground">Model: {device.model}</div>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell>
-                    <DeviceStatusBadge online={device.online} />
+                    <DeviceStatusBadge online={device.online} lastSeen={device.last_seen} />
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
                       <User className="h-3 w-3" />
-                      {device.owner_name || device.owner_email || 'Unknown'}
+                      {device.profiles?.full_name || device.profiles?.email || 'Unknown'}
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="text-xs">
-                        {device.widget_count || 0} widgets
-                      </Badge>
-                      <Badge variant="outline" className="text-xs">
-                        {device.alert_count || 0} alerts
-                      </Badge>
-                    </div>
+                    <Badge variant="outline">
+                      {device.firmware || 'Unknown'}
+                    </Badge>
                   </TableCell>
                   <TableCell>
-                    {device.created_at ? (
+                    {device.location ? (
+                      <div className="flex items-center gap-1">
+                        <MapPin className="h-3 w-3" />
+                        <span className="text-xs">
+                          {device.location.lat.toFixed(4)}, {device.location.lng.toFixed(4)}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground">No location</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {device.tags && device.tags.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {device.tags.slice(0, 2).map((tag, index) => (
+                          <Badge key={index} variant="secondary" className="text-xs">
+                            <Tag className="h-2 w-2 mr-1" />
+                            {tag}
+                          </Badge>
+                        ))}
+                        {device.tags.length > 2 && (
+                          <Badge variant="secondary" className="text-xs">
+                            +{device.tags.length - 2}
+                          </Badge>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground">No tags</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {device.last_seen ? (
                       <div className="flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
-                        {new Date(device.created_at).toLocaleDateString()}
+                        {new Date(device.last_seen).toLocaleDateString()}
                       </div>
                     ) : (
                       <span className="text-muted-foreground">Never</span>

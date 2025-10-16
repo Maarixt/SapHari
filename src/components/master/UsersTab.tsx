@@ -53,14 +53,15 @@ import { useMasterUsers } from '@/hooks/useMasterDashboard';
 import { useToast } from '@/hooks/use-toast';
 
 interface User {
-  id: string | null;
-  email: string | null;
-  display_name: string | null;
-  role: string | null;
-  device_count: number | null;
-  unread_alerts: number | null;
-  created_at: string | null;
-  updated_at: string | null;
+  id: string;
+  email: string;
+  display_name?: string;
+  full_name?: string;
+  role: string;
+  device_count?: number;
+  unread_alerts?: number;
+  created_at: string;
+  updated_at: string;
 }
 
 function UserRoleBadge({ role }: { role: string }) {
@@ -250,7 +251,7 @@ export function UsersTab() {
   const { data: users, isLoading, error } = useMasterUsers();
 
   const filteredUsers = users?.filter((user: User) => {
-    const matchesSearch = user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchesSearch = user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          user.display_name?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole = roleFilter === 'all' || user.role === roleFilter;
     return matchesSearch && matchesRole;
@@ -370,7 +371,7 @@ export function UsersTab() {
                   <TableRow key={user.id} className="hover:bg-muted/50 transition-colors">
                     <TableCell>
                       <div>
-                        <div className="font-medium">{user.display_name || user.email}</div>
+                        <div className="font-medium">{user.full_name || user.email}</div>
                         <div className="text-sm text-muted-foreground">{user.email}</div>
                       </div>
                     </TableCell>
