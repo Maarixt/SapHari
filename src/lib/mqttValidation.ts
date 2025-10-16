@@ -19,19 +19,29 @@ export const validateMQTTTopic = (topic: string): MQTTValidationResult => {
     return { isValid: false, error: 'Topic length exceeds maximum (65535 characters)' };
   }
 
-  // Check for invalid characters
-  const invalidChars = /[#+\s]/;
-  if (invalidChars.test(topic)) {
-    return { isValid: false, error: 'Topic contains invalid characters (#, +, or spaces)' };
+  // Spaces are never allowed
+  if (/\s/.test(topic)) {
+    return { isValid: false, error: 'Topic cannot contain spaces' };
   }
 
-  // Check for wildcards in wrong positions
-  if (topic.includes('#') && !topic.endsWith('/#')) {
-    return { isValid: false, error: 'Multi-level wildcard (#) can only be used at the end' };
+  // Validate wildcard usage for subscriptions
+  // - '#' allowed at the end only ("#" or "/#") and only once
+  if (topic.includes('#')) {
+    if (!(topic === '#') && !topic.endsWith('/#')) {
+      return { isValid: false, error: 'Multi-level wildcard (#) can only appear at the end' };
+    }
+    if (topic.indexOf('#') !== topic.lastIndexOf('#')) {
+      return { isValid: false, error: 'Only one # wildcard is allowed in a topic' };
+    }
   }
 
-  if (topic.includes('+') && topic.includes('/+/')) {
-    return { isValid: false, error: 'Single-level wildcard (+) cannot be used in the middle of topic' };
+  // - '+' must occupy an entire level (segment equals "+")
+  if (topic.includes('+')) {
+    const segments = topic.split('/');
+    const invalidPlus = segments.some(seg => seg.includes('+') && seg !== '+');
+    if (invalidPlus) {
+      return { isValid: false, error: 'Single-level wildcard (+) must be its own path segment' };
+    }
   }
 
   return { isValid: true };
