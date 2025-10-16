@@ -27,11 +27,11 @@ jobs:
     - name: Install dependencies
       run: npm ci
       
-    - name: Run linter (non-blocking)
-      run: npm run lint || echo "Lint warnings (non-blocking)"
+    - name: Run linter
+      run: npm run lint
       
-    - name: Run type check (non-blocking)
-      run: npx tsc --noEmit || echo "Type check issues (non-blocking)"
+    - name: Run type check
+      run: npx tsc --noEmit
       
     - name: Run tests
       run: npm test
@@ -67,9 +67,8 @@ jobs:
       run: |
         npm audit --audit-level=moderate || echo "Security audit warnings detected (non-blocking)"
       
-    - name: Check for secrets (non-blocking)
+    - name: Check for secrets
       uses: trufflesecurity/trufflehog@main
-      continue-on-error: true
       with:
         path: ./
         base: main
