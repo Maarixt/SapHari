@@ -40,6 +40,7 @@ export const useDevices = () => {
             console.error('Error loading widgets for device:', device.id, widgetError);
             return {
               ...device,
+              location: device.location as { lat: number; lng: number } | null,
               owner_id: device.user_id || user.id,
               userRole: 'owner' as any,
               collaborators: [],
@@ -78,6 +79,7 @@ export const useDevices = () => {
 
           return {
             ...device,
+            location: device.location as { lat: number; lng: number } | null,
             owner_id: device.user_id || user.id,
             userRole: 'owner' as any,
             collaborators: [],
