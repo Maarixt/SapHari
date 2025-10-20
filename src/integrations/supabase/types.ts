@@ -76,20 +76,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "alerts_device_id_fkey"
-            columns: ["device_id"]
-            isOneToOne: false
-            referencedRelation: "v_device_health"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "alerts_device_id_fkey"
-            columns: ["device_id"]
-            isOneToOne: false
-            referencedRelation: "v_devices_overview"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "alerts_widget_id_fkey"
             columns: ["widget_id"]
             isOneToOne: false
@@ -204,20 +190,6 @@ export type Database = {
             referencedRelation: "devices_safe"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "automation_rules_device_id_fkey"
-            columns: ["device_id"]
-            isOneToOne: false
-            referencedRelation: "v_device_health"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "automation_rules_device_id_fkey"
-            columns: ["device_id"]
-            isOneToOne: false
-            referencedRelation: "v_devices_overview"
-            referencedColumns: ["id"]
-          },
         ]
       }
       broker_settings: {
@@ -309,20 +281,6 @@ export type Database = {
             columns: ["device_id"]
             isOneToOne: false
             referencedRelation: "devices_safe"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "commands_device_id_fkey"
-            columns: ["device_id"]
-            isOneToOne: false
-            referencedRelation: "v_device_health"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "commands_device_id_fkey"
-            columns: ["device_id"]
-            isOneToOne: false
-            referencedRelation: "v_devices_overview"
             referencedColumns: ["id"]
           },
         ]
@@ -533,20 +491,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "telemetry_device_id_fkey"
-            columns: ["device_id"]
-            isOneToOne: false
-            referencedRelation: "v_device_health"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "telemetry_device_id_fkey"
-            columns: ["device_id"]
-            isOneToOne: false
-            referencedRelation: "v_devices_overview"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "telemetry_widget_id_fkey"
             columns: ["widget_id"]
             isOneToOne: false
@@ -652,20 +596,6 @@ export type Database = {
             referencedRelation: "devices_safe"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "widgets_device_id_fkey"
-            columns: ["device_id"]
-            isOneToOne: false
-            referencedRelation: "v_device_health"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "widgets_device_id_fkey"
-            columns: ["device_id"]
-            isOneToOne: false
-            referencedRelation: "v_devices_overview"
-            referencedColumns: ["id"]
-          },
         ]
       }
     }
@@ -718,140 +648,6 @@ export type Database = {
           tags?: string[] | null
           updated_at?: string | null
           user_id?: string | null
-        }
-        Relationships: []
-      }
-      v_alerts_recent: {
-        Row: {
-          created_at: string | null
-          device_id: string | null
-          device_name: string | null
-          id: string | null
-          message: string | null
-          read: boolean | null
-          type: string | null
-          user_id: string | null
-          user_name: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "alerts_device_id_fkey"
-            columns: ["device_id"]
-            isOneToOne: false
-            referencedRelation: "devices"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "alerts_device_id_fkey"
-            columns: ["device_id"]
-            isOneToOne: false
-            referencedRelation: "devices_safe"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "alerts_device_id_fkey"
-            columns: ["device_id"]
-            isOneToOne: false
-            referencedRelation: "v_device_health"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "alerts_device_id_fkey"
-            columns: ["device_id"]
-            isOneToOne: false
-            referencedRelation: "v_devices_overview"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      v_audit_recent: {
-        Row: {
-          action: string | null
-          actor_email: string | null
-          actor_role: Database["public"]["Enums"]["app_role"] | null
-          created_at: string | null
-          details: Json | null
-          id: string | null
-          ip_address: string | null
-          resource: string | null
-          timestamp: string | null
-          user_agent: string | null
-        }
-        Relationships: []
-      }
-      v_device_health: {
-        Row: {
-          critical_alerts: number | null
-          device_id: string | null
-          failed_commands_24h: number | null
-          id: string | null
-          last_seen: string | null
-          name: string | null
-          online: boolean | null
-          seconds_offline: number | null
-          status: string | null
-        }
-        Insert: {
-          critical_alerts?: never
-          device_id?: string | null
-          failed_commands_24h?: never
-          id?: string | null
-          last_seen?: string | null
-          name?: string | null
-          online?: boolean | null
-          seconds_offline?: never
-          status?: never
-        }
-        Update: {
-          critical_alerts?: never
-          device_id?: string | null
-          failed_commands_24h?: never
-          id?: string | null
-          last_seen?: string | null
-          name?: string | null
-          online?: boolean | null
-          seconds_offline?: never
-          status?: never
-        }
-        Relationships: []
-      }
-      v_devices_overview: {
-        Row: {
-          alert_count: number | null
-          created_at: string | null
-          device_id: string | null
-          id: string | null
-          name: string | null
-          online: boolean | null
-          owner_email: string | null
-          owner_id: string | null
-          owner_name: string | null
-          updated_at: string | null
-          widget_count: number | null
-        }
-        Relationships: []
-      }
-      v_master_kpis: {
-        Row: {
-          alerts_24h: number | null
-          offline_devices: number | null
-          online_devices: number | null
-          telemetry_bytes: number | null
-          total_devices: number | null
-          total_users: number | null
-        }
-        Relationships: []
-      }
-      v_users_overview: {
-        Row: {
-          created_at: string | null
-          device_count: number | null
-          display_name: string | null
-          email: string | null
-          id: string | null
-          role: Database["public"]["Enums"]["app_role"] | null
-          unread_alerts: number | null
-          updated_at: string | null
         }
         Relationships: []
       }
