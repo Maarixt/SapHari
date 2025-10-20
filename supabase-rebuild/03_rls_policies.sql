@@ -217,6 +217,7 @@ CREATE POLICY alerts_update_own ON public.alerts
 
 -- Masters can update all alerts
 DROP POLICY IF EXISTS alerts_update_master ON public.alerts;
+CREATE POLICY alerts_update_master ON public.alerts
   FOR UPDATE
   USING (public.is_master(auth.uid()));
 
