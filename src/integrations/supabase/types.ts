@@ -16,31 +16,46 @@ export type Database = {
     Tables: {
       alerts: {
         Row: {
+          ack_by: string | null
+          closed_at: string | null
           created_at: string
+          details: Json | null
           device_id: string | null
           id: string
           message: string
           read: boolean
+          severity: Database["public"]["Enums"]["alert_severity"] | null
+          state: Database["public"]["Enums"]["alert_state"] | null
           type: string
           user_id: string
           widget_id: string | null
         }
         Insert: {
+          ack_by?: string | null
+          closed_at?: string | null
           created_at?: string
+          details?: Json | null
           device_id?: string | null
           id?: string
           message: string
           read?: boolean
+          severity?: Database["public"]["Enums"]["alert_severity"] | null
+          state?: Database["public"]["Enums"]["alert_state"] | null
           type: string
           user_id: string
           widget_id?: string | null
         }
         Update: {
+          ack_by?: string | null
+          closed_at?: string | null
           created_at?: string
+          details?: Json | null
           device_id?: string | null
           id?: string
           message?: string
           read?: boolean
+          severity?: Database["public"]["Enums"]["alert_severity"] | null
+          state?: Database["public"]["Enums"]["alert_state"] | null
           type?: string
           user_id?: string
           widget_id?: string | null
@@ -51,6 +66,20 @@ export type Database = {
             columns: ["device_id"]
             isOneToOne: false
             referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alerts_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alerts_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "v_device_health"
             referencedColumns: ["id"]
           },
           {
@@ -108,13 +137,98 @@ export type Database = {
         }
         Relationships: []
       }
+      automation_rules: {
+        Row: {
+          actions: Json
+          conditions: Json | null
+          cooldown_seconds: number | null
+          created_at: string
+          description: string | null
+          device_id: string | null
+          enabled: boolean
+          execution_count: number | null
+          id: string
+          last_triggered_at: string | null
+          name: string
+          trigger_config: Json
+          trigger_type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          actions?: Json
+          conditions?: Json | null
+          cooldown_seconds?: number | null
+          created_at?: string
+          description?: string | null
+          device_id?: string | null
+          enabled?: boolean
+          execution_count?: number | null
+          id?: string
+          last_triggered_at?: string | null
+          name: string
+          trigger_config?: Json
+          trigger_type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          actions?: Json
+          conditions?: Json | null
+          cooldown_seconds?: number | null
+          created_at?: string
+          description?: string | null
+          device_id?: string | null
+          enabled?: boolean
+          execution_count?: number | null
+          id?: string
+          last_triggered_at?: string | null
+          name?: string
+          trigger_config?: Json
+          trigger_type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_rules_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_rules_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_rules_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "v_device_health"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_rules_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "v_devices_overview"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       broker_settings: {
         Row: {
           created_at: string
           id: string
           password: string | null
+          port: number | null
           updated_at: string
           url: string
+          use_tls: boolean | null
           user_id: string
           username: string | null
         }
@@ -122,8 +236,10 @@ export type Database = {
           created_at?: string
           id?: string
           password?: string | null
+          port?: number | null
           updated_at?: string
           url?: string
+          use_tls?: boolean | null
           user_id: string
           username?: string | null
         }
@@ -131,21 +247,101 @@ export type Database = {
           created_at?: string
           id?: string
           password?: string | null
+          port?: number | null
           updated_at?: string
           url?: string
+          use_tls?: boolean | null
           user_id?: string
           username?: string | null
         }
         Relationships: []
+      }
+      commands: {
+        Row: {
+          acknowledged_at: string | null
+          command: string
+          created_at: string
+          device_id: string
+          error_message: string | null
+          id: string
+          payload: Json | null
+          req_id: string | null
+          sent_at: string | null
+          status: Database["public"]["Enums"]["command_status"]
+          user_id: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          command: string
+          created_at?: string
+          device_id: string
+          error_message?: string | null
+          id?: string
+          payload?: Json | null
+          req_id?: string | null
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["command_status"]
+          user_id: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          command?: string
+          created_at?: string
+          device_id?: string
+          error_message?: string | null
+          id?: string
+          payload?: Json | null
+          req_id?: string | null
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["command_status"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commands_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commands_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commands_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "v_device_health"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commands_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "v_devices_overview"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       devices: {
         Row: {
           created_at: string
           device_id: string
           device_key: string
+          firmware: string | null
+          firmware_version: string | null
           id: string
+          last_seen: string | null
+          location: Json | null
+          metadata: Json | null
+          model: string | null
           name: string
           online: boolean
+          tags: string[] | null
           updated_at: string
           user_id: string
         }
@@ -153,9 +349,16 @@ export type Database = {
           created_at?: string
           device_id: string
           device_key: string
+          firmware?: string | null
+          firmware_version?: string | null
           id?: string
+          last_seen?: string | null
+          location?: Json | null
+          metadata?: Json | null
+          model?: string | null
           name: string
           online?: boolean
+          tags?: string[] | null
           updated_at?: string
           user_id: string
         }
@@ -163,37 +366,194 @@ export type Database = {
           created_at?: string
           device_id?: string
           device_key?: string
+          firmware?: string | null
+          firmware_version?: string | null
           id?: string
+          last_seen?: string | null
+          location?: Json | null
+          metadata?: Json | null
+          model?: string | null
           name?: string
           online?: boolean
+          tags?: string[] | null
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          action_url: string | null
+          created_at: string
+          id: string
+          message: string
+          metadata: Json | null
+          read: boolean
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          action_url?: string | null
+          created_at?: string
+          id?: string
+          message: string
+          metadata?: Json | null
+          read?: boolean
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          action_url?: string | null
+          created_at?: string
+          id?: string
+          message?: string
+          metadata?: Json | null
+          read?: boolean
+          title?: string
+          type?: string
           user_id?: string
         }
         Relationships: []
       }
       profiles: {
         Row: {
+          avatar_url: string | null
           created_at: string
           display_name: string | null
           email: string | null
           id: string
+          phone: string | null
+          timezone: string | null
           updated_at: string
         }
         Insert: {
+          avatar_url?: string | null
           created_at?: string
           display_name?: string | null
           email?: string | null
           id: string
+          phone?: string | null
+          timezone?: string | null
           updated_at?: string
         }
         Update: {
+          avatar_url?: string | null
           created_at?: string
           display_name?: string | null
           email?: string | null
           id?: string
+          phone?: string | null
+          timezone?: string | null
           updated_at?: string
         }
         Relationships: []
+      }
+      sim_circuits: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          json: Json
+          name: string
+          thumbnail_url: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          json: Json
+          name: string
+          thumbnail_url?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          json?: Json
+          name?: string
+          thumbnail_url?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      telemetry: {
+        Row: {
+          device_id: string
+          id: number
+          metadata: Json | null
+          topic: string
+          ts: string
+          v_json: Json | null
+          v_num: number | null
+          v_str: string | null
+          widget_id: string | null
+        }
+        Insert: {
+          device_id: string
+          id?: number
+          metadata?: Json | null
+          topic: string
+          ts?: string
+          v_json?: Json | null
+          v_num?: number | null
+          v_str?: string | null
+          widget_id?: string | null
+        }
+        Update: {
+          device_id?: string
+          id?: number
+          metadata?: Json | null
+          topic?: string
+          ts?: string
+          v_json?: Json | null
+          v_num?: number | null
+          v_str?: string | null
+          widget_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "telemetry_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "telemetry_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "telemetry_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "v_device_health"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "telemetry_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "v_devices_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "telemetry_widget_id_fkey"
+            columns: ["widget_id"]
+            isOneToOne: false
+            referencedRelation: "widgets"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
@@ -217,22 +577,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "user_roles_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_roles_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "v_users_overview"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       widgets: {
         Row: {
@@ -244,11 +589,14 @@ export type Database = {
           id: string
           label: string
           max_value: number | null
+          message: string | null
           min_value: number | null
           override_mode: boolean | null
           pin: number | null
           state: Json | null
+          trigger: string | null
           type: string
+          unit: string | null
           updated_at: string
         }
         Insert: {
@@ -260,11 +608,14 @@ export type Database = {
           id?: string
           label: string
           max_value?: number | null
+          message?: string | null
           min_value?: number | null
           override_mode?: boolean | null
           pin?: number | null
           state?: Json | null
+          trigger?: string | null
           type: string
+          unit?: string | null
           updated_at?: string
         }
         Update: {
@@ -276,11 +627,14 @@ export type Database = {
           id?: string
           label?: string
           max_value?: number | null
+          message?: string | null
           min_value?: number | null
           override_mode?: boolean | null
           pin?: number | null
           state?: Json | null
+          trigger?: string | null
           type?: string
+          unit?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -295,6 +649,20 @@ export type Database = {
             foreignKeyName: "widgets_device_id_fkey"
             columns: ["device_id"]
             isOneToOne: false
+            referencedRelation: "devices_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "widgets_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "v_device_health"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "widgets_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
             referencedRelation: "v_devices_overview"
             referencedColumns: ["id"]
           },
@@ -302,6 +670,57 @@ export type Database = {
       }
     }
     Views: {
+      devices_safe: {
+        Row: {
+          created_at: string | null
+          device_id: string | null
+          firmware: string | null
+          firmware_version: string | null
+          id: string | null
+          last_seen: string | null
+          location: Json | null
+          metadata: Json | null
+          model: string | null
+          name: string | null
+          online: boolean | null
+          tags: string[] | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          device_id?: string | null
+          firmware?: string | null
+          firmware_version?: string | null
+          id?: string | null
+          last_seen?: string | null
+          location?: Json | null
+          metadata?: Json | null
+          model?: string | null
+          name?: string | null
+          online?: boolean | null
+          tags?: string[] | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          device_id?: string | null
+          firmware?: string | null
+          firmware_version?: string | null
+          id?: string | null
+          last_seen?: string | null
+          location?: Json | null
+          metadata?: Json | null
+          model?: string | null
+          name?: string | null
+          online?: boolean | null
+          tags?: string[] | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       v_alerts_recent: {
         Row: {
           created_at: string | null
@@ -320,6 +739,20 @@ export type Database = {
             columns: ["device_id"]
             isOneToOne: false
             referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alerts_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alerts_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "v_device_health"
             referencedColumns: ["id"]
           },
           {
@@ -346,12 +779,47 @@ export type Database = {
         }
         Relationships: []
       }
+      v_device_health: {
+        Row: {
+          critical_alerts: number | null
+          device_id: string | null
+          failed_commands_24h: number | null
+          id: string | null
+          last_seen: string | null
+          name: string | null
+          online: boolean | null
+          seconds_offline: number | null
+          status: string | null
+        }
+        Insert: {
+          critical_alerts?: never
+          device_id?: string | null
+          failed_commands_24h?: never
+          id?: string | null
+          last_seen?: string | null
+          name?: string | null
+          online?: boolean | null
+          seconds_offline?: never
+          status?: never
+        }
+        Update: {
+          critical_alerts?: never
+          device_id?: string | null
+          failed_commands_24h?: never
+          id?: string | null
+          last_seen?: string | null
+          name?: string | null
+          online?: boolean | null
+          seconds_offline?: never
+          status?: never
+        }
+        Relationships: []
+      }
       v_devices_overview: {
         Row: {
           alert_count: number | null
           created_at: string | null
           device_id: string | null
-          device_key: string | null
           id: string | null
           name: string | null
           online: boolean | null
@@ -393,6 +861,29 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      create_device: {
+        Args: { _device_id: string; _name: string; _user_id?: string }
+        Returns: string
+      }
+      dashboard_next_booking: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+          parish: string
+          pro_name: string
+          professional_id: string
+          service_id: string
+          starts_at: string
+          title: string
+        }[]
+      }
+      get_device_key_once: {
+        Args: { p_device_id: string }
+        Returns: {
+          device_key: string
+          time_remaining_seconds: number
+        }[]
+      }
       get_master_kpis: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -408,7 +899,7 @@ export type Database = {
         }[]
       }
       get_user_role: {
-        Args: { _user_id: string }
+        Args: { _user_id?: string }
         Returns: Database["public"]["Enums"]["app_role"]
       }
       has_role: {
@@ -426,9 +917,34 @@ export type Database = {
         Args: { uid?: string }
         Returns: boolean
       }
+      log_audit_event: {
+        Args: {
+          _action: string
+          _actor_email: string
+          _actor_role: Database["public"]["Enums"]["app_role"]
+          _details?: Json
+          _resource?: string
+        }
+        Returns: string
+      }
+      rotate_device_key: {
+        Args: { p_device_id: string }
+        Returns: string
+      }
+      user_owns_device: {
+        Args: { _device_id: string; _user_id?: string }
+        Returns: boolean
+      }
+      user_owns_widget: {
+        Args: { _user_id?: string; _widget_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
-      app_role: "master" | "admin" | "developer" | "technician" | "user"
+      alert_severity: "info" | "warn" | "crit"
+      alert_state: "open" | "ack" | "closed"
+      app_role: "user" | "technician" | "developer" | "admin" | "master"
+      command_status: "pending" | "sent" | "acknowledged" | "failed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -556,7 +1072,10 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["master", "admin", "developer", "technician", "user"],
+      alert_severity: ["info", "warn", "crit"],
+      alert_state: ["open", "ack", "closed"],
+      app_role: ["user", "technician", "developer", "admin", "master"],
+      command_status: ["pending", "sent", "acknowledged", "failed"],
     },
   },
 } as const
