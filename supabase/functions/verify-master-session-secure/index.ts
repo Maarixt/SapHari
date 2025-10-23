@@ -26,7 +26,14 @@ Deno.serve(async (req) => {
     // Verify JWT signature and expiry
     let payload
     try {
-      payload = await verify(sessionToken, jwtSecret, 'HS256')
+      const key = await crypto.subtle.importKey(
+        'raw',
+        new TextEncoder().encode(jwtSecret),
+        { name: 'HMAC', hash: 'SHA-256' },
+        false,
+        ['verify']
+      )
+      payload = await verify(sessionToken, key, 'HS256')
     } catch (error) {
       console.log('JWT verification failed:', error.message)
       return new Response(

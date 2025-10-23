@@ -173,10 +173,19 @@ Deno.serve(async (req) => {
       jti: crypto.randomUUID() // JWT ID for token revocation tracking
     }
 
+    // Import HMAC key for djwt (v3 requires CryptoKey)
+    const key = await crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(jwtSecret),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign']
+    )
+
     const jwt = await create(
       { alg: 'HS256', typ: 'JWT' },
       payload,
-      jwtSecret
+      key
     )
 
     // Log successful master login to both tables
