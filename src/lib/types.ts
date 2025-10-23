@@ -38,6 +38,7 @@ export interface User {
   last_login?: string;
   status?: 'active' | 'suspended' | 'pending' | 'locked';
   created_at: string;
+  updated_at: string;
   tenants?: {
     name: string;
   };
@@ -88,12 +89,15 @@ export interface Alert {
 }
 
 export interface AuditLog {
-  id: number;
-  actor: string;
-  tenant_id?: string;
+  id: string;
   action: string;
-  subject?: string;
-  meta?: Record<string, unknown>;
+  actor_email: string;
+  actor_role: string;
+  resource?: string;
+  details?: Record<string, unknown>;
+  ip_address?: string;
+  user_agent?: string;
+  timestamp?: string;
   created_at: string;
   profiles?: {
     id: string;

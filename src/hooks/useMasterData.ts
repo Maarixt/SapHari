@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
-// Fetch KPIs from Edge Function (safer) or fallback to view
+// Fetch KPIs from Edge Function (safer) or fallback to direct queries
 export function useMasterKPIs() {
   return useQuery({
     queryKey: ['master-kpis'],
@@ -24,28 +24,29 @@ export function useMasterKPIs() {
           }
         }
       } catch (error) {
-        console.warn('Edge function not available, falling back to view:', error);
+        console.warn('Edge function not available, using fallback:', error);
       }
 
-      // Fallback to view
-      const { data, error } = await supabase
-        .from('v_master_kpis')
-        .select('*')
-        .single();
+      // Fallback to direct queries
+      const [profilesRes, devicesRes, alertsRes] = await Promise.all([
+        supabase.from('profiles').select('id', { count: 'exact', head: true }),
+        supabase.from('devices').select('id, online', { count: 'exact' }),
+        supabase.from('alerts').select('id').gte('created_at', new Date(Date.now() - 24*60*60*1000).toISOString())
+      ]);
       
-      if (error) throw error;
+      const onlineDevices = devicesRes.data?.filter(d => d.online).length || 0;
+      const totalDevices = devicesRes.count || 0;
       
-      // Format for consistency
       return {
-        totalUsers: data.total_users,
-        onlineDevices: data.online_devices,
-        offlineDevices: data.offline_devices,
-        storageUsage: '0 Bytes', // Placeholder
+        totalUsers: profilesRes.count || 0,
+        onlineDevices,
+        offlineDevices: totalDevices - onlineDevices,
+        storageUsage: '0 Bytes',
         uptime: '99.9%',
-        alerts24h: data.alerts_24h
+        alerts24h: alertsRes.data?.length || 0
       };
     },
-    refetchInterval: 30000, // 30 seconds
+    refetchInterval: 30000,
     staleTime: 15000
   });
 }
@@ -56,31 +57,82 @@ export function useMasterDevices() {
     queryKey: ['master-devices'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('v_devices_overview')
+        .from('devices')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(300);
       
       if (error) throw error;
-      return data;
+      
+      // Fetch profiles separately for owners
+      const userIds = [...new Set((data || []).map(d => d.user_id))];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, email, display_name')
+        .in('id', userIds);
+      
+      const profilesMap = new Map(profiles?.map(p => [p.id, p]) || []);
+      
+      // Map to expected format
+      return (data || []).map(device => {
+        const profile = profilesMap.get(device.user_id);
+        return {
+          id: device.id,
+          device_id: device.device_id,
+          name: device.name,
+          model: device.model,
+          firmware: device.firmware,
+          firmware_version: device.firmware_version,
+          online: device.online,
+          last_seen: device.last_seen,
+          created_at: device.created_at,
+          updated_at: device.updated_at,
+          user_id: device.user_id,
+          owner_id: device.user_id,
+          profiles: profile ? {
+            id: profile.id,
+            email: profile.email || '',
+            full_name: profile.display_name || profile.email || 'Unknown'
+          } : undefined
+        };
+      });
     },
     refetchInterval: 15000
   });
 }
 
-// Fetch users overview
+// Fetch users overview  
 export function useMasterUsers() {
   return useQuery({
     queryKey: ['master-users'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('v_users_overview')
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(300);
       
-      if (error) throw error;
-      return data;
+      if (profilesError) throw profilesError;
+      
+      // Fetch roles separately
+      const { data: roles } = await supabase
+        .from('user_roles')
+        .select('user_id, role');
+      
+      const rolesMap = new Map(roles?.map(r => [r.user_id, r.role]) || []);
+      
+      // Map to expected format
+      return (profiles || []).map(profile => ({
+        id: profile.id,
+        email: profile.email || '',
+        display_name: profile.display_name,
+        full_name: profile.display_name,
+        role: rolesMap.get(profile.id) || 'user',
+        status: 'active',
+        created_at: profile.created_at,
+        updated_at: profile.updated_at,
+        last_login: undefined
+      }));
     },
     refetchInterval: 30000
   });
@@ -92,12 +144,13 @@ export function useMasterAlerts() {
     queryKey: ['master-alerts'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('v_alerts_recent')
+        .from('alerts')
         .select('*')
+        .order('created_at', { ascending: false })
         .limit(500);
       
       if (error) throw error;
-      return data;
+      return data || [];
     },
     refetchInterval: 10000
   });
@@ -109,12 +162,13 @@ export function useMasterAudit() {
     queryKey: ['master-audit'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('v_audit_recent')
+        .from('audit_logs')
         .select('*')
+        .order('created_at', { ascending: false })
         .limit(500);
       
       if (error) throw error;
-      return data;
+      return data || [];
     },
     refetchInterval: 10000
   });
