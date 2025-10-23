@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertTriangle, RefreshCw, Users, Cpu, Database, Activity, TestTube, Shield, BarChart3, Settings, TrendingUp, CheckCircle } from 'lucide-react';
 import { fetchMasterMetrics, fetchFleetKPIs, fetchDeviceHealth, fetchRecentEvents } from '@/lib/api';
 import { useMasterAccount } from '@/hooks/useMasterAccount';
+import { useMasterRealtime } from '@/hooks/useMasterData';
 import { OverviewTab } from '@/components/master/OverviewTab';
 import { DiagnosticsTab } from '@/components/master/DiagnosticsTab';
 import { UsersTab } from '@/components/master/UsersTab';
@@ -61,6 +62,13 @@ export default function MasterDashboard() {
   const [kpis, setKpis] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Subscribe to real-time database changes
+  const { refetch: subscribeRealtime } = useMasterRealtime();
+  
+  useEffect(() => {
+    subscribeRealtime();
+  }, [subscribeRealtime]);
 
   const loadKPIs = async () => {
     try {

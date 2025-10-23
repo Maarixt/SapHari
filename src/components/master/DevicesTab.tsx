@@ -1,5 +1,5 @@
 // Master Dashboard Devices Tab with Enhanced Features
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -56,6 +56,7 @@ import {
 } from 'lucide-react';
 import { useMasterDevices } from '@/hooks/useMasterDashboard';
 import { useToast } from '@/hooks/use-toast';
+import { DeviceStore } from '@/state/deviceStore';
 
 interface Device {
   id: string;
@@ -258,8 +259,24 @@ export function DevicesTab() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [firmwareFilter, setFirmwareFilter] = useState('all');
   const [ownerFilter, setOwnerFilter] = useState('all');
+  const [, setTick] = useState(0);
 
-  const { data: devices, isLoading, error } = useMasterDevices();
+  // Subscribe to live DeviceStore updates
+  useEffect(() => {
+    return DeviceStore.subscribe(() => setTick(x => x + 1));
+  }, []);
+
+  const { data: dbDevices, isLoading, error } = useMasterDevices();
+  
+  // Merge database devices with live DeviceStore presence
+  const devices = dbDevices?.map((device: Device) => {
+    const liveState = DeviceStore.get(device.device_id);
+    return {
+      ...device,
+      online: liveState?.online ?? device.online,
+      last_seen: liveState?.lastSeen ? new Date(liveState.lastSeen).toISOString() : device.last_seen
+    };
+  });
 
   const filteredDevices = devices?.filter((device: Device) => {
     const matchesSearch = device.name.toLowerCase().includes(searchTerm.toLowerCase()) ||

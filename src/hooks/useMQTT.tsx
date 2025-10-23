@@ -125,9 +125,22 @@ export const MQTTProvider = ({ children }: { children: React.ReactNode }) => {
               
               // Handle device online/offline status
               if (channel === 'status') {
+                const isOnline = message === 'online';
                 import('@/state/deviceStore').then(({ DeviceStore }) => {
-                  DeviceStore.setOnline(deviceId, message === 'online');
+                  DeviceStore.setOnline(deviceId, isOnline);
                 });
+                
+                // Update database for global visibility
+                supabase
+                  .from('devices')
+                  .update({ 
+                    online: isOnline,
+                    last_seen: new Date().toISOString()
+                  })
+                  .eq('device_id', deviceId)
+                  .then(({ error }) => {
+                    if (error) console.error('Failed to update device status in DB:', error);
+                  });
               }
               
               // Handle device state updates
@@ -140,6 +153,15 @@ export const MQTTProvider = ({ children }: { children: React.ReactNode }) => {
                       online: true
                     });
                   });
+                  
+                  // Update last_seen in database
+                  supabase
+                    .from('devices')
+                    .update({ last_seen: new Date().toISOString() })
+                    .eq('device_id', deviceId)
+                    .then(({ error }) => {
+                      if (error) console.error('Failed to update device last_seen:', error);
+                    });
                 } catch (e) {
                   console.error('Failed to parse MQTT state:', e);
                 }

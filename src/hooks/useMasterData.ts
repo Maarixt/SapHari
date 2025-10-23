@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
 // Fetch KPIs from Edge Function (safer) or fallback to direct queries
@@ -161,7 +161,9 @@ export function useMasterAudit() {
 }
 
 // Real-time subscriptions for Master Dashboard
-export function useMasterRealtime(onUpdate?: () => void) {
+export function useMasterRealtime() {
+  const queryClient = useQueryClient();
+  
   return useQuery({
     queryKey: ['master-realtime'],
     queryFn: async () => {
@@ -170,29 +172,38 @@ export function useMasterRealtime(onUpdate?: () => void) {
         .on('postgres_changes', 
           { event: '*', schema: 'public', table: 'devices' },
           () => {
-            console.log('Device change detected');
-            onUpdate?.();
+            console.log('Device change detected - invalidating queries');
+            queryClient.invalidateQueries({ queryKey: ['master-devices'] });
+            queryClient.invalidateQueries({ queryKey: ['master-kpis'] });
           }
         )
         .on('postgres_changes', 
           { event: '*', schema: 'public', table: 'alerts' },
           () => {
-            console.log('Alert change detected');
-            onUpdate?.();
+            console.log('Alert change detected - invalidating queries');
+            queryClient.invalidateQueries({ queryKey: ['master-alerts'] });
+            queryClient.invalidateQueries({ queryKey: ['master-kpis'] });
           }
         )
         .on('postgres_changes', 
           { event: '*', schema: 'public', table: 'audit_logs' },
           () => {
-            console.log('Audit log change detected');
-            onUpdate?.();
+            console.log('Audit log change detected - invalidating queries');
+            queryClient.invalidateQueries({ queryKey: ['master-audit'] });
           }
         )
         .on('postgres_changes',
           { event: '*', schema: 'public', table: 'profiles' },
           () => {
-            console.log('Profile change detected');
-            onUpdate?.();
+            console.log('Profile change detected - invalidating queries');
+            queryClient.invalidateQueries({ queryKey: ['master-users'] });
+          }
+        )
+        .on('postgres_changes',
+          { event: '*', schema: 'public', table: 'user_roles' },
+          () => {
+            console.log('User role change detected - invalidating queries');
+            queryClient.invalidateQueries({ queryKey: ['master-users'] });
           }
         )
         .subscribe();
