@@ -115,6 +115,39 @@ export const MQTTProvider = ({ children }: { children: React.ReactNode }) => {
 
         mqttClient.on('message', (topic, payload) => {
           const message = payload.toString();
+          
+          // Update DeviceStore for device state tracking
+          if (topic.startsWith('saphari/')) {
+            const parts = topic.split('/');
+            if (parts.length >= 3) {
+              const deviceId = parts[1];
+              const channel = parts[2]; // 'status', 'state', 'sensor', etc.
+              
+              // Handle device online/offline status
+              if (channel === 'status') {
+                import('@/state/deviceStore').then(({ DeviceStore }) => {
+                  DeviceStore.setOnline(deviceId, message === 'online');
+                });
+              }
+              
+              // Handle device state updates
+              if (channel === 'state' || channel === 'sensor') {
+                try {
+                  const stateData = JSON.parse(message);
+                  import('@/state/deviceStore').then(({ DeviceStore }) => {
+                    DeviceStore.upsertState(deviceId, {
+                      sensors: stateData,
+                      online: true
+                    });
+                  });
+                } catch (e) {
+                  console.error('Failed to parse MQTT state:', e);
+                }
+              }
+            }
+          }
+          
+          // Call all registered callbacks
           messageCallbacks.current.forEach(callback => {
             callback(topic, message);
           });

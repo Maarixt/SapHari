@@ -6,48 +6,33 @@ export function useMasterKPIs() {
   return useQuery({
     queryKey: ['master-kpis'],
     queryFn: async () => {
-      // Try Edge function first
-      try {
-        const { data: session } = await supabase.auth.getSession();
-        if (session?.session?.access_token) {
-          const response = await fetch(
-            'https://wrdeomgtkbehvbfhiprm.supabase.co/functions/v1/master-kpis',
-            {
-              headers: {
-                Authorization: `Bearer ${session.session.access_token}`,
-                'Content-Type': 'application/json'
-              }
-            }
-          );
-          if (response.ok) {
-            return await response.json();
-          }
-        }
-      } catch (error) {
-        console.warn('Edge function not available, using fallback:', error);
-      }
-
-      // Fallback to direct queries
+      // Use direct Supabase queries (RLS policies check for master role)
       const [profilesRes, devicesRes, alertsRes] = await Promise.all([
         supabase.from('profiles').select('id', { count: 'exact', head: true }),
         supabase.from('devices').select('id, online', { count: 'exact' }),
         supabase.from('alerts').select('id').gte('created_at', new Date(Date.now() - 24*60*60*1000).toISOString())
       ]);
       
+      if (profilesRes.error) throw profilesRes.error;
+      if (devicesRes.error) throw devicesRes.error;
+      if (alertsRes.error) throw alertsRes.error;
+      
       const onlineDevices = devicesRes.data?.filter(d => d.online).length || 0;
       const totalDevices = devicesRes.count || 0;
       
       return {
-        totalUsers: profilesRes.count || 0,
-        onlineDevices,
-        offlineDevices: totalDevices - onlineDevices,
-        storageUsage: '0 Bytes',
-        uptime: '99.9%',
-        alerts24h: alertsRes.data?.length || 0
+        total_users: profilesRes.count || 0,
+        devices_online: onlineDevices,
+        devices_offline: totalDevices - onlineDevices,
+        critical_alerts_24h: alertsRes.data?.length || 0,
+        errors_24h: 0,
+        mqtt_messages_24h: 0,
+        mqtt_bytes_24h: 0,
+        generated_at: new Date().toISOString()
       };
     },
-    refetchInterval: 30000,
-    staleTime: 15000
+    refetchInterval: 5000, // Refresh every 5 seconds for real-time feel
+    staleTime: 2000
   });
 }
 
@@ -97,7 +82,8 @@ export function useMasterDevices() {
         };
       });
     },
-    refetchInterval: 15000
+    refetchInterval: 3000, // Refresh every 3 seconds for real-time updates
+    staleTime: 1000
   });
 }
 
@@ -183,15 +169,31 @@ export function useMasterRealtime(onUpdate?: () => void) {
         .channel('master-dashboard-realtime')
         .on('postgres_changes', 
           { event: '*', schema: 'public', table: 'devices' },
-          () => onUpdate?.()
+          () => {
+            console.log('Device change detected');
+            onUpdate?.();
+          }
         )
         .on('postgres_changes', 
           { event: '*', schema: 'public', table: 'alerts' },
-          () => onUpdate?.()
+          () => {
+            console.log('Alert change detected');
+            onUpdate?.();
+          }
         )
         .on('postgres_changes', 
           { event: '*', schema: 'public', table: 'audit_logs' },
-          () => onUpdate?.()
+          () => {
+            console.log('Audit log change detected');
+            onUpdate?.();
+          }
+        )
+        .on('postgres_changes',
+          { event: '*', schema: 'public', table: 'profiles' },
+          () => {
+            console.log('Profile change detected');
+            onUpdate?.();
+          }
         )
         .subscribe();
 

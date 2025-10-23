@@ -23,16 +23,16 @@ import type {
 
 export async function fetchMasterMetrics(supabase: SupabaseClient) {
   try {
-    const session = await supabase.auth.getSession();
-    const accessToken = session.data.session?.access_token;
+    // Use master JWT from localStorage, not regular auth token
+    const masterToken = localStorage.getItem('saphari_master_session');
     
-    if (!accessToken) {
-      throw new Error('No access token available');
+    if (!masterToken) {
+      throw new Error('No master session token available');
     }
 
     const res = await fetch("/functions/v1/master-metrics", {
       headers: { 
-        Authorization: `Bearer ${accessToken}`,
+        Authorization: `Bearer ${masterToken}`,
         'Content-Type': 'application/json'
       }
     });

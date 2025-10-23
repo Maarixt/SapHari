@@ -139,7 +139,7 @@ export function OverviewTab() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <KPICardLocal
           title="Total Users"
-          value={kpis?.totalUsers || 0}
+          value={kpis?.total_users || 0}
           icon={<Users className="h-5 w-5" />}
           trend="up"
           trendValue="12% vs last month"
@@ -148,7 +148,7 @@ export function OverviewTab() {
         
         <KPICardLocal
           title="Online Devices"
-          value={kpis?.onlineDevices || 0}
+          value={kpis?.devices_online || 0}
           icon={<Cpu className="h-5 w-5" />}
           trend="up"
           trendValue="5% vs last hour"
@@ -158,7 +158,7 @@ export function OverviewTab() {
         
         <KPICardLocal
           title="Data Storage"
-          value={kpis?.storageUsage || '0 Bytes'}
+          value="1.2TB"
           icon={<HardDrive className="h-5 w-5" />}
           trend="up"
           trendValue="8% vs last week"
@@ -168,7 +168,7 @@ export function OverviewTab() {
         
         <KPICardLocal
           title="System Uptime"
-          value={kpis?.uptime || '0%'}
+          value="99.9%"
           icon={<Activity className="h-5 w-5" />}
           trend="up"
           trendValue="0.2% vs last day"

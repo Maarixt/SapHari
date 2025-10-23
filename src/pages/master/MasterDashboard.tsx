@@ -67,16 +67,9 @@ export default function MasterDashboard() {
       setLoading(true);
       setError(null);
       
-      // Try to fetch from Edge Function first
-      try {
-        const metrics = await fetchMasterMetrics(supabase);
-        setKpis(metrics.kpis);
-      } catch (edgeError) {
-        console.warn('Edge function failed, trying RPC:', edgeError);
-        // Fallback to RPC
-        const kpiData = await fetchFleetKPIs(supabase);
-        setKpis(kpiData);
-      }
+      // Use direct Supabase RPC (checks master role via RLS)
+      const kpiData = await fetchFleetKPIs(supabase);
+      setKpis(kpiData);
     } catch (err) {
       console.error('Error loading KPIs:', err);
       setError(err instanceof Error ? err.message : 'Failed to load master data');
@@ -87,6 +80,11 @@ export default function MasterDashboard() {
 
   useEffect(() => {
     loadKPIs();
+    
+    // Set up real-time updates every 5 seconds
+    const interval = setInterval(loadKPIs, 5000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   return (
