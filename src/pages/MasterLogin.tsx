@@ -34,6 +34,56 @@ export default function MasterLogin() {
     }
   };
 
+  // Helper to format error messages
+  const getErrorDisplay = () => {
+    if (!error) return null;
+    
+    // Check for specific error types
+    if (error.includes('Master account not configured') || error.includes('profile not found')) {
+      return (
+        <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4 animate-in fade-in slide-in-from-top-2">
+          <p className="text-sm font-semibold text-amber-800 dark:text-amber-200 mb-2">
+            Master Account Setup Required
+          </p>
+          <p className="text-sm text-amber-700 dark:text-amber-300 mb-3">
+            You need to create a regular account first before using master login.
+          </p>
+          <ol className="text-xs text-amber-700 dark:text-amber-300 space-y-1 mb-3 list-decimal list-inside">
+            <li>Click "Back to Normal Login" below</li>
+            <li>Sign up with your master email ({email})</li>
+            <li>Return here to log in as master</li>
+          </ol>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate('/signup')}
+            className="w-full border-amber-300 text-amber-800 hover:bg-amber-100"
+          >
+            Go to Sign Up
+          </Button>
+        </div>
+      );
+    }
+    
+    if (error.includes('wait 10 minutes') || error.includes('Too many')) {
+      return (
+        <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 animate-in fade-in slide-in-from-top-2">
+          <p className="text-sm font-semibold text-destructive mb-1">Rate Limit Exceeded</p>
+          <p className="text-sm text-destructive/80">
+            {error}
+          </p>
+        </div>
+      );
+    }
+    
+    // Default error display
+    return (
+      <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 animate-in fade-in slide-in-from-top-2">
+        <p className="text-sm text-destructive font-medium">{error}</p>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted p-4">
       <Card className="w-full max-w-md border-primary/20 shadow-2xl">
@@ -116,11 +166,7 @@ export default function MasterLogin() {
               </div>
             )}
 
-            {error && (
-              <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 animate-in fade-in slide-in-from-top-2">
-                <p className="text-sm text-destructive font-medium">{error}</p>
-              </div>
-            )}
+            {getErrorDisplay()}
 
             <Button
               type="submit"

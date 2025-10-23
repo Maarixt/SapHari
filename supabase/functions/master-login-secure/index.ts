@@ -102,8 +102,20 @@ Deno.serve(async (req) => {
 
     if (!profile) {
       console.log('Master profile not found')
+      
+      // Log the failed attempt
+      await supabaseAdmin.from('master_login_attempts').insert({
+        email,
+        success: false,
+        ip_address: ipAddress,
+        user_agent: userAgent
+      })
+      
       return new Response(
-        JSON.stringify({ error: 'Master account not configured. Create account via normal signup first.' }),
+        JSON.stringify({ 
+          error: 'Master account not configured. Create account via normal signup first.',
+          needsSignup: true 
+        }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
