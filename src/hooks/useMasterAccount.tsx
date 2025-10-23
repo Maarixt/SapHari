@@ -26,30 +26,35 @@ export const MasterAccountProvider = ({ children }: MasterAccountProviderProps) 
   const isMaster = isMasterAccount(userRole);
   const permissions = getRolePermissions(userRole);
 
-  // Check for existing master session on mount
+  // Check for existing master session on mount - ALWAYS verify server-side
   useEffect(() => {
     const checkMasterSession = async () => {
       try {
-        const storedRole = localStorage.getItem('saphari_user_role') as UserRole;
         const sessionToken = localStorage.getItem('saphari_master_session');
         
-        if (storedRole && isMasterAccount(storedRole) && sessionToken) {
-          // Verify session is still valid
-          const { data, error } = await supabase.functions.invoke('verify-master-session', {
+        // CRITICAL: Never trust localStorage role - always verify server-side
+        if (sessionToken) {
+          // Verify session with secure endpoint
+          const { data, error } = await supabase.functions.invoke('verify-master-session-secure', {
             body: { sessionToken }
           });
           
-          if (!error && data?.ok) {
+          if (!error && data?.ok && data?.role === 'master') {
+            // Only set master role if server confirms it
             setUserRole('master');
           } else {
-            localStorage.removeItem('saphari_user_role');
+            // Clear invalid session
             localStorage.removeItem('saphari_master_session');
+            localStorage.removeItem('saphari_master_email');
+            localStorage.removeItem('saphari_master_login_time');
           }
         }
       } catch (error) {
         console.error('Failed to verify master session:', error);
-        localStorage.removeItem('saphari_user_role');
+        // Clear session on error
         localStorage.removeItem('saphari_master_session');
+        localStorage.removeItem('saphari_master_email');
+        localStorage.removeItem('saphari_master_login_time');
       }
     };
 
@@ -61,22 +66,31 @@ export const MasterAccountProvider = ({ children }: MasterAccountProviderProps) 
     setError(null);
 
     try {
-      // Call master-login edge function
-      const { data, error: loginError } = await supabase.functions.invoke('master-login', {
+      // Call secure master-login edge function with JWT signing
+      const { data, error: loginError } = await supabase.functions.invoke('master-login-secure', {
         body: { email, password, twoFactorCode }
       });
 
       if (loginError || !data?.ok) {
-        setError(data?.error || 'Invalid master credentials');
+        // Handle rate limiting
+        if (data?.rateLimited) {
+          setError(data.error || 'Too many attempts. Please wait 10 minutes.');
+        } else {
+          setError(data?.error || 'Invalid master credentials');
+        }
         return false;
       }
 
-      // Set master role
+      // CRITICAL: Only set role after successful server verification
+      // Never trust client-side checks - the JWT is signed and verified server-side
       setUserRole('master');
-      localStorage.setItem('saphari_user_role', 'master');
+      
+      // Store ONLY the session token (no role in localStorage)
       localStorage.setItem('saphari_master_session', data.sessionToken);
+      localStorage.setItem('saphari_master_email', email);
       localStorage.setItem('saphari_master_login_time', new Date().toISOString());
 
+      console.log('Master login successful - JWT token stored');
       return true;
     } catch (error) {
       setError('Login failed. Please try again.');
@@ -92,21 +106,19 @@ export const MasterAccountProvider = ({ children }: MasterAccountProviderProps) 
     const sessionToken = localStorage.getItem('saphari_master_session');
     const email = localStorage.getItem('saphari_master_email');
     
-    console.log('Session token:', sessionToken ? 'exists' : 'missing');
-    console.log('Email:', email || 'missing');
-    
     // Log master logout for audit
     supabase.functions.invoke('master-logout', {
       body: { sessionToken, email }
     }).catch(console.error);
 
     setUserRole('user');
-    localStorage.removeItem('saphari_user_role');
+    
+    // Clear all master session data
     localStorage.removeItem('saphari_master_session');
     localStorage.removeItem('saphari_master_email');
     localStorage.removeItem('saphari_master_login_time');
     
-    console.log('LocalStorage cleared, navigating to master-login');
+    console.log('Master session cleared, redirecting to login');
     
     // Force page reload to clear all state and navigate to master login
     window.location.href = '/master-login';
