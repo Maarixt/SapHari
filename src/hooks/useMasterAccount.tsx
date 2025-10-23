@@ -66,13 +66,28 @@ export const MasterAccountProvider = ({ children }: MasterAccountProviderProps) 
     setError(null);
 
     try {
-      // Call secure master-login edge function with JWT signing
+      // 1) Ensure Supabase auth session for RLS (sign in or create account)
+      let sessionRes = await supabase.auth.signInWithPassword({ email, password });
+      if (sessionRes.error) {
+        // If user doesn't exist, create it (normal signup flow)
+        const signUpRes = await supabase.auth.signUp({ email, password });
+        if (signUpRes.error) {
+          // If signup also failed, surface error
+          throw new Error(signUpRes.error.message || 'Failed to authenticate');
+        }
+        // After signup, sign in again
+        sessionRes = await supabase.auth.signInWithPassword({ email, password });
+        if (sessionRes.error) {
+          throw new Error(sessionRes.error.message || 'Failed to authenticate');
+        }
+      }
+
+      // 2) Obtain signed master session token (and ensure role exists)
       const { data, error: loginError } = await supabase.functions.invoke('master-login-secure', {
         body: { email, password, twoFactorCode }
       });
 
       if (loginError || !data?.ok) {
-        // Handle rate limiting
         if (data?.rateLimited) {
           setError(data.error || 'Too many attempts. Please wait 10 minutes.');
         } else {
@@ -81,19 +96,18 @@ export const MasterAccountProvider = ({ children }: MasterAccountProviderProps) 
         return false;
       }
 
-      // CRITICAL: Only set role after successful server verification
-      // Never trust client-side checks - the JWT is signed and verified server-side
+      // 3) Mark as master only after server verification
       setUserRole('master');
-      
-      // Store ONLY the session token (no role in localStorage)
+
+      // Store only the signed master session token
       localStorage.setItem('saphari_master_session', data.sessionToken);
       localStorage.setItem('saphari_master_email', email);
       localStorage.setItem('saphari_master_login_time', new Date().toISOString());
 
-      console.log('Master login successful - JWT token stored');
+      console.log('Master login successful - Supabase session + master JWT ready');
       return true;
-    } catch (error) {
-      setError('Login failed. Please try again.');
+    } catch (error: any) {
+      setError(error?.message || 'Login failed. Please try again.');
       console.error('Master login error:', error);
       return false;
     } finally {
