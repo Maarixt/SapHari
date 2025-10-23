@@ -339,6 +339,66 @@ export type Database = {
         }
         Relationships: []
       }
+      master_2fa_secrets: {
+        Row: {
+          backup_codes_encrypted: string[] | null
+          created_at: string
+          enabled: boolean
+          id: string
+          last_used_at: string | null
+          secret_encrypted: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          backup_codes_encrypted?: string[] | null
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          last_used_at?: string | null
+          secret_encrypted: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          backup_codes_encrypted?: string[] | null
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          last_used_at?: string | null
+          secret_encrypted?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      master_login_attempts: {
+        Row: {
+          attempt_time: string
+          email: string
+          id: string
+          ip_address: string | null
+          success: boolean
+          user_agent: string | null
+        }
+        Insert: {
+          attempt_time?: string
+          email: string
+          id?: string
+          ip_address?: string | null
+          success?: boolean
+          user_agent?: string | null
+        }
+        Update: {
+          attempt_time?: string
+          email?: string
+          id?: string
+          ip_address?: string | null
+          success?: boolean
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           action_url: string | null
@@ -653,8 +713,9 @@ export type Database = {
       }
     }
     Functions: {
-      can_access_master_features: {
-        Args: Record<PropertyKey, never>
+      can_access_master_features: { Args: never; Returns: boolean }
+      check_master_login_rate_limit: {
+        Args: { p_email: string; p_ip_address?: string }
         Returns: boolean
       }
       create_device: {
@@ -662,7 +723,7 @@ export type Database = {
         Returns: string
       }
       dashboard_next_booking: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           id: string
           parish: string
@@ -681,7 +742,7 @@ export type Database = {
         }[]
       }
       get_master_kpis: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           critical_alerts_24h: number
           devices_offline: number
@@ -705,14 +766,8 @@ export type Database = {
         }
         Returns: boolean
       }
-      is_master: {
-        Args: { uid?: string }
-        Returns: boolean
-      }
-      is_master_user: {
-        Args: { uid?: string }
-        Returns: boolean
-      }
+      is_master: { Args: { uid?: string }; Returns: boolean }
+      is_master_user: { Args: { uid?: string }; Returns: boolean }
       log_audit_event: {
         Args: {
           _action: string
@@ -723,10 +778,7 @@ export type Database = {
         }
         Returns: string
       }
-      rotate_device_key: {
-        Args: { p_device_id: string }
-        Returns: string
-      }
+      rotate_device_key: { Args: { p_device_id: string }; Returns: string }
       user_owns_device: {
         Args: { _device_id: string; _user_id?: string }
         Returns: boolean
