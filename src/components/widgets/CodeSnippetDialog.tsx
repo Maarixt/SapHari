@@ -86,8 +86,34 @@ ServoMap SERVOS[] = {
   ${servos || '// none'}
 };
 
-// Alert rules are now managed through the Alert Rules system
-// Use the Alert Rules dialog to configure notifications and code snippets`;
+// ========================================
+// MQTT Topics to Publish
+// ========================================
+
+// 1. Device Status (publish when connecting)
+Topic: saphari/${device.device_id}/status/online
+Payload: "online"
+
+// 2. GPIO State (publish when pin changes)
+Topic: saphari/${device.device_id}/gpio/{PIN_NUMBER}
+Payload: 1 or 0
+Example: saphari/${device.device_id}/gpio/2
+         Payload: 1
+
+// 3. Sensor Data (publish periodically)
+Topic: saphari/${device.device_id}/sensor/{SENSOR_NAME}
+Payload: numeric value
+Example: saphari/${device.device_id}/sensor/tempC
+         Payload: 25.5
+
+// 4. Gauge Data (publish when value changes)
+Topic: saphari/${device.device_id}/gauge/{GAUGE_NAME}
+Payload: numeric value
+Example: saphari/${device.device_id}/gauge/waterLevel
+         Payload: 75
+
+// Alert rules are managed through the Alert Rules dialog
+// Use the bell icon to configure notifications`;
   };
 
   return (
