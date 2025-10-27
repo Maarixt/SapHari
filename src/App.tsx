@@ -16,6 +16,8 @@ import { RequireMaster } from "@/components/auth/RequireRole";
 import { MasterLayout } from "@/components/master/MasterLayout";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { connectMqtt } from "@/services/mqtt";
+import { NotificationPermissionBanner } from "@/components/alerts/NotificationPermissionBanner";
+import AlertRulesModal from "@/components/alerts/AlertRulesModal";
 
 const queryClient = new QueryClient();
 
@@ -28,6 +30,8 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
+        <AlertRulesModal />
+        <NotificationPermissionBanner />
         <AuthProvider>
           <MasterAccountProvider>
             <BrowserRouter future={{ v7_startTransition: true }}>

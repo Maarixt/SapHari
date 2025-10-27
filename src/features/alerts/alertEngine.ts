@@ -82,9 +82,22 @@ export const AlertEngine = {
 // Time: ${new Date(now).toISOString()}`;
       SnippetBus.emitSnippet(code, { type: 'alert', ruleId: r.id, deviceId, value: currentValue, ts: now });
 
+      // Send browser notification
       if ('Notification' in window && Notification.permission === 'granted'){
-        new Notification(r.name, { body: `${deviceId} • ${String(currentValue)}` });
+        new Notification(r.name, { 
+          body: `${deviceId} • ${String(currentValue)}`,
+          icon: '/favicon.png',
+          tag: `alert-${r.id}`, // Prevent duplicate notifications
+          requireInteraction: false
+        });
       }
+
+      // Log alert to console for debugging
+      console.log(`🔔 ALERT FIRED: ${r.name}`, {
+        deviceId,
+        value: currentValue,
+        rule: r
+      });
     }
   },
 

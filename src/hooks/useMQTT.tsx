@@ -92,10 +92,13 @@ export const MQTTProvider = ({ children }: { children: React.ReactNode }) => {
           setConnected(true);
           setStatus('connected');
           setClient(mqttClient);
+          console.info('✅ Secure MQTT connected');
           
           // Subscribe to all device topics for this user
           mqttClient.subscribe('saphari/+/sensor/#');
           mqttClient.subscribe('saphari/+/status/#');
+          mqttClient.subscribe('saphari/+/gpio/#');
+          mqttClient.subscribe('saphari/+/gauge/#');
         });
 
         mqttClient.on('reconnect', () => {
@@ -116,7 +119,7 @@ export const MQTTProvider = ({ children }: { children: React.ReactNode }) => {
         mqttClient.on('message', (topic, payload) => {
           const message = payload.toString();
           
-          // Update DeviceStore for device state tracking
+          // Update DeviceStore for device state tracking and trigger alerts
           if (topic.startsWith('saphari/')) {
             const parts = topic.split('/');
             if (parts.length >= 3) {
@@ -165,6 +168,17 @@ export const MQTTProvider = ({ children }: { children: React.ReactNode }) => {
                 } catch (e) {
                   console.error('Failed to parse MQTT state:', e);
                 }
+              }
+              
+              // Handle GPIO updates and trigger alert engine
+              if (parts.length >= 4) {
+                const type = parts[2]; // 'sensor', 'gpio', 'gauge', etc.
+                const key = parts.slice(3).join('.'); // remaining parts as key
+                
+                // Import and update device state service for alerts
+                import('@/services/deviceState').then(({ onMqttMessage }) => {
+                  onMqttMessage(deviceId, `${type}.${key}`, message);
+                });
               }
             }
           }
