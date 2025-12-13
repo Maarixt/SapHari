@@ -41,8 +41,8 @@ const brokerForESP32 = (url: string) => {
 };
 
 export const DeviceCredentialsDialog = ({ device, open, onOpenChange }: DeviceCredentialsDialogProps) => {
-  const { brokerSettings } = useMQTT();
-  const brokerInfo = brokerForESP32(brokerSettings.url);
+  const { brokerConfig } = useMQTT();
+  const brokerInfo = brokerForESP32(brokerConfig?.wss_url || 'wss://z110b082.ala.us-east-1.emqxsl.com:8084/mqtt');
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

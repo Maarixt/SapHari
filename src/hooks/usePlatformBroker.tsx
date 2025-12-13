@@ -3,6 +3,17 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
 
+// Production broker configuration - AUTHORITATIVE SOURCE
+const PRODUCTION_BROKER = {
+  wss_url: 'wss://z110b082.ala.us-east-1.emqxsl.com:8084/mqtt',
+  tcp_host: 'z110b082.ala.us-east-1.emqxsl.com',
+  tcp_port: 1883,
+  tls_port: 8883,
+  wss_port: 8084,
+  wss_path: '/mqtt',
+  use_tls: true
+} as const;
+
 export interface BrokerConfig {
   wss_url: string;
   tcp_host: string;
@@ -47,22 +58,58 @@ export function usePlatformBroker() {
   const [healthResult, setHealthResult] = useState<BrokerHealthResult | null>(null);
   const [testing, setTesting] = useState(false);
 
-  // Load effective broker config
+  // Load effective broker config - always use production config
   const loadConfig = useCallback(async () => {
     if (!user) return;
     
     try {
-      // Use RPC to get effective config
-      const { data, error } = await supabase
-        .rpc('get_effective_broker_config', { p_user_id: user.id });
+      // Use RPC to get production config
+      const { data, error } = await supabase.rpc('get_production_broker_config');
 
-      if (error) throw error;
+      if (error) {
+        console.warn('Failed to load broker config from RPC, using fallback:', error);
+        // Fallback to hardcoded production config
+        setConfig({
+          ...PRODUCTION_BROKER,
+          username: null,
+          password: null,
+          source: 'platform'
+        });
+        setLoading(false);
+        return;
+      }
 
       if (data && data.length > 0) {
-        setConfig(data[0] as BrokerConfig);
+        const cfg = data[0];
+        setConfig({
+          wss_url: cfg.wss_url,
+          tcp_host: cfg.tcp_host,
+          tcp_port: cfg.tcp_port,
+          tls_port: cfg.tls_port,
+          wss_port: cfg.wss_port,
+          use_tls: cfg.use_tls,
+          username: cfg.username,
+          password: cfg.password,
+          source: 'platform'
+        });
+      } else {
+        // Fallback to hardcoded production config
+        setConfig({
+          ...PRODUCTION_BROKER,
+          username: null,
+          password: null,
+          source: 'platform'
+        });
       }
     } catch (error) {
       console.error('Error loading broker config:', error);
+      // Fallback to hardcoded production config
+      setConfig({
+        ...PRODUCTION_BROKER,
+        username: null,
+        password: null,
+        source: 'platform'
+      });
     } finally {
       setLoading(false);
     }

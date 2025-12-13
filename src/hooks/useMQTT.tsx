@@ -1,26 +1,42 @@
-import { createContext, useContext, useEffect, useState, useRef } from 'react';
+import { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import mqtt, { MqttClient } from 'mqtt';
 import { useAuth } from './useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from './use-toast';
 import { validateMQTTTopic, validateMQTTMessage, validateSapHariTopic } from '@/lib/mqttValidation';
-import { mqttPublishLimiter, mqttSubscribeLimiter, withRateLimit } from '@/lib/rateLimiter';
+import { mqttPublishLimiter, mqttSubscribeLimiter } from '@/lib/rateLimiter';
 
-interface BrokerSettings {
-  url: string;
-  username: string;
-  password: string;
+// Production broker configuration - AUTHORITATIVE SOURCE
+const PRODUCTION_BROKER = {
+  wss_url: 'wss://z110b082.ala.us-east-1.emqxsl.com:8084/mqtt',
+  tcp_host: 'z110b082.ala.us-east-1.emqxsl.com',
+  tcp_port: 1883,
+  tls_port: 8883,
+  wss_port: 8084,
+  wss_path: '/mqtt',
+  use_tls: true
+} as const;
+
+interface BrokerConfig {
+  wss_url: string;
+  tcp_host: string;
+  tcp_port: number;
+  tls_port: number;
+  wss_port: number;
+  use_tls: boolean;
+  username: string | null;
+  password: string | null;
+  source: 'platform' | 'organization' | 'user';
 }
 
 interface MQTTContextType {
   client: MqttClient | null;
   connected: boolean;
   status: 'connecting' | 'connected' | 'disconnected' | 'error';
-  brokerSettings: BrokerSettings;
-  updateBrokerSettings: (settings: BrokerSettings) => Promise<void>;
+  brokerConfig: BrokerConfig | null;
   publishMessage: (topic: string, payload: string, retain?: boolean) => void;
   subscribeToTopic: (topic: string) => void;
-  onMessage: (callback: (topic: string, message: string) => void) => void;
+  onMessage: (callback: (topic: string, message: string) => void) => () => void;
 }
 
 const MQTTContext = createContext<MQTTContextType>({} as MQTTContextType);
@@ -33,76 +49,115 @@ export const MQTTProvider = ({ children }: { children: React.ReactNode }) => {
   const [client, setClient] = useState<MqttClient | null>(null);
   const [connected, setConnected] = useState(false);
   const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('disconnected');
-  const [brokerSettings, setBrokerSettings] = useState<BrokerSettings>({
-    url: 'wss://broker.emqx.io:8084/mqtt',
-    username: '',
-    password: ''
-  });
+  const [brokerConfig, setBrokerConfig] = useState<BrokerConfig | null>(null);
   
   const messageCallbacks = useRef<((topic: string, message: string) => void)[]>([]);
+  const clientRef = useRef<MqttClient | null>(null);
 
-  // Load broker settings from database
-  useEffect(() => {
+  // Load platform broker config from database (authoritative source)
+  const loadBrokerConfig = useCallback(async () => {
     if (!user) return;
 
-    const loadBrokerSettings = async () => {
-      const { data, error } = await supabase
-        .from('broker_settings')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
+    try {
+      // First try to get from the RPC function
+      const { data, error } = await supabase.rpc('get_production_broker_config');
 
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error loading broker settings:', error);
+      if (error) {
+        console.warn('Failed to load broker config from RPC, using fallback:', error);
+        // Fallback to hardcoded production config
+        setBrokerConfig({
+          ...PRODUCTION_BROKER,
+          username: null,
+          password: null,
+          source: 'platform'
+        });
         return;
       }
 
-      if (data) {
-        setBrokerSettings({
-          url: data.url,
-          username: data.username || '',
-          password: data.password || ''
+      if (data && data.length > 0) {
+        const config = data[0];
+        setBrokerConfig({
+          wss_url: config.wss_url,
+          tcp_host: config.tcp_host,
+          tcp_port: config.tcp_port,
+          tls_port: config.tls_port,
+          wss_port: config.wss_port,
+          use_tls: config.use_tls,
+          username: config.username,
+          password: config.password,
+          source: 'platform'
+        });
+      } else {
+        // Fallback to hardcoded production config
+        setBrokerConfig({
+          ...PRODUCTION_BROKER,
+          username: null,
+          password: null,
+          source: 'platform'
         });
       }
-    };
-
-    loadBrokerSettings();
+    } catch (error) {
+      console.error('Error loading broker config:', error);
+      // Fallback to hardcoded production config
+      setBrokerConfig({
+        ...PRODUCTION_BROKER,
+        username: null,
+        password: null,
+        source: 'platform'
+      });
+    }
   }, [user]);
 
-  // Connect to MQTT broker
   useEffect(() => {
-    if (!user || !brokerSettings.url) return;
+    loadBrokerConfig();
+  }, [loadBrokerConfig]);
 
-    // Only reconnect if URL or credentials changed
-    const connectionKey = `${brokerSettings.url}-${brokerSettings.username}-${brokerSettings.password}`;
-    
+  // Connect to MQTT broker using platform config
+  useEffect(() => {
+    if (!user || !brokerConfig?.wss_url) return;
+
+    // Cleanup previous connection
+    if (clientRef.current) {
+      clientRef.current.end(true);
+      clientRef.current = null;
+    }
+
     const connectMQTT = () => {
       try {
         setStatus('connecting');
+        console.info(`🔌 Connecting to MQTT: ${brokerConfig.wss_url}`);
         
-        const mqttClient = mqtt.connect(brokerSettings.url, {
-          username: brokerSettings.username || undefined,
-          password: brokerSettings.password || undefined,
+        const mqttClient = mqtt.connect(brokerConfig.wss_url, {
+          username: brokerConfig.username || undefined,
+          password: brokerConfig.password || undefined,
           reconnectPeriod: 2000,
           keepalive: 60,
           clean: true,
+          connectTimeout: 10000,
+          // For WebSocket TLS connections
+          rejectUnauthorized: false, // Accept self-signed certs for now
         });
+
+        clientRef.current = mqttClient;
 
         mqttClient.on('connect', () => {
           setConnected(true);
           setStatus('connected');
           setClient(mqttClient);
-          console.info('✅ Secure MQTT connected');
+          console.info('✅ MQTT connected to production broker');
           
           // Subscribe to all device topics for this user
           mqttClient.subscribe('saphari/+/sensor/#');
           mqttClient.subscribe('saphari/+/status/#');
           mqttClient.subscribe('saphari/+/gpio/#');
           mqttClient.subscribe('saphari/+/gauge/#');
+          mqttClient.subscribe('saphari/+/state');
+          mqttClient.subscribe('saphari/+/ack');
         });
 
         mqttClient.on('reconnect', () => {
           setStatus('connecting');
+          console.info('🔄 MQTT reconnecting...');
         });
 
         mqttClient.on('close', () => {
@@ -111,7 +166,7 @@ export const MQTTProvider = ({ children }: { children: React.ReactNode }) => {
         });
 
         mqttClient.on('error', (error) => {
-          console.error('MQTT Error:', error);
+          console.error('❌ MQTT Error:', error);
           setStatus('error');
           setConnected(false);
         });
@@ -165,8 +220,8 @@ export const MQTTProvider = ({ children }: { children: React.ReactNode }) => {
                     .then(({ error }) => {
                       if (error) console.error('Failed to update device last_seen:', error);
                     });
-                } catch (e) {
-                  console.error('Failed to parse MQTT state:', e);
+                } catch {
+                  // Non-JSON message, that's okay for some topics
                 }
               }
               
@@ -197,47 +252,18 @@ export const MQTTProvider = ({ children }: { children: React.ReactNode }) => {
       }
     };
 
-    const mqttClient = connectMQTT();
+    connectMQTT();
 
     return () => {
-      if (mqttClient) {
-        mqttClient.end(true);
+      if (clientRef.current) {
+        clientRef.current.end(true);
+        clientRef.current = null;
       }
     };
-  }, [user, brokerSettings.url, brokerSettings.username, brokerSettings.password]);
+  }, [user, brokerConfig?.wss_url, brokerConfig?.username, brokerConfig?.password]);
 
-  const updateBrokerSettings = async (settings: BrokerSettings) => {
-    if (!user) return;
-
-    try {
-      // Use the upsert function to avoid duplicate key errors
-      const { error } = await supabase.rpc('upsert_broker_settings', {
-        p_url: settings.url,
-        p_username: settings.username || null,
-        p_password: settings.password || null,
-        p_port: 8084,
-        p_use_tls: true
-      });
-
-      if (error) throw error;
-
-      setBrokerSettings(settings);
-      toast({
-        title: "Broker settings updated",
-        description: "MQTT broker configuration saved and reconnecting..."
-      });
-    } catch (error) {
-      console.error('Error updating broker settings:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update broker settings",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const publishMessage = (topic: string, payload: string, retain = false) => {
-    if (!client || !connected) {
+  const publishMessage = useCallback((topic: string, payload: string, retain = false) => {
+    if (!clientRef.current || !connected) {
       toast({
         title: "MQTT Error",
         description: "Not connected to MQTT broker",
@@ -280,7 +306,7 @@ export const MQTTProvider = ({ children }: { children: React.ReactNode }) => {
     }
 
     try {
-      client.publish(topic, payload, { retain });
+      clientRef.current.publish(topic, payload, { retain });
     } catch (error) {
       console.error('Error publishing message:', error);
       toast({
@@ -289,10 +315,10 @@ export const MQTTProvider = ({ children }: { children: React.ReactNode }) => {
         variant: "destructive"
       });
     }
-  };
+  }, [connected, toast]);
 
-  const subscribeToTopic = (topic: string) => {
-    if (!client || !connected) {
+  const subscribeToTopic = useCallback((topic: string) => {
+    if (!clientRef.current || !connected) {
       toast({
         title: "MQTT Error",
         description: "Not connected to MQTT broker",
@@ -324,7 +350,7 @@ export const MQTTProvider = ({ children }: { children: React.ReactNode }) => {
     }
 
     try {
-      client.subscribe(topic);
+      clientRef.current.subscribe(topic);
     } catch (error) {
       console.error('Error subscribing to topic:', error);
       toast({
@@ -333,24 +359,23 @@ export const MQTTProvider = ({ children }: { children: React.ReactNode }) => {
         variant: "destructive"
       });
     }
-  };
+  }, [connected, toast]);
 
-  const onMessage = (callback: (topic: string, message: string) => void) => {
+  const onMessage = useCallback((callback: (topic: string, message: string) => void) => {
     messageCallbacks.current.push(callback);
     
     // Return cleanup function
     return () => {
       messageCallbacks.current = messageCallbacks.current.filter(cb => cb !== callback);
     };
-  };
+  }, []);
 
   return (
     <MQTTContext.Provider value={{
       client,
       connected,
       status,
-      brokerSettings,
-      updateBrokerSettings,
+      brokerConfig,
       publishMessage,
       subscribeToTopic,
       onMessage
