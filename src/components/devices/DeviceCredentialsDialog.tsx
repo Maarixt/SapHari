@@ -72,7 +72,7 @@ export const DeviceCredentialsDialog = ({ device, open, onOpenChange }: DeviceCr
           
           <div className="space-y-2">
             <Label>MQTT Broker (WebSocket)</Label>
-            <Input value={brokerSettings.url} readOnly />
+            <Input value={brokerConfig?.wss_url || 'wss://z110b082.ala.us-east-1.emqxsl.com:8084/mqtt'} readOnly />
           </div>
           
           <div className="space-y-2">
