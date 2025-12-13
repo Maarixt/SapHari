@@ -141,6 +141,12 @@ export const CodeSnippetDialog = ({ open, onOpenChange, device, widgets }: CodeS
 #include <PubSubClient.h>
 
 // ========================================
+// WiFi Credentials (CHANGE THESE)
+// ========================================
+#define WIFI_SSID     "YOUR_WIFI_SSID"
+#define WIFI_PASSWORD "YOUR_WIFI_PASSWORD"
+
+// ========================================
 // Device Credentials (UNIQUE PER DEVICE)
 // ========================================
 #define DEVICE_ID   "${device.device_id}"
@@ -162,6 +168,64 @@ export const CodeSnippetDialog = ({ open, onOpenChange, device, widgets }: CodeS
 WiFiClientSecure espClient;
 PubSubClient mqtt(espClient);
 
+unsigned long lastReconnectAttempt = 0;
+const unsigned long reconnectInterval = 5000; // 5 seconds
+
+// ========================================
+// MQTT Message Handler
+// ========================================
+void onMessage(char* topic, byte* payload, unsigned int length) {
+  String msg;
+  msg.reserve(length);
+  for (unsigned int i = 0; i < length; i++) {
+    msg += (char)payload[i];
+  }
+
+  Serial.print("MQTT IN [");
+  Serial.print(topic);
+  Serial.print("] ");
+  Serial.println(msg);
+
+  // Parse command topics: saphari/<deviceId>/cmd/<action>
+  String topicStr = String(topic);
+  String cmdPrefix = "saphari/" + String(DEVICE_ID) + "/cmd/";
+  
+  if (topicStr.startsWith(cmdPrefix)) {
+    String action = topicStr.substring(cmdPrefix.length());
+    handleCommand(action, msg);
+  }
+}
+
+void handleCommand(String action, String payload) {
+  // TODO: Implement your command handlers
+  // Example: if (action == "gpio/4") digitalWrite(4, payload == "1" ? HIGH : LOW);
+  Serial.print("Command: ");
+  Serial.print(action);
+  Serial.print(" = ");
+  Serial.println(payload);
+}
+
+// ========================================
+// WiFi Setup
+// ========================================
+void setupWiFi() {
+  Serial.print("Connecting to WiFi");
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  
+  Serial.println();
+  Serial.print("Connected! IP: ");
+  Serial.println(WiFi.localIP());
+}
+
+// ========================================
+// MQTT Setup
+// ========================================
 void setupMQTT() {
   // TLS: Skip certificate verification (for development)
   // For production, use: espClient.setCACert(emqx_ca_cert);
@@ -174,27 +238,91 @@ void setupMQTT() {
 // ========================================
 // Connect with Last Will Testament (LWT)
 // ========================================
-void connectMQTT() {
+bool connectMQTT() {
   String statusTopic = "saphari/" + String(DEVICE_ID) + "/status/online";
+  
+  Serial.print("Connecting to MQTT...");
   
   if (mqtt.connect(DEVICE_ID, MQTT_USER, MQTT_PASS, 
                    statusTopic.c_str(), 1, true, "offline")) {
+    Serial.println("connected!");
+    
     // Publish online status (retained)
     mqtt.publish(statusTopic.c_str(), "online", true);
     
     // Subscribe to commands
     String cmdTopic = "saphari/" + String(DEVICE_ID) + "/cmd/#";
     mqtt.subscribe(cmdTopic.c_str());
+    
+    return true;
+  } else {
+    Serial.print("failed, rc=");
+    Serial.println(mqtt.state());
+    return false;
   }
+}
+
+// ========================================
+// Main Setup
+// ========================================
+void setup() {
+  Serial.begin(115200);
+  delay(100);
+  
+  Serial.println();
+  Serial.println("=== SapHari ESP32 Starting ===");
+  Serial.print("Device ID: ");
+  Serial.println(DEVICE_ID);
+  
+  setupWiFi();
+  setupMQTT();
+  connectMQTT();
+}
+
+// ========================================
+// Main Loop (with reconnect)
+// ========================================
+void loop() {
+  if (!mqtt.connected()) {
+    unsigned long now = millis();
+    if (now - lastReconnectAttempt > reconnectInterval) {
+      lastReconnectAttempt = now;
+      if (connectMQTT()) {
+        lastReconnectAttempt = 0;
+      }
+    }
+  } else {
+    mqtt.loop();
+  }
+  
+  // TODO: Add your sensor reading and publishing logic here
+  // Example: publishGauge("temperature", readTemp());
+}
+
+// ========================================
+// Helper: Publish GPIO State
+// ========================================
+void publishGPIO(int pin, bool state) {
+  String topic = "saphari/" + String(DEVICE_ID) + "/gpio/" + String(pin);
+  mqtt.publish(topic.c_str(), state ? "1" : "0");
+}
+
+// ========================================
+// Helper: Publish Gauge Value
+// ========================================
+void publishGauge(const char* name, float value) {
+  String topic = "saphari/" + String(DEVICE_ID) + "/gauge/" + String(name);
+  mqtt.publish(topic.c_str(), String(value).c_str());
 }
 
 // ========================================
 // Widget Configurations
 // ========================================
-${switches.length > 0 ? `#define SWITCH_COUNT ${switches.length}` : '// No switches'}
-${gauges.length > 0 ? `#define GAUGE_COUNT  ${gauges.length}` : '// No gauges'}
-${servos.length > 0 ? `#define SERVO_COUNT  ${servos.length}` : '// No servos'}
+${switches.length > 0 ? `#define SWITCH_COUNT ${switches.length}` : '// No switches configured'}
+${gauges.length > 0 ? `#define GAUGE_COUNT  ${gauges.length}` : '// No gauges configured'}
+${servos.length > 0 ? `#define SERVO_COUNT  ${servos.length}` : '// No servos configured'}
 
+/*
 SwitchMap SWITCHES[] = {
 ${switchesCode}
 };
@@ -206,9 +334,10 @@ ${gaugesCode}
 ServoMap SERVOS[] = {
 ${servosCode}
 };
+*/
 
 // ========================================
-// MQTT Topics
+// MQTT Topics Reference
 // ========================================
 ${topicExamples}`;
   };
