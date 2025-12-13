@@ -285,6 +285,55 @@ export type Database = {
           },
         ]
       }
+      device_permissions: {
+        Row: {
+          access: Database["public"]["Enums"]["access_level"]
+          created_at: string
+          device_id: string
+          id: string
+          org_id: string
+          user_id: string
+        }
+        Insert: {
+          access?: Database["public"]["Enums"]["access_level"]
+          created_at?: string
+          device_id: string
+          id?: string
+          org_id: string
+          user_id: string
+        }
+        Update: {
+          access?: Database["public"]["Enums"]["access_level"]
+          created_at?: string
+          device_id?: string
+          id?: string
+          org_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "device_permissions_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "device_permissions_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "device_permissions_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       devices: {
         Row: {
           created_at: string
@@ -299,6 +348,7 @@ export type Database = {
           model: string | null
           name: string
           online: boolean
+          org_id: string | null
           tags: string[] | null
           updated_at: string
           user_id: string
@@ -316,6 +366,7 @@ export type Database = {
           model?: string | null
           name: string
           online?: boolean
+          org_id?: string | null
           tags?: string[] | null
           updated_at?: string
           user_id: string
@@ -333,11 +384,20 @@ export type Database = {
           model?: string | null
           name?: string
           online?: boolean
+          org_id?: string | null
           tags?: string[] | null
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "devices_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       master_2fa_secrets: {
         Row: {
@@ -480,6 +540,109 @@ export type Database = {
           username?: string | null
           wss_port?: number | null
           wss_url?: string
+        }
+        Relationships: []
+      }
+      organization_invites: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          invited_by_user_id: string
+          invitee_email: string
+          org_id: string
+          role: Database["public"]["Enums"]["org_role"]
+          status: Database["public"]["Enums"]["invite_status"]
+          token: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          invited_by_user_id: string
+          invitee_email: string
+          org_id: string
+          role?: Database["public"]["Enums"]["org_role"]
+          status?: Database["public"]["Enums"]["invite_status"]
+          token?: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          invited_by_user_id?: string
+          invitee_email?: string
+          org_id?: string
+          role?: Database["public"]["Enums"]["org_role"]
+          status?: Database["public"]["Enums"]["invite_status"]
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_invites_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organization_members: {
+        Row: {
+          created_at: string
+          id: string
+          org_id: string
+          role: Database["public"]["Enums"]["org_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          org_id: string
+          role?: Database["public"]["Enums"]["org_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          org_id?: string
+          role?: Database["public"]["Enums"]["org_role"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_members_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organizations: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          owner_user_id: string
+          type: Database["public"]["Enums"]["org_type"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          owner_user_id: string
+          type?: Database["public"]["Enums"]["org_type"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          owner_user_id?: string
+          type?: Database["public"]["Enums"]["org_type"]
+          updated_at?: string
         }
         Relationships: []
       }
@@ -691,6 +854,51 @@ export type Database = {
         }
         Relationships: []
       }
+      widget_permissions: {
+        Row: {
+          access: Database["public"]["Enums"]["access_level"]
+          created_at: string
+          device_id: string
+          id: string
+          user_id: string
+          widget_key: string
+          widget_type: string
+        }
+        Insert: {
+          access?: Database["public"]["Enums"]["access_level"]
+          created_at?: string
+          device_id: string
+          id?: string
+          user_id: string
+          widget_key: string
+          widget_type: string
+        }
+        Update: {
+          access?: Database["public"]["Enums"]["access_level"]
+          created_at?: string
+          device_id?: string
+          id?: string
+          user_id?: string
+          widget_key?: string
+          widget_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "widget_permissions_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "widget_permissions_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices_safe"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       widgets: {
         Row: {
           address: string
@@ -822,6 +1030,10 @@ export type Database = {
     }
     Functions: {
       can_access_master_features: { Args: never; Returns: boolean }
+      can_delete_org_member: {
+        Args: { p_org_id: string; p_target_user_id: string }
+        Returns: boolean
+      }
       check_master_login_rate_limit: {
         Args: { p_email: string; p_ip_address?: string }
         Returns: boolean
@@ -841,6 +1053,10 @@ export type Database = {
           starts_at: string
           title: string
         }[]
+      }
+      get_device_access: {
+        Args: { p_device_id: string; p_user_id?: string }
+        Returns: Database["public"]["Enums"]["access_level"]
       }
       get_device_key_once: {
         Args: { p_device_id: string }
@@ -877,6 +1093,10 @@ export type Database = {
           total_users: number
         }[]
       }
+      get_org_role: {
+        Args: { p_org_id: string; p_user_id?: string }
+        Returns: Database["public"]["Enums"]["org_role"]
+      }
       get_production_broker_config: {
         Args: never
         Returns: {
@@ -904,6 +1124,18 @@ export type Database = {
       }
       is_master: { Args: { uid?: string }; Returns: boolean }
       is_master_user: { Args: { uid?: string }; Returns: boolean }
+      is_org_admin: {
+        Args: { p_org_id: string; p_user_id?: string }
+        Returns: boolean
+      }
+      is_org_member: {
+        Args: { p_org_id: string; p_user_id?: string }
+        Returns: boolean
+      }
+      is_org_owner: {
+        Args: { p_org_id: string; p_user_id?: string }
+        Returns: boolean
+      }
       log_audit_event: {
         Args: {
           _action: string
@@ -935,10 +1167,14 @@ export type Database = {
       }
     }
     Enums: {
+      access_level: "full" | "control" | "view" | "deny"
       alert_severity: "info" | "warn" | "crit"
       alert_state: "open" | "ack" | "closed"
       app_role: "user" | "technician" | "developer" | "admin" | "master"
       command_status: "pending" | "sent" | "acknowledged" | "failed"
+      invite_status: "pending" | "accepted" | "expired" | "revoked"
+      org_role: "owner" | "admin" | "member" | "viewer"
+      org_type: "house" | "farm" | "business" | "other"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1066,10 +1302,14 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      access_level: ["full", "control", "view", "deny"],
       alert_severity: ["info", "warn", "crit"],
       alert_state: ["open", "ack", "closed"],
       app_role: ["user", "technician", "developer", "admin", "master"],
       command_status: ["pending", "sent", "acknowledged", "failed"],
+      invite_status: ["pending", "accepted", "expired", "revoked"],
+      org_role: ["owner", "admin", "member", "viewer"],
+      org_type: ["house", "farm", "business", "other"],
     },
   },
 } as const
