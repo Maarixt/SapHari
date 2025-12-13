@@ -22,7 +22,14 @@ interface AddDeviceDialogProps {
 }
 
 const generateDeviceId = () => `saph-${Math.random().toString(36).slice(2, 8)}`;
-const generateDeviceKey = () => Math.random().toString(36).slice(2, 10).toUpperCase();
+
+// Generate cryptographically strong device key (24+ chars)
+const generateDeviceKey = () => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const array = new Uint8Array(24);
+  crypto.getRandomValues(array);
+  return Array.from(array, (byte) => chars[byte % chars.length]).join('');
+};
 
 export const AddDeviceDialog = ({ open, onOpenChange, onDeviceAdded }: AddDeviceDialogProps) => {
   const { user } = useAuth();
