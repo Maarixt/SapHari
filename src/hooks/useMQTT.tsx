@@ -27,6 +27,8 @@ interface BrokerConfig {
   use_tls: boolean;
   username: string | null;
   password: string | null;
+  dashboard_username: string | null;
+  dashboard_password: string | null;
   source: 'platform' | 'organization' | 'user';
 }
 
@@ -60,50 +62,59 @@ export const MQTTProvider = ({ children }: { children: React.ReactNode }) => {
     if (!user) return;
 
     try {
-      // First try to get from the RPC function
-      const { data, error } = await supabase.rpc('get_production_broker_config');
+      // Fetch from platform_broker_config table directly to get dashboard credentials
+      const { data, error } = await supabase
+        .from('platform_broker_config')
+        .select('*')
+        .eq('is_active', true)
+        .eq('is_default', true)
+        .single();
 
       if (error) {
-        console.warn('Failed to load broker config from RPC, using fallback:', error);
-        // Fallback to hardcoded production config
+        console.warn('Failed to load broker config, using fallback:', error);
         setBrokerConfig({
           ...PRODUCTION_BROKER,
           username: null,
           password: null,
+          dashboard_username: null,
+          dashboard_password: null,
           source: 'platform'
         });
         return;
       }
 
-      if (data && data.length > 0) {
-        const config = data[0];
+      if (data) {
         setBrokerConfig({
-          wss_url: config.wss_url,
-          tcp_host: config.tcp_host,
-          tcp_port: config.tcp_port,
-          tls_port: config.tls_port,
-          wss_port: config.wss_port,
-          use_tls: config.use_tls,
-          username: config.username,
-          password: config.password,
+          wss_url: data.wss_url,
+          tcp_host: data.tcp_host,
+          tcp_port: data.tcp_port,
+          tls_port: data.tls_port || 8883,
+          wss_port: data.wss_port || 8084,
+          use_tls: data.use_tls ?? true,
+          username: data.username,
+          password: data.password,
+          dashboard_username: (data as any).dashboard_username || null,
+          dashboard_password: (data as any).dashboard_password || null,
           source: 'platform'
         });
       } else {
-        // Fallback to hardcoded production config
         setBrokerConfig({
           ...PRODUCTION_BROKER,
           username: null,
           password: null,
+          dashboard_username: null,
+          dashboard_password: null,
           source: 'platform'
         });
       }
     } catch (error) {
       console.error('Error loading broker config:', error);
-      // Fallback to hardcoded production config
       setBrokerConfig({
         ...PRODUCTION_BROKER,
         username: null,
         password: null,
+        dashboard_username: null,
+        dashboard_password: null,
         source: 'platform'
       });
     }
@@ -113,7 +124,7 @@ export const MQTTProvider = ({ children }: { children: React.ReactNode }) => {
     loadBrokerConfig();
   }, [loadBrokerConfig]);
 
-  // Connect to MQTT broker using platform config
+  // Connect to MQTT broker using dashboard credentials
   useEffect(() => {
     if (!user || !brokerConfig?.wss_url) return;
 
@@ -123,20 +134,32 @@ export const MQTTProvider = ({ children }: { children: React.ReactNode }) => {
       clientRef.current = null;
     }
 
+    // Check if dashboard credentials are configured
+    const hasDashboardCredentials = brokerConfig.dashboard_username && brokerConfig.dashboard_password;
+    
+    if (!hasDashboardCredentials) {
+      console.warn('⚠️ MQTT disabled: dashboard broker credentials not configured');
+      setStatus('disconnected');
+      setConnected(false);
+      return;
+    }
+
     const connectMQTT = () => {
       try {
         setStatus('connecting');
-        console.info(`🔌 Connecting to MQTT: ${brokerConfig.wss_url}`);
+        const clientId = `dashboard-${Math.random().toString(36).substring(2, 10)}`;
+        console.info(`🔌 Connecting to MQTT: ${brokerConfig.wss_url} as ${clientId}`);
         
         const mqttClient = mqtt.connect(brokerConfig.wss_url, {
-          username: brokerConfig.username || undefined,
-          password: brokerConfig.password || undefined,
+          clientId,
+          username: brokerConfig.dashboard_username || undefined,
+          password: brokerConfig.dashboard_password || undefined,
           reconnectPeriod: 2000,
           keepalive: 60,
           clean: true,
           connectTimeout: 10000,
-          // For WebSocket TLS connections
-          rejectUnauthorized: false, // Accept self-signed certs for now
+          protocolVersion: 4, // MQTT v3.1.1
+          rejectUnauthorized: false,
         });
 
         clientRef.current = mqttClient;
@@ -147,9 +170,9 @@ export const MQTTProvider = ({ children }: { children: React.ReactNode }) => {
           setClient(mqttClient);
           console.info('✅ MQTT connected to production broker');
           
-          // Subscribe to all device topics for this user
+          // Subscribe to all device topics
+          mqttClient.subscribe('saphari/+/status/online');
           mqttClient.subscribe('saphari/+/sensor/#');
-          mqttClient.subscribe('saphari/+/status/#');
           mqttClient.subscribe('saphari/+/gpio/#');
           mqttClient.subscribe('saphari/+/gauge/#');
           mqttClient.subscribe('saphari/+/state');
@@ -261,7 +284,7 @@ export const MQTTProvider = ({ children }: { children: React.ReactNode }) => {
         clientRef.current = null;
       }
     };
-  }, [user, brokerConfig?.wss_url, brokerConfig?.username, brokerConfig?.password]);
+  }, [user, brokerConfig?.wss_url, brokerConfig?.dashboard_username, brokerConfig?.dashboard_password]);
 
   const publishMessage = useCallback((topic: string, payload: string, retain = false) => {
     if (!clientRef.current || !connected) {
