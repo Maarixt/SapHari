@@ -10,7 +10,7 @@ interface DashboardLayoutProps {
 }
 
 function DashboardContent({ children }: DashboardLayoutProps) {
-  const { organizations, isLoading, pendingInvites } = useOrganizations();
+  const { organizations, currentOrg, isLoading } = useOrganizations();
   const [currentView, setCurrentView] = useState('devices');
 
   // Loading state
@@ -38,6 +38,9 @@ function DashboardContent({ children }: DashboardLayoutProps) {
         <SidebarInset className="flex-1">
           <header className="h-14 flex items-center gap-4 border-b px-4 lg:px-6 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
             <SidebarTrigger />
+            <div className="flex items-center gap-2">
+              <h1 className="font-semibold text-lg">{currentOrg?.name || 'Dashboard'}</h1>
+            </div>
           </header>
           <main className="flex-1 p-4 lg:p-6">
             {children({ currentView, setCurrentView })}
