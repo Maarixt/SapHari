@@ -1,10 +1,15 @@
 import { MQTTProvider } from '@/hooks/useMQTT';
-import { Dashboard } from '@/components/dashboard/Dashboard';
+import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { OrgDashboard } from '@/components/dashboard/OrgDashboard';
 
 const Index = () => {
   return (
     <MQTTProvider>
-      <Dashboard />
+      <DashboardLayout>
+        {({ currentView, setCurrentView }) => (
+          <OrgDashboard currentView={currentView} setCurrentView={setCurrentView} />
+        )}
+      </DashboardLayout>
     </MQTTProvider>
   );
 };
