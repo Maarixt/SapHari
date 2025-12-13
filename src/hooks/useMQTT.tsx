@@ -6,11 +6,12 @@ import { useToast } from './use-toast';
 import { validateMQTTTopic, validateMQTTMessage, validateSapHariTopic } from '@/lib/mqttValidation';
 import { mqttPublishLimiter, mqttSubscribeLimiter } from '@/lib/rateLimiter';
 
-// Production broker configuration - AUTHORITATIVE SOURCE
+// Production broker configuration - AUTHORITATIVE SOURCE (TLS ONLY)
+// DO NOT use port 1883 in production - TLS is REQUIRED
 const PRODUCTION_BROKER = {
   wss_url: 'wss://z110b082.ala.us-east-1.emqxsl.com:8084/mqtt',
   tcp_host: 'z110b082.ala.us-east-1.emqxsl.com',
-  tcp_port: 1883,
+  tcp_port: 8883,  // TLS port (NOT 1883)
   tls_port: 8883,
   wss_port: 8084,
   wss_path: '/mqtt',

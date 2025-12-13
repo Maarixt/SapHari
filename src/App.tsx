@@ -8,6 +8,7 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import MasterLogin from "./pages/MasterLogin";
 import MasterDashboard from "./pages/master/MasterDashboard";
+import MQTTSetup from "./pages/docs/MQTTSetup";
 import NotFound from "./pages/NotFound";
 import { AuthProvider } from "@/hooks/useAuth";
 import { MasterAccountProvider } from "@/hooks/useMasterAccount";
@@ -54,6 +55,14 @@ const App = () => (
                       <RequireMaster>
                         <MasterDashboard />
                       </RequireMaster>
+                    </AuthGuard>
+                  }
+                />
+                <Route
+                  path="/docs/mqtt"
+                  element={
+                    <AuthGuard>
+                      <MQTTSetup />
                     </AuthGuard>
                   }
                 />

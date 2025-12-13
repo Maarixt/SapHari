@@ -9,11 +9,11 @@ import { Copy, CheckCircle, AlertTriangle, Code, FileCode, Settings, Shield, Loc
 import { Device, Widget } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 
-// Production broker configuration - AUTHORITATIVE SOURCE (matches useMQTT.tsx)
+// Production broker configuration - AUTHORITATIVE SOURCE (TLS ONLY)
+// DO NOT use port 1883 - TLS on port 8883 is REQUIRED for production
 const PRODUCTION_BROKER = {
   tcp_host: 'z110b082.ala.us-east-1.emqxsl.com',
-  tcp_port: 1883,
-  tls_port: 8883,
+  tls_port: 8883,  // TLS REQUIRED - never use 1883
   wss_port: 8084,
   wss_path: '/mqtt',
   use_tls: true
@@ -99,12 +99,15 @@ export function SnippetGenerator({ open, onOpenChange, device, widgets }: Snippe
 #define DEVICE_TOKEN    "${deviceToken}"  // ⚠️ REPLACE with actual token from EMQX Cloud
 
 // ========================================
-// MQTT Broker Configuration (PRODUCTION)
+// MQTT Broker Configuration (PRODUCTION - TLS REQUIRED)
 // DO NOT MODIFY - These are platform defaults
 // ========================================
 #define MQTT_HOST       "${PRODUCTION_BROKER.tcp_host}"
-#define MQTT_PORT       ${PRODUCTION_BROKER.tls_port}  // TLS port (required)
+#define MQTT_PORT       ${PRODUCTION_BROKER.tls_port}  // TLS port 8883 (REQUIRED - never use 1883)
 #define MQTT_USE_TLS    true
+
+// ⚠️ IMPORTANT: Port 1883 is NOT available on EMQX Cloud
+// You MUST use WiFiClientSecure with TLS on port 8883
 
 // MQTT Authentication
 #define MQTT_USERNAME   DEVICE_ID      // Username = Device ID

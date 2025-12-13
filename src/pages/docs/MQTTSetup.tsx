@@ -222,6 +222,48 @@ export default function MQTTSetup() {
         </CardContent>
       </Card>
 
+      {/* EMQX Cloud ACL Configuration */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Shield className="h-5 w-5" />
+            EMQX Cloud ACL Configuration
+          </CardTitle>
+          <CardDescription>
+            Configure these rules in your EMQX Cloud dashboard
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Alert>
+            <AlertDescription>
+              These ACL rules ensure devices can only access their own topics. Configure them in EMQX Cloud → Authentication → Authorization.
+            </AlertDescription>
+          </Alert>
+          
+          <div className="bg-muted/50 rounded-lg p-4 font-mono text-xs space-y-3">
+            <div>
+              <p className="text-muted-foreground mb-1"># Allow device to publish/subscribe to its own topics</p>
+              <p className="text-green-600">{"{"} allow, all, pubsub, ["saphari/${'{'}username{'}'}/# "] {"}"}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground mb-1"># Deny all other access</p>
+              <p className="text-destructive">{"{"} deny, all {"}"}</p>
+            </div>
+          </div>
+
+          <Separator />
+          
+          <h4 className="font-medium text-sm">Topic Convention</h4>
+          <div className="bg-muted/50 rounded-lg p-4 font-mono text-xs space-y-1">
+            <p><span className="text-muted-foreground">Status:</span> saphari/&lt;deviceId&gt;/status/online</p>
+            <p><span className="text-muted-foreground">GPIO:</span> saphari/&lt;deviceId&gt;/gpio/&lt;pin&gt;</p>
+            <p><span className="text-muted-foreground">Sensor:</span> saphari/&lt;deviceId&gt;/sensor/&lt;name&gt;</p>
+            <p><span className="text-muted-foreground">Commands:</span> saphari/&lt;deviceId&gt;/cmd/&lt;action&gt;</p>
+            <p><span className="text-muted-foreground">Ack:</span> saphari/&lt;deviceId&gt;/ack</p>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Troubleshooting */}
       <Card>
         <CardHeader>
