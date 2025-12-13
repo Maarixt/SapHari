@@ -435,6 +435,108 @@ export type Database = {
         }
         Relationships: []
       }
+      organization_broker_override: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          organization_id: string
+          password: string | null
+          tcp_host: string
+          tcp_port: number
+          tls_port: number | null
+          updated_at: string | null
+          use_tls: boolean | null
+          username: string | null
+          wss_port: number | null
+          wss_url: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          organization_id: string
+          password?: string | null
+          tcp_host: string
+          tcp_port?: number
+          tls_port?: number | null
+          updated_at?: string | null
+          use_tls?: boolean | null
+          username?: string | null
+          wss_port?: number | null
+          wss_url: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          organization_id?: string
+          password?: string | null
+          tcp_host?: string
+          tcp_port?: number
+          tls_port?: number | null
+          updated_at?: string | null
+          use_tls?: boolean | null
+          username?: string | null
+          wss_port?: number | null
+          wss_url?: string
+        }
+        Relationships: []
+      }
+      platform_broker_config: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          is_default: boolean | null
+          name: string
+          password: string | null
+          tcp_host: string
+          tcp_port: number
+          tls_port: number | null
+          updated_at: string | null
+          use_tls: boolean | null
+          username: string | null
+          wss_port: number | null
+          wss_url: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_default?: boolean | null
+          name?: string
+          password?: string | null
+          tcp_host?: string
+          tcp_port?: number
+          tls_port?: number | null
+          updated_at?: string | null
+          use_tls?: boolean | null
+          username?: string | null
+          wss_port?: number | null
+          wss_url?: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_default?: boolean | null
+          name?: string
+          password?: string | null
+          tcp_host?: string
+          tcp_port?: number
+          tls_port?: number | null
+          updated_at?: string | null
+          use_tls?: boolean | null
+          username?: string | null
+          wss_port?: number | null
+          wss_url?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -741,6 +843,20 @@ export type Database = {
           time_remaining_seconds: number
         }[]
       }
+      get_effective_broker_config: {
+        Args: { p_organization_id?: string; p_user_id?: string }
+        Returns: {
+          password: string
+          source: string
+          tcp_host: string
+          tcp_port: number
+          tls_port: number
+          use_tls: boolean
+          username: string
+          wss_port: number
+          wss_url: string
+        }[]
+      }
       get_master_kpis: {
         Args: never
         Returns: {
@@ -779,6 +895,16 @@ export type Database = {
         Returns: string
       }
       rotate_device_key: { Args: { p_device_id: string }; Returns: string }
+      upsert_broker_settings: {
+        Args: {
+          p_password?: string
+          p_port?: number
+          p_url: string
+          p_use_tls?: boolean
+          p_username?: string
+        }
+        Returns: string
+      }
       user_owns_device: {
         Args: { _device_id: string; _user_id?: string }
         Returns: boolean

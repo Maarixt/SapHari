@@ -210,14 +210,14 @@ export const MQTTProvider = ({ children }: { children: React.ReactNode }) => {
     if (!user) return;
 
     try {
-      const { error } = await supabase
-        .from('broker_settings')
-        .upsert({
-          user_id: user.id,
-          url: settings.url,
-          username: settings.username,
-          password: settings.password
-        });
+      // Use the upsert function to avoid duplicate key errors
+      const { error } = await supabase.rpc('upsert_broker_settings', {
+        p_url: settings.url,
+        p_username: settings.username || null,
+        p_password: settings.password || null,
+        p_port: 8084,
+        p_use_tls: true
+      });
 
       if (error) throw error;
 
