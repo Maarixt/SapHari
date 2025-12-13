@@ -72,8 +72,8 @@ export function SnippetGenerator({ open, onOpenChange, device, widgets }: Snippe
   };
 
   const generateConfigHeader = () => {
-    // Generate a placeholder device token (user should replace with actual from EMQX)
-    const deviceToken = `${device.device_id}_token_REPLACE_ME`;
+    // Use the actual device key from the device record
+    const deviceKey = device.device_key || 'DEVICE_KEY_NOT_FOUND';
 
     return `// ============================================
 // SapHari Device Configuration
@@ -82,9 +82,10 @@ export function SnippetGenerator({ open, onOpenChange, device, widgets }: Snippe
 // ============================================
 // 
 // ⚠️ SECURITY NOTES:
-// 1. Replace DEVICE_TOKEN with the actual token from EMQX Cloud dashboard
+// 1. This configuration contains your device credentials
 // 2. Never commit this file to public repositories
-// 3. Each device MUST have unique credentials
+// 3. Each device has unique credentials (DEVICE_ID + DEVICE_KEY)
+// 4. DEVICE_KEY is your MQTT password - keep it secret!
 //
 // ============================================
 
@@ -96,32 +97,33 @@ export function SnippetGenerator({ open, onOpenChange, device, widgets }: Snippe
 // ========================================
 #define DEVICE_ID       "${device.device_id}"
 #define DEVICE_NAME     "${device.name}"
-#define DEVICE_TOKEN    "${deviceToken}"  // ⚠️ REPLACE with actual token from EMQX Cloud
+#define DEVICE_KEY      "${deviceKey}"
 
 // ========================================
 // MQTT Broker Configuration (PRODUCTION - TLS REQUIRED)
-// DO NOT MODIFY - These are platform defaults
+// DO NOT MODIFY - These are platform-wide settings
 // ========================================
 #define MQTT_HOST       "${PRODUCTION_BROKER.tcp_host}"
-#define MQTT_PORT       ${PRODUCTION_BROKER.tls_port}  // TLS port 8883 (REQUIRED - never use 1883)
+#define MQTT_PORT       ${PRODUCTION_BROKER.tls_port}  // TLS REQUIRED - port 8883 only
 #define MQTT_USE_TLS    true
 
-// ⚠️ IMPORTANT: Port 1883 is NOT available on EMQX Cloud
+// ⚠️ CRITICAL: Port 1883 is NOT available on EMQX Cloud Serverless
 // You MUST use WiFiClientSecure with TLS on port 8883
 
-// MQTT Authentication
-#define MQTT_USERNAME   DEVICE_ID      // Username = Device ID
-#define MQTT_PASSWORD   DEVICE_TOKEN   // Password = Device Token
+// MQTT Authentication (per-device credentials)
+#define MQTT_USERNAME   DEVICE_ID   // Username = Device ID
+#define MQTT_PASSWORD   DEVICE_KEY  // Password = Device Key (unique secret)
 
 // ========================================
-// MQTT Topics (ACL enforced)
+// MQTT Topics (ACL enforced: saphari/\${username}/#)
 // ========================================
-// Device can ONLY access: saphari/<DEVICE_ID>/#
 #define TOPIC_PREFIX    "saphari/" DEVICE_ID
-#define TOPIC_STATUS    TOPIC_PREFIX "/status/online"
-#define TOPIC_STATE     TOPIC_PREFIX "/state"
-#define TOPIC_CMD       TOPIC_PREFIX "/cmd/#"
-#define TOPIC_ACK       TOPIC_PREFIX "/ack"
+#define TOPIC_STATUS    TOPIC_PREFIX "/status/online"     // Retained: "online" / "offline" (LWT)
+#define TOPIC_GPIO      TOPIC_PREFIX "/gpio/"             // + pin number
+#define TOPIC_SENSOR    TOPIC_PREFIX "/sensor/"           // + sensor address
+#define TOPIC_GAUGE     TOPIC_PREFIX "/gauge/"            // + gauge address
+#define TOPIC_CMD       TOPIC_PREFIX "/cmd/#"             // Subscribe to commands
+#define TOPIC_ACK       TOPIC_PREFIX "/ack"               // Command acknowledgments
 
 // ========================================
 // Widget Configurations
@@ -133,14 +135,8 @@ ${generateWidgetDefines()}
 // ========================================
 #define HEARTBEAT_INTERVAL_MS   30000    // Send heartbeat every 30 seconds
 #define RECONNECT_DELAY_MS      5000     // Initial reconnect delay
-#define MAX_RECONNECT_DELAY_MS  60000    // Max reconnect delay (backoff)
+#define MAX_RECONNECT_DELAY_MS  60000    // Max reconnect delay (exponential backoff)
 #define MQTT_KEEPALIVE          60       // MQTT keepalive in seconds
-
-// ========================================
-// CA Certificate for TLS (EMQX Cloud)
-// ========================================
-// The ESP32 will use the root CA from WiFiClientSecure
-// For production, embed the actual CA certificate here
 
 #endif // SAPHARI_CONFIG_H`;
   };
@@ -275,11 +271,16 @@ void setupWiFi() {
 }
 
 void setupMQTT() {
-  // Configure TLS - accept all certificates for now
-  // For production, embed the actual EMQX Cloud CA certificate
+  // ========================================
+  // TLS Configuration (REQUIRED for EMQX Cloud)
+  // ========================================
+  // setInsecure() skips certificate verification
+  // For production security, embed the EMQX Cloud CA certificate:
+  //   espClient.setCACert(emqx_ca_cert);
+  // CA certificate available at: https://assets.emqx.com/data/emqxsl-ca.crt
   espClient.setInsecure();
   
-  mqtt.setServer(MQTT_HOST, MQTT_PORT);
+  mqtt.setServer(MQTT_HOST, MQTT_PORT);  // Port 8883 (TLS) - NOT 1883
   mqtt.setCallback(mqttCallback);
   mqtt.setBufferSize(512);
   mqtt.setKeepAlive(MQTT_KEEPALIVE);
@@ -591,7 +592,7 @@ monitor_filters =
                 />
               </div>
               <p className="text-xs text-muted-foreground mt-2">
-                Save as <code className="bg-muted px-1 rounded">saphari_config.h</code> — Remember to replace DEVICE_TOKEN with your actual token from EMQX Cloud!
+                Save as <code className="bg-muted px-1 rounded">saphari_config.h</code> — Your device credentials are pre-filled. Keep this file secure!
               </p>
             </TabsContent>
 
@@ -644,12 +645,15 @@ monitor_filters =
         <div className="border-t pt-4 mt-4">
           <h4 className="text-sm font-medium mb-2">Quick Setup Guide</h4>
           <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
-            <li>Create device credentials in EMQX Cloud dashboard</li>
-            <li>Copy the config header and replace DEVICE_TOKEN with your actual token</li>
-            <li>Update WiFi credentials in the Arduino sketch</li>
+            <li>Copy the config header (credentials are pre-filled from SapHari)</li>
+            <li>Save as <code className="bg-muted px-1 rounded">saphari_config.h</code> in your project</li>
+            <li>Update WiFi credentials (SSID/password) in the Arduino sketch</li>
             <li>Upload to your ESP32</li>
-            <li>Monitor serial output for connection status</li>
+            <li>Monitor serial output — device should connect via TLS on port 8883</li>
           </ol>
+          <div className="mt-3 p-2 bg-muted/50 rounded text-xs">
+            <strong>MQTT Auth:</strong> Username = <code>{device.device_id}</code>, Password = Device Key (in config header)
+          </div>
         </div>
       </DialogContent>
     </Dialog>
