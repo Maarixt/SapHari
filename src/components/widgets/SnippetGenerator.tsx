@@ -4,11 +4,20 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Copy, CheckCircle, AlertTriangle, Code, FileCode, Settings } from 'lucide-react';
-import { usePlatformBroker } from '@/hooks/usePlatformBroker';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Copy, CheckCircle, AlertTriangle, Code, FileCode, Settings, Shield, Lock } from 'lucide-react';
 import { Device, Widget } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
+
+// Production broker configuration - AUTHORITATIVE SOURCE (matches useMQTT.tsx)
+const PRODUCTION_BROKER = {
+  tcp_host: 'z110b082.ala.us-east-1.emqxsl.com',
+  tcp_port: 1883,
+  tls_port: 8883,
+  wss_port: 8084,
+  wss_path: '/mqtt',
+  use_tls: true
+} as const;
 
 interface SnippetGeneratorProps {
   open: boolean;
@@ -18,41 +27,30 @@ interface SnippetGeneratorProps {
 }
 
 interface ValidationIssue {
-  type: 'error' | 'warning';
+  type: 'error' | 'warning' | 'info';
   message: string;
 }
 
 export function SnippetGenerator({ open, onOpenChange, device, widgets }: SnippetGeneratorProps) {
-  const { config, loading, testBrokerHealth, healthResult, testing } = usePlatformBroker();
   const { toast } = useToast();
   const [copied, setCopied] = useState<string | null>(null);
   const [validationIssues, setValidationIssues] = useState<ValidationIssue[]>([]);
 
   // Validate configuration on open
   useEffect(() => {
-    if (open && config) {
+    if (open) {
       const issues: ValidationIssue[] = [];
       
-      // Check DNS resolution
-      if (config.tcp_host.includes('saphari.net') && !config.tcp_host.includes('broker.emqx')) {
-        issues.push({
-          type: 'warning',
-          message: `Custom domain "${config.tcp_host}" may not resolve. Consider using a public broker or setting up DNS.`
-        });
-      }
-
       // Check for missing device info
       if (!device.device_id) {
         issues.push({ type: 'error', message: 'Device ID is missing' });
       }
 
-      // Check TLS configuration
-      if (!config.use_tls) {
-        issues.push({
-          type: 'warning',
-          message: 'TLS is disabled. Production deployments should use encrypted connections.'
-        });
-      }
+      // Info about TLS requirement
+      issues.push({
+        type: 'info',
+        message: 'This firmware uses TLS encryption on port 8883 for secure communication.'
+      });
 
       // Check for widgets
       if (widgets.length === 0) {
@@ -64,7 +62,7 @@ export function SnippetGenerator({ open, onOpenChange, device, widgets }: Snippe
 
       setValidationIssues(issues);
     }
-  }, [open, config, device, widgets]);
+  }, [open, device, widgets]);
 
   const copyToClipboard = (text: string, type: string) => {
     navigator.clipboard.writeText(text);
@@ -74,42 +72,72 @@ export function SnippetGenerator({ open, onOpenChange, device, widgets }: Snippe
   };
 
   const generateConfigHeader = () => {
-    if (!config) return '// Configuration not loaded';
+    // Generate a placeholder device token (user should replace with actual from EMQX)
+    const deviceToken = `${device.device_id}_token_REPLACE_ME`;
 
     return `// ============================================
 // SapHari Device Configuration
 // Generated: ${new Date().toISOString()}
 // Device: ${device.name} (${device.device_id})
 // ============================================
+// 
+// ⚠️ SECURITY NOTES:
+// 1. Replace DEVICE_TOKEN with the actual token from EMQX Cloud dashboard
+// 2. Never commit this file to public repositories
+// 3. Each device MUST have unique credentials
+//
+// ============================================
 
 #ifndef SAPHARI_CONFIG_H
 #define SAPHARI_CONFIG_H
 
-// Device Identity
+// ========================================
+// Device Identity (UNIQUE PER DEVICE)
+// ========================================
 #define DEVICE_ID       "${device.device_id}"
 #define DEVICE_NAME     "${device.name}"
+#define DEVICE_TOKEN    "${deviceToken}"  // ⚠️ REPLACE with actual token from EMQX Cloud
 
-// MQTT Broker Configuration
-#define MQTT_HOST       "${config.tcp_host}"
-#define MQTT_PORT       ${config.use_tls ? config.tls_port : config.tcp_port}
-#define MQTT_USE_TLS    ${config.use_tls ? 'true' : 'false'}
-${config.username ? `#define MQTT_USERNAME   "${config.username}"` : '// #define MQTT_USERNAME   "your_username"'}
-${config.password ? `#define MQTT_PASSWORD   "${config.password}"` : '// #define MQTT_PASSWORD   "your_password"'}
+// ========================================
+// MQTT Broker Configuration (PRODUCTION)
+// DO NOT MODIFY - These are platform defaults
+// ========================================
+#define MQTT_HOST       "${PRODUCTION_BROKER.tcp_host}"
+#define MQTT_PORT       ${PRODUCTION_BROKER.tls_port}  // TLS port (required)
+#define MQTT_USE_TLS    true
 
-// MQTT Topics
+// MQTT Authentication
+#define MQTT_USERNAME   DEVICE_ID      // Username = Device ID
+#define MQTT_PASSWORD   DEVICE_TOKEN   // Password = Device Token
+
+// ========================================
+// MQTT Topics (ACL enforced)
+// ========================================
+// Device can ONLY access: saphari/<DEVICE_ID>/#
 #define TOPIC_PREFIX    "saphari/" DEVICE_ID
 #define TOPIC_STATUS    TOPIC_PREFIX "/status/online"
 #define TOPIC_STATE     TOPIC_PREFIX "/state"
 #define TOPIC_CMD       TOPIC_PREFIX "/cmd/#"
 #define TOPIC_ACK       TOPIC_PREFIX "/ack"
 
+// ========================================
 // Widget Configurations
+// ========================================
 ${generateWidgetDefines()}
 
-// Heartbeat & Presence
-#define HEARTBEAT_INTERVAL_MS   30000
-#define RECONNECT_DELAY_MS      5000
-#define MAX_RECONNECT_DELAY_MS  60000
+// ========================================
+// Reliability Settings
+// ========================================
+#define HEARTBEAT_INTERVAL_MS   30000    // Send heartbeat every 30 seconds
+#define RECONNECT_DELAY_MS      5000     // Initial reconnect delay
+#define MAX_RECONNECT_DELAY_MS  60000    // Max reconnect delay (backoff)
+#define MQTT_KEEPALIVE          60       // MQTT keepalive in seconds
+
+// ========================================
+// CA Certificate for TLS (EMQX Cloud)
+// ========================================
+// The ESP32 will use the root CA from WiFiClientSecure
+// For production, embed the actual CA certificate here
 
 #endif // SAPHARI_CONFIG_H`;
   };
@@ -146,31 +174,49 @@ ${generateWidgetDefines()}
       });
     }
 
-    return lines.join('\n');
+    return lines.length > 0 ? lines.join('\n') : '// No widgets configured';
   };
 
   const generateArduinoSketch = () => {
-    if (!config) return '// Configuration not loaded';
-
     return `// ============================================
-// SapHari ESP32 Arduino Sketch
+// SapHari ESP32 Production Firmware
 // Device: ${device.name}
+// Broker: ${PRODUCTION_BROKER.tcp_host}:${PRODUCTION_BROKER.tls_port} (TLS)
+// ============================================
+//
+// REQUIREMENTS:
+// - ESP32 board
+// - PubSubClient library
+// - WiFiClientSecure (built-in)
+//
+// SETUP:
+// 1. Copy saphari_config.h to your project
+// 2. Update DEVICE_TOKEN with your actual token from EMQX Cloud
+// 3. Update WiFi credentials below
+// 4. Upload to your ESP32
+//
 // ============================================
 
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
 #include <PubSubClient.h>
-${config.use_tls ? '#include <WiFiClientSecure.h>' : ''}
-#include "saphari_config.h"  // Include the config header
+#include "saphari_config.h"
 
-// WiFi credentials (set these for your network)
+// ========================================
+// WiFi Credentials (UPDATE THESE)
+// ========================================
 const char* ssid = "YOUR_WIFI_SSID";
 const char* password = "YOUR_WIFI_PASSWORD";
 
-// MQTT Client
-${config.use_tls ? 'WiFiClientSecure espClient;' : 'WiFiClient espClient;'}
+// ========================================
+// MQTT Client (TLS)
+// ========================================
+WiFiClientSecure espClient;
 PubSubClient mqtt(espClient);
 
-// State tracking
+// ========================================
+// State Variables
+// ========================================
 unsigned long lastHeartbeat = 0;
 unsigned long lastReconnectAttempt = 0;
 unsigned long reconnectDelay = RECONNECT_DELAY_MS;
@@ -182,17 +228,29 @@ bool wasConnected = false;
 void setup() {
   Serial.begin(115200);
   delay(1000);
-  Serial.println("\\n\\n=== SapHari Device Starting ===");
-  Serial.printf("Device ID: %s\\n", DEVICE_ID);
-  Serial.printf("MQTT Host: %s:%d\\n", MQTT_HOST, MQTT_PORT);
   
+  Serial.println("\\n\\n========================================");
+  Serial.println("  SapHari ESP32 Device Starting");
+  Serial.println("========================================");
+  Serial.printf("Device ID: %s\\n", DEVICE_ID);
+  Serial.printf("Device Name: %s\\n", DEVICE_NAME);
+  Serial.printf("MQTT Broker: %s:%d (TLS)\\n", MQTT_HOST, MQTT_PORT);
+  Serial.println("========================================\\n");
+  
+  setupPins();
   setupWiFi();
   setupMQTT();
-  setupPins();
+}
+
+void setupPins() {
+  // Configure GPIO pins based on widgets
+${widgets.filter(w => w.type === 'switch' && w.pin).map(w => 
+  `  pinMode(${w.pin}, OUTPUT);`
+).join('\n') || '  // No switch pins configured'}
 }
 
 void setupWiFi() {
-  Serial.printf("Connecting to WiFi: %s\\n", ssid);
+  Serial.printf("📶 Connecting to WiFi: %s\\n", ssid);
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
   
@@ -204,24 +262,24 @@ void setupWiFi() {
   }
   
   if (WiFi.status() == WL_CONNECTED) {
-    Serial.printf("\\nWiFi connected! IP: %s\\n", WiFi.localIP().toString().c_str());
+    Serial.printf("\\n✅ WiFi connected!\\n");
+    Serial.printf("   IP Address: %s\\n", WiFi.localIP().toString().c_str());
+    Serial.printf("   RSSI: %d dBm\\n", WiFi.RSSI());
   } else {
-    Serial.println("\\nWiFi connection failed!");
+    Serial.println("\\n❌ WiFi connection failed!");
+    Serial.println("   Check credentials and try again.");
   }
 }
 
 void setupMQTT() {
-  ${config.use_tls ? 'espClient.setInsecure(); // For testing. Use proper certs in production!' : ''}
+  // Configure TLS - accept all certificates for now
+  // For production, embed the actual EMQX Cloud CA certificate
+  espClient.setInsecure();
+  
   mqtt.setServer(MQTT_HOST, MQTT_PORT);
   mqtt.setCallback(mqttCallback);
   mqtt.setBufferSize(512);
-}
-
-void setupPins() {
-  // Configure GPIO pins based on widgets
-${widgets.filter(w => w.type === 'switch' && w.pin).map(w => 
-  `  pinMode(${w.pin}, OUTPUT);`
-).join('\n') || '  // No switch pins configured'}
+  mqtt.setKeepAlive(MQTT_KEEPALIVE);
 }
 
 // ========================================
@@ -230,6 +288,7 @@ ${widgets.filter(w => w.type === 'switch' && w.pin).map(w =>
 void loop() {
   // Ensure WiFi is connected
   if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("⚠️ WiFi disconnected, reconnecting...");
     setupWiFi();
     return;
   }
@@ -237,13 +296,13 @@ void loop() {
   // Maintain MQTT connection
   if (!mqtt.connected()) {
     if (wasConnected) {
-      Serial.println("MQTT disconnected!");
+      Serial.println("⚠️ MQTT disconnected!");
       wasConnected = false;
     }
     reconnectMQTT();
   } else {
     if (!wasConnected) {
-      Serial.println("MQTT connected!");
+      Serial.println("✅ MQTT connected!");
       wasConnected = true;
       reconnectDelay = RECONNECT_DELAY_MS; // Reset backoff
     }
@@ -258,47 +317,70 @@ void loop() {
 }
 
 // ========================================
-// MQTT Functions
+// MQTT Connection with LWT
 // ========================================
 void reconnectMQTT() {
   if (millis() - lastReconnectAttempt < reconnectDelay) return;
   lastReconnectAttempt = millis();
   
-  Serial.printf("Connecting to MQTT broker %s:%d...\\n", MQTT_HOST, MQTT_PORT);
+  Serial.printf("🔌 Connecting to MQTT broker...\\n");
+  Serial.printf("   Host: %s:%d\\n", MQTT_HOST, MQTT_PORT);
+  Serial.printf("   Username: %s\\n", MQTT_USERNAME);
   
-  // Set Last Will and Testament (LWT) for offline detection
-  String willTopic = String(TOPIC_STATUS);
-  
+  // Connect with Last Will and Testament (LWT)
+  // When connection drops, broker publishes "offline" to status topic
   bool connected = mqtt.connect(
-    DEVICE_ID,
-${config.username ? `    MQTT_USERNAME,` : '    NULL,'}
-${config.password ? `    MQTT_PASSWORD,` : '    NULL,'}
-    willTopic.c_str(),  // Will topic
-    1,                   // Will QoS
-    true,                // Will retain
-    "offline"            // Will message
+    DEVICE_ID,          // Client ID
+    MQTT_USERNAME,      // Username = Device ID
+    MQTT_PASSWORD,      // Password = Device Token
+    TOPIC_STATUS,       // Will topic
+    1,                  // Will QoS
+    true,               // Will retain
+    "offline"           // Will message
   );
   
   if (connected) {
-    Serial.println("MQTT connected!");
+    Serial.println("✅ MQTT connected!");
     
     // Publish online status (retained)
     mqtt.publish(TOPIC_STATUS, "online", true);
+    Serial.printf("   Published: %s = online\\n", TOPIC_STATUS);
     
     // Subscribe to command topics
     mqtt.subscribe(TOPIC_CMD);
-    Serial.printf("Subscribed to: %s\\n", TOPIC_CMD);
+    Serial.printf("   Subscribed: %s\\n", TOPIC_CMD);
     
     // Publish initial state
     publishState();
   } else {
-    Serial.printf("MQTT connect failed, rc=%d\\n", mqtt.state());
+    int state = mqtt.state();
+    Serial.printf("❌ MQTT connect failed, rc=%d\\n", state);
+    printMQTTError(state);
+    
     // Exponential backoff
     reconnectDelay = min(reconnectDelay * 2, (unsigned long)MAX_RECONNECT_DELAY_MS);
-    Serial.printf("Next attempt in %lu ms\\n", reconnectDelay);
+    Serial.printf("   Next attempt in %lu ms\\n", reconnectDelay);
   }
 }
 
+void printMQTTError(int state) {
+  switch (state) {
+    case -4: Serial.println("   Error: Connection timeout"); break;
+    case -3: Serial.println("   Error: Connection lost"); break;
+    case -2: Serial.println("   Error: Connect failed"); break;
+    case -1: Serial.println("   Error: Disconnected"); break;
+    case 1: Serial.println("   Error: Bad protocol"); break;
+    case 2: Serial.println("   Error: Bad client ID"); break;
+    case 3: Serial.println("   Error: Unavailable"); break;
+    case 4: Serial.println("   Error: Bad credentials"); break;
+    case 5: Serial.println("   Error: Unauthorized"); break;
+    default: Serial.printf("   Error: Unknown (%d)\\n", state); break;
+  }
+}
+
+// ========================================
+// Message Handler
+// ========================================
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
   String topicStr = String(topic);
   String message = "";
@@ -306,7 +388,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     message += (char)payload[i];
   }
   
-  Serial.printf("MQTT received: %s = %s\\n", topic, message.c_str());
+  Serial.printf("📨 Received: %s = %s\\n", topic, message.c_str());
   
   // Parse command from topic: saphari/DEVICE_ID/cmd/TYPE/ADDRESS
   if (topicStr.startsWith(String(TOPIC_PREFIX) + "/cmd/")) {
@@ -315,7 +397,6 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 }
 
 void handleCommand(String topic, String payload) {
-  // Extract command type and address from topic
   int cmdStart = topic.indexOf("/cmd/") + 5;
   String remaining = topic.substring(cmdStart);
   int slashPos = remaining.indexOf('/');
@@ -323,7 +404,7 @@ void handleCommand(String topic, String payload) {
   String cmdType = slashPos > 0 ? remaining.substring(0, slashPos) : remaining;
   String address = slashPos > 0 ? remaining.substring(slashPos + 1) : "";
   
-  Serial.printf("Command: type=%s, address=%s, payload=%s\\n", 
+  Serial.printf("⚡ Command: type=%s, address=%s, payload=%s\\n", 
     cmdType.c_str(), address.c_str(), payload.c_str());
   
   // Handle GPIO commands
@@ -337,36 +418,43 @@ void handleCommand(String topic, String payload) {
   
   // Send acknowledgment
   sendAck(cmdType, address, "ok");
+  
+  // Publish updated state
+  publishState();
 }
 
 void handleGpioCommand(String address, String payload) {
-  // Find widget by address and set pin
 ${widgets.filter(w => w.type === 'switch' && w.pin).map(w => 
   `  if (address == "${w.address}") {
     digitalWrite(${w.pin}, payload == "1" ? HIGH : LOW);
-    Serial.printf("GPIO ${w.pin} set to %s\\n", payload.c_str());
+    Serial.printf("   GPIO ${w.pin} -> %s\\n", payload.c_str());
   }`
 ).join(' else\n') || '  // No switch widgets configured'}
 }
 
 void handleServoCommand(String address, String payload) {
   int angle = payload.toInt();
-  // TODO: Implement servo control based on your servo library
-  Serial.printf("Servo %s set to %d degrees\\n", address.c_str(), angle);
+  Serial.printf("   Servo %s -> %d°\\n", address.c_str(), angle);
+  // TODO: Implement servo control
 }
 
 void sendAck(String cmdType, String address, String status) {
-  String ackTopic = String(TOPIC_ACK);
   String ackPayload = "{\\"cmd\\":\\"" + cmdType + "\\",\\"addr\\":\\"" + address + "\\",\\"status\\":\\"" + status + "\\"}";
-  mqtt.publish(ackTopic.c_str(), ackPayload.c_str());
+  mqtt.publish(TOPIC_ACK, ackPayload.c_str());
+  Serial.printf("   ACK sent: %s\\n", ackPayload.c_str());
 }
 
+// ========================================
+// Heartbeat & State Publishing
+// ========================================
 void sendHeartbeat() {
-  // Publish online status
+  // Refresh online status
   mqtt.publish(TOPIC_STATUS, "online", true);
   
   // Publish current state
   publishState();
+  
+  Serial.printf("💓 Heartbeat (RSSI: %d dBm)\\n", WiFi.RSSI());
 }
 
 void publishState() {
@@ -393,6 +481,7 @@ ${widgets.filter(w => w.type === 'gauge' && w.pin).map(w =>
     return `; ============================================
 ; SapHari PlatformIO Configuration
 ; Device: ${device.name}
+; Broker: ${PRODUCTION_BROKER.tcp_host}:${PRODUCTION_BROKER.tls_port}
 ; ============================================
 
 [env:esp32dev]
@@ -401,22 +490,29 @@ board = esp32dev
 framework = arduino
 monitor_speed = 115200
 
+; Required libraries
 lib_deps = 
     knolleary/PubSubClient@^2.8
-    ${config?.use_tls ? 'ArduinoJson@^7.0.0' : ''}
+    bblanchon/ArduinoJson@^7.0.0
 
+; Build flags
 build_flags = 
     -D DEVICE_ID="\\"${device.device_id}\\""
-    -D MQTT_HOST="\\"${config?.tcp_host || 'broker.emqx.io'}\\""
-    -D MQTT_PORT=${config?.use_tls ? config.tls_port : config?.tcp_port || 1883}
-    -D MQTT_USE_TLS=${config?.use_tls ? '1' : '0'}
-    ${config?.username ? `-D MQTT_USERNAME="\\"${config.username}\\""` : ''}
+    -D MQTT_HOST="\\"${PRODUCTION_BROKER.tcp_host}\\""
+    -D MQTT_PORT=${PRODUCTION_BROKER.tls_port}
+    -D MQTT_USE_TLS=1
+    -DCORE_DEBUG_LEVEL=3
 
 ; Upload settings
 upload_speed = 921600
 
 ; Partition scheme for OTA updates
-board_build.partitions = min_spiffs.csv`;
+board_build.partitions = min_spiffs.csv
+
+; Monitor filters for better debugging
+monitor_filters = 
+    esp32_exception_decoder
+    time`;
   };
 
   return (
@@ -425,16 +521,30 @@ board_build.partitions = min_spiffs.csv`;
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Code className="h-5 w-5" />
-            ESP32 Snippet Generator
+            ESP32 Firmware Generator
+            <Badge variant="outline" className="ml-2">
+              <Lock className="h-3 w-3 mr-1" />
+              TLS
+            </Badge>
           </DialogTitle>
           <DialogDescription>
-            Generate production-ready firmware code for {device.name}
+            Generate production-ready firmware for {device.name} with secure MQTT connection
           </DialogDescription>
         </DialogHeader>
 
-        {validationIssues.length > 0 && (
+        {/* Security Notice */}
+        <Alert className="border-primary/50 bg-primary/5">
+          <Shield className="h-4 w-4" />
+          <AlertTitle>Production Configuration</AlertTitle>
+          <AlertDescription>
+            This firmware connects to <code className="text-xs">{PRODUCTION_BROKER.tcp_host}:{PRODUCTION_BROKER.tls_port}</code> using TLS encryption.
+            Each device requires unique credentials from EMQX Cloud.
+          </AlertDescription>
+        </Alert>
+
+        {validationIssues.filter(i => i.type !== 'info').length > 0 && (
           <div className="space-y-2">
-            {validationIssues.map((issue, i) => (
+            {validationIssues.filter(i => i.type !== 'info').map((issue, i) => (
               <Alert key={i} variant={issue.type === 'error' ? 'destructive' : 'default'}>
                 <AlertTriangle className="h-4 w-4" />
                 <AlertDescription>{issue.message}</AlertDescription>
@@ -444,7 +554,7 @@ board_build.partitions = min_spiffs.csv`;
         )}
 
         <div className="flex-1 overflow-auto">
-          <Tabs defaultValue="arduino" className="w-full">
+          <Tabs defaultValue="config" className="w-full">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="config" className="flex items-center gap-1">
                 <Settings className="h-4 w-4" />
@@ -478,7 +588,7 @@ board_build.partitions = min_spiffs.csv`;
                 />
               </div>
               <p className="text-xs text-muted-foreground mt-2">
-                Save this as <code>saphari_config.h</code> in your project
+                Save as <code className="bg-muted px-1 rounded">saphari_config.h</code> — Remember to replace DEVICE_TOKEN with your actual token from EMQX Cloud!
               </p>
             </TabsContent>
 
@@ -500,7 +610,7 @@ board_build.partitions = min_spiffs.csv`;
                 />
               </div>
               <p className="text-xs text-muted-foreground mt-2">
-                Complete Arduino sketch with WiFi, MQTT, LWT, and reconnect logic
+                Save as <code className="bg-muted px-1 rounded">main.cpp</code> or <code className="bg-muted px-1 rounded">main.ino</code>
               </p>
             </TabsContent>
 
@@ -522,24 +632,21 @@ board_build.partitions = min_spiffs.csv`;
                 />
               </div>
               <p className="text-xs text-muted-foreground mt-2">
-                Save this as <code>platformio.ini</code> in your project root
+                Save as <code className="bg-muted px-1 rounded">platformio.ini</code>
               </p>
             </TabsContent>
           </Tabs>
         </div>
 
-        <div className="flex items-center justify-between pt-4 border-t">
-          <div className="flex items-center gap-2">
-            <Badge variant="outline">
-              {widgets.length} widget{widgets.length !== 1 ? 's' : ''}
-            </Badge>
-            <Badge variant={config?.use_tls ? 'default' : 'secondary'}>
-              {config?.use_tls ? 'TLS Enabled' : 'No TLS'}
-            </Badge>
-          </div>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Close
-          </Button>
+        <div className="border-t pt-4 mt-4">
+          <h4 className="text-sm font-medium mb-2">Quick Setup Guide</h4>
+          <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
+            <li>Create device credentials in EMQX Cloud dashboard</li>
+            <li>Copy the config header and replace DEVICE_TOKEN with your actual token</li>
+            <li>Update WiFi credentials in the Arduino sketch</li>
+            <li>Upload to your ESP32</li>
+            <li>Monitor serial output for connection status</li>
+          </ol>
         </div>
       </DialogContent>
     </Dialog>

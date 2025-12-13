@@ -871,6 +871,20 @@ export type Database = {
           total_users: number
         }[]
       }
+      get_production_broker_config: {
+        Args: never
+        Returns: {
+          password: string
+          tcp_host: string
+          tcp_port: number
+          tls_port: number
+          use_tls: boolean
+          username: string
+          wss_path: string
+          wss_port: number
+          wss_url: string
+        }[]
+      }
       get_user_role: {
         Args: { _user_id?: string }
         Returns: Database["public"]["Enums"]["app_role"]

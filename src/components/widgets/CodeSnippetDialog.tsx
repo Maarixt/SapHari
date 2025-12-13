@@ -37,15 +37,9 @@ const getServoAngle = (widget: Widget) => {
 const formatGaugeType = (type?: string | null) => `GT_${(type || 'analog').toUpperCase()}`;
 
 export const CodeSnippetDialog = ({ open, onOpenChange, device, widgets }: CodeSnippetDialogProps) => {
-  const { brokerSettings } = useMQTT();
+  const { brokerConfig } = useMQTT();
 
-  const brokerHost = (() => {
-    try {
-      return new URL(brokerSettings.url).hostname;
-    } catch {
-      return brokerSettings.url;
-    }
-  })();
+  const brokerHost = brokerConfig?.tcp_host || 'z110b082.ala.us-east-1.emqxsl.com';
 
   const generateCode = () => {
     const switches = widgets

@@ -60,7 +60,7 @@ loop(() => {
   const [warnings, setWarnings] = useState<any[]>([]);
   const [enhancedMode, setEnhancedMode] = useState(false);
   const stageRef = useRef<any>(null);
-  const { publishMessage, onMessage, brokerSettings, connected } = useMQTT();
+  const { publishMessage, onMessage, brokerConfig, connected } = useMQTT();
 
   // MQTT Bridge
   useSimulatorMQTT(state, setState, simId);
