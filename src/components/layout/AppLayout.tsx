@@ -1,15 +1,14 @@
-import { ReactNode } from 'react';
+import { Outlet } from 'react-router-dom';
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from './AppSidebar';
 import { OrganizationsProvider, useOrganizations } from '@/hooks/useOrganizations';
 import { OrgOnboarding } from '@/components/organizations/OrgOnboarding';
 import { Skeleton } from '@/components/ui/skeleton';
+import { MQTTProvider } from '@/hooks/useMQTT';
+import { MQTTDebugPanel } from '@/components/debug/MQTTDebugPanel';
+import { Toaster } from 'sonner';
 
-interface DashboardLayoutProps {
-  children: ReactNode;
-}
-
-function DashboardContent({ children }: DashboardLayoutProps) {
+function AppLayoutContent() {
   const { organizations, currentOrg, isLoading } = useOrganizations();
 
   // Loading state
@@ -42,18 +41,22 @@ function DashboardContent({ children }: DashboardLayoutProps) {
             </div>
           </header>
           <main className="flex-1 p-4 lg:p-6">
-            {children}
+            <Outlet />
           </main>
         </SidebarInset>
       </div>
+      <MQTTDebugPanel />
+      <Toaster position="top-right" expand richColors closeButton />
     </SidebarProvider>
   );
 }
 
-export function DashboardLayout({ children }: DashboardLayoutProps) {
+export function AppLayout() {
   return (
-    <OrganizationsProvider>
-      <DashboardContent>{children}</DashboardContent>
-    </OrganizationsProvider>
+    <MQTTProvider>
+      <OrganizationsProvider>
+        <AppLayoutContent />
+      </OrganizationsProvider>
+    </MQTTProvider>
   );
 }
