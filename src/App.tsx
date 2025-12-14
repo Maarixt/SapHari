@@ -19,6 +19,7 @@ import { NotificationPermissionBanner } from "@/components/alerts/NotificationPe
 import AlertRulesModal from "@/components/alerts/AlertRulesModal";
 import { ThemeProvider } from "@/hooks/useTheme";
 import { AppBackground } from "@/components/ui/AppBackground";
+import { SecurityDebugPanel } from "@/components/debug/SecurityDebugPanel";
 
 // App pages
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -95,6 +96,7 @@ const App = () => (
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </BrowserRouter>
+                <SecurityDebugPanel />
               </MasterAccountProvider>
             </AuthProvider>
           </AppBackground>

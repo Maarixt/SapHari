@@ -1,3 +1,5 @@
+import { registerCleanup } from '@/services/stateResetService';
+
 type GPIO = Record<number, 0|1>;
 type Sensors = Record<string, any>;
 
@@ -13,6 +15,18 @@ let subs: Listener[] = [];
 const devices: Record<string, DeviceSnapshot> = {};
 
 function notify(){ subs.forEach(f=>f()); }
+
+/**
+ * Clear all device state - called on logout
+ */
+function clearAllState(): void {
+  console.log('🧹 DeviceStore: Clearing all state');
+  Object.keys(devices).forEach(key => delete devices[key]);
+  notify();
+}
+
+// Register cleanup on import
+registerCleanup(clearAllState);
 
 export const DeviceStore = {
   subscribe(fn: Listener): () => void { 
@@ -38,5 +52,10 @@ export const DeviceStore = {
     const cur = devices[id] || { online:false, gpio:{}, sensors:{}, lastSeen:0 };
     devices[id] = { ...cur, online, lastSeen: Date.now() };
     notify();
-  }
+  },
+
+  /**
+   * Clear all device state - CRITICAL for logout
+   */
+  clear: clearAllState
 };

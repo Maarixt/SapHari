@@ -1,8 +1,10 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { initializeSessionManager } from '@/services/sessionManager';
 import { clearMQTTCredentials } from '@/services/mqttCredentialsManager';
+import { resetAllState } from '@/services/stateResetService';
+import { AlertsStore } from '@/features/alerts/alertsStore';
 
 export interface SignupProfile {
   firstName?: string;
@@ -34,6 +36,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const previousUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     // Initialize session manager first
@@ -41,18 +44,51 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      async (event, session) => {
+        console.log(`🔐 Auth event: ${event}, user: ${session?.user?.id?.substring(0, 8) || 'none'}`);
+        
+        const newUserId = session?.user?.id || null;
+        const previousUserId = previousUserIdRef.current;
+        
+        // CRITICAL: Detect user switch (different user logging in)
+        if (previousUserId && newUserId && previousUserId !== newUserId) {
+          console.log('🔐 USER SWITCH DETECTED - resetting all state');
+          await resetAllState();
+        }
+        
+        // CRITICAL: Handle sign out
+        if (event === 'SIGNED_OUT' || !session) {
+          console.log('🔐 SIGNED_OUT - resetting all state');
+          await resetAllState();
+        }
+        
+        // Update refs and state
+        previousUserIdRef.current = newUserId;
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
+        
+        // Initialize user-scoped stores on login
+        if (newUserId && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
+          console.log(`🔐 Initializing stores for user: ${newUserId.substring(0, 8)}...`);
+          AlertsStore.initForUser(newUserId);
+        }
       }
     );
 
     // THEN check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      const userId = session?.user?.id || null;
+      previousUserIdRef.current = userId;
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+      
+      // Initialize user-scoped stores
+      if (userId) {
+        console.log(`🔐 Existing session found, initializing stores for user: ${userId.substring(0, 8)}...`);
+        AlertsStore.initForUser(userId);
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -94,13 +130,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const signOut = async () => {
+    console.log('🔐 Sign out initiated');
+    
     try {
-      // Clear MQTT credentials first
-      clearMQTTCredentials();
+      // CRITICAL: Reset ALL state first
+      await resetAllState();
       
-      // Clear local state first
+      // Clear local state
       setUser(null);
       setSession(null);
+      previousUserIdRef.current = null;
       
       // Check if we have a valid session before attempting signOut
       const { data: { session: currentSession } } = await supabase.auth.getSession();
@@ -118,7 +157,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
       
       // Force clear any remaining session data from localStorage
-      // Use hardcoded project ID since env vars aren't reliable
       const projectId = 'wrdeomgtkbehvbfhiprm';
       localStorage.removeItem(`sb-${projectId}-auth-token`);
       
@@ -129,11 +167,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
       });
       
+      console.log('🔐 Sign out complete');
+      
     } catch (error) {
       console.error('Sign out error:', error);
       // Force clear local state even if there's an error
       setUser(null);
       setSession(null);
+      previousUserIdRef.current = null;
     }
   };
 
