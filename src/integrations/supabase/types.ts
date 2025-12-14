@@ -14,6 +14,91 @@ export type Database = {
   }
   public: {
     Tables: {
+      alert_rules: {
+        Row: {
+          condition: string
+          cooldown_seconds: number
+          created_at: string
+          description: string | null
+          device_id: string | null
+          enabled: boolean
+          expected_value: string | null
+          id: string
+          last_fired_at: string | null
+          message_template: string
+          name: string
+          org_id: string | null
+          pin: number | null
+          sensor_key: string | null
+          severity: string
+          source: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          condition?: string
+          cooldown_seconds?: number
+          created_at?: string
+          description?: string | null
+          device_id?: string | null
+          enabled?: boolean
+          expected_value?: string | null
+          id?: string
+          last_fired_at?: string | null
+          message_template: string
+          name: string
+          org_id?: string | null
+          pin?: number | null
+          sensor_key?: string | null
+          severity?: string
+          source?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          condition?: string
+          cooldown_seconds?: number
+          created_at?: string
+          description?: string | null
+          device_id?: string | null
+          enabled?: boolean
+          expected_value?: string | null
+          id?: string
+          last_fired_at?: string | null
+          message_template?: string
+          name?: string
+          org_id?: string | null
+          pin?: number | null
+          sensor_key?: string | null
+          severity?: string
+          source?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alert_rules_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alert_rules_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alert_rules_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       alerts: {
         Row: {
           ack_by: string | null
@@ -24,6 +109,7 @@ export type Database = {
           id: string
           message: string
           read: boolean
+          rule_id: string | null
           severity: Database["public"]["Enums"]["alert_severity"] | null
           state: Database["public"]["Enums"]["alert_state"] | null
           type: string
@@ -39,6 +125,7 @@ export type Database = {
           id?: string
           message: string
           read?: boolean
+          rule_id?: string | null
           severity?: Database["public"]["Enums"]["alert_severity"] | null
           state?: Database["public"]["Enums"]["alert_state"] | null
           type: string
@@ -54,6 +141,7 @@ export type Database = {
           id?: string
           message?: string
           read?: boolean
+          rule_id?: string | null
           severity?: Database["public"]["Enums"]["alert_severity"] | null
           state?: Database["public"]["Enums"]["alert_state"] | null
           type?: string
@@ -73,6 +161,13 @@ export type Database = {
             columns: ["device_id"]
             isOneToOne: false
             referencedRelation: "devices_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alerts_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "alert_rules"
             referencedColumns: ["id"]
           },
           {
