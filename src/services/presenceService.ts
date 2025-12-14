@@ -68,17 +68,18 @@ function checkPresenceTTL() {
       if (currentState?.online) {
         console.log(`⏰ Device ${deviceId} TTL expired (${Math.round(elapsed / 1000)}s), marking offline`);
         DeviceStore.setOnline(deviceId, false);
-        updateDeviceStatusInDB(deviceId, false);
+        updateDeviceStatusInDB(deviceId, false, 'ttl');
       }
     }
   });
 }
 
 /**
- * Update device status in Supabase database
+ * Update device status in Supabase database and log presence event
  */
-async function updateDeviceStatusInDB(deviceId: string, isOnline: boolean) {
+async function updateDeviceStatusInDB(deviceId: string, isOnline: boolean, source: 'mqtt' | 'ttl' = 'mqtt') {
   try {
+    // Update device status
     const { error } = await supabase
       .from('devices')
       .update({ 
@@ -89,6 +90,20 @@ async function updateDeviceStatusInDB(deviceId: string, isOnline: boolean) {
     
     if (error) {
       console.error('Failed to update device status in DB:', error);
+    }
+
+    // Log presence event for history tracking
+    const { error: eventError } = await supabase
+      .from('device_presence_events')
+      .insert({
+        device_id: deviceId,
+        status: isOnline ? 'online' : 'offline',
+        source
+      });
+
+    if (eventError) {
+      // Don't fail if event logging fails - it's secondary
+      console.warn('Failed to log presence event:', eventError);
     }
   } catch (err) {
     console.error('Error updating device status:', err);

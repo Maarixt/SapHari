@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.device-command]
 verify_jwt = true
+
+[functions.mqtt-credentials]
+verify_jwt = true
