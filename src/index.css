@@ -403,4 +403,26 @@
   .text-gradient {
     @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/70;
   }
+
+  /* Heartbeat glow animation for online devices */
+  @keyframes heartbeat-glow {
+    0%, 100% { 
+      box-shadow: 0 0 0 0 hsl(var(--success) / 0), 
+                  0 4px 12px -2px hsl(var(--success) / 0.1);
+    }
+    50% { 
+      box-shadow: 0 0 20px 4px hsl(var(--success) / 0.15), 
+                  0 4px 12px -2px hsl(var(--success) / 0.2);
+    }
+  }
+
+  .animate-heartbeat-glow {
+    animation: heartbeat-glow 2s ease-in-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-heartbeat-glow {
+      animation: none;
+    }
+  }
 }

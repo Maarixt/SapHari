@@ -47,7 +47,7 @@ export const DeviceCard = ({ device, onSelect, onDelete, onEdit }: DeviceCardPro
   return (
     <Card className={`border-border/50 hover:shadow-lg transition-all duration-300 ${
       isOnline 
-        ? 'border-success/20 bg-gradient-to-br from-success/5 to-success/10' 
+        ? 'border-success/30 bg-gradient-to-br from-success/5 to-success/10 animate-heartbeat-glow' 
         : 'border-muted/20 bg-gradient-to-br from-muted/5 to-muted/10'
     }`}>
       <CardHeader className="pb-4">
