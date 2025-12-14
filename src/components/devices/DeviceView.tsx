@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useMQTT } from '@/hooks/useMQTT';
 import { useDeviceStore } from '@/hooks/useDeviceStore';
+import { useDevicePresence } from '@/hooks/useDevicePresence';
 import { SwitchWidget } from '../widgets/SwitchWidget';
 import { GaugeWidget } from '../widgets/GaugeWidget';
 import { ServoWidget } from '../widgets/ServoWidget';
@@ -22,15 +23,19 @@ interface DeviceViewProps {
 export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
   const { toast } = useToast();
   const { onMessage } = useMQTT();
+  
+  // Use real-time presence from MQTT status messages (same as DeviceCard)
+  const { isOnline } = useDevicePresence(device.device_id);
+  
+  // Use device store for GPIO/sensor state tracking
   const { 
     device: deviceSnapshot,
-    isOnline, 
     controlGpio, 
     controlServo, 
     controlGauge,
     getGpioState,
     getSensorValue
-  } = useDeviceStore(device.id);
+  } = useDeviceStore(device.device_id);
   
   const [widgets, setWidgets] = useState<Widget[]>([]);
   const [loading, setLoading] = useState(true);
