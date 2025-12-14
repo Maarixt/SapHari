@@ -4,7 +4,7 @@ export interface Device {
   id: string;
   device_id: string;
   name: string;
-  device_key: string;
+  device_key?: string; // Optional - not included when using devices_safe view for security
   model?: string;
   firmware?: string;
   firmware_version?: string;

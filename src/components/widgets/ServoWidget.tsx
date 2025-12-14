@@ -33,13 +33,12 @@ export const ServoWidget = ({ widget, device, allWidgets, onUpdate, onDelete }: 
       state: updatedState
     });
 
-    // Publish MQTT command
+    // Publish MQTT command (device_key removed for security - auth handled at broker level)
     const topic = `saphari/${device.device_id}/cmd/servo`;
     const payload = JSON.stringify({
       addr: widget.address,
       pin: widget.pin,
-      angle: newAngle,
-      key: device.device_key
+      angle: newAngle
     });
 
     publishMessage(topic, payload);

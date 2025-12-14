@@ -20,9 +20,9 @@ export const useDevices = () => {
     try {
       setError(null);
       
-      // Load devices with user_id (backward compatibility)
+      // Use devices_safe view to exclude device_key from client queries
       const { data: deviceData, error: deviceError } = await supabase
-        .from('devices')
+        .from('devices_safe')
         .select('*')
         .eq('user_id', user.id);
         

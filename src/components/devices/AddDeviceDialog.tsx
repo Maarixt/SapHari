@@ -50,17 +50,12 @@ export const AddDeviceDialog = ({ open, onOpenChange, onDeviceAdded }: AddDevice
     
     setIsLoading(true);
     try {
-      // Debug: Log user info
-      console.log('User ID:', user.id);
-      console.log('User email:', user.email);
-      const { error } = await supabase
-        .from('devices')
-        .insert({
-          name: name.trim(),
-          device_id: deviceId.trim(),
-          device_key: deviceKey.trim(),
-          user_id: user.id
-        });
+      // Use secure RPC to create device (generates key server-side)
+      const { data, error } = await supabase.rpc('create_device', {
+        _device_id: deviceId.trim(),
+        _name: name.trim(),
+        _user_id: user.id
+      });
 
       if (error) {
         console.error('Supabase error:', error);
