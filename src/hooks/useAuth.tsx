@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { initializeSessionManager } from '@/services/sessionManager';
+import { clearMQTTCredentials } from '@/services/mqttCredentialsManager';
 
 export interface SignupProfile {
   firstName?: string;
@@ -34,6 +36,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Initialize session manager first
+    initializeSessionManager();
+    
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
@@ -90,6 +95,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signOut = async () => {
     try {
+      // Clear MQTT credentials first
+      clearMQTTCredentials();
+      
       // Clear local state first
       setUser(null);
       setSession(null);
@@ -110,11 +118,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
       
       // Force clear any remaining session data from localStorage
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      if (supabaseUrl) {
-        const projectId = supabaseUrl.split('//')[1].split('.')[0];
-        localStorage.removeItem(`sb-${projectId}-auth-token`);
-      }
+      // Use hardcoded project ID since env vars aren't reliable
+      const projectId = 'wrdeomgtkbehvbfhiprm';
+      localStorage.removeItem(`sb-${projectId}-auth-token`);
       
       // Clear all Supabase-related localStorage items
       Object.keys(localStorage).forEach(key => {
