@@ -7,6 +7,7 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import MasterLogin from "./pages/MasterLogin";
 import MasterDashboard from "./pages/master/MasterDashboard";
+import QADiagnostics from "./pages/master/QADiagnostics";
 import MQTTSetup from "./pages/docs/MQTTSetup";
 import NotFound from "./pages/NotFound";
 import { AuthProvider } from "@/hooks/useAuth";
@@ -80,6 +81,16 @@ const App = () => (
                         <AuthGuard>
                           <RequireMaster>
                             <MasterDashboard />
+                          </RequireMaster>
+                        </AuthGuard>
+                      }
+                    />
+                    <Route
+                      path="/master/qa"
+                      element={
+                        <AuthGuard>
+                          <RequireMaster>
+                            <QADiagnostics />
                           </RequireMaster>
                         </AuthGuard>
                       }

@@ -9,6 +9,7 @@
 
 import { clearMQTTCredentials, cancelCredentialRefresh } from './mqttCredentialsManager';
 import { disconnect as disconnectMQTT } from './mqttConnectionService';
+import { clearAuthorizedDevices } from './mqttGate';
 
 /**
  * Get all localStorage keys that belong to the app
@@ -112,6 +113,7 @@ export async function resetAllState(): Promise<void> {
     disconnectMQTT();
     clearMQTTCredentials();
     cancelCredentialRefresh();
+    clearAuthorizedDevices(); // Clear authorized devices gate
     
     // 2. Clear in-memory stores
     await clearInMemoryStores();

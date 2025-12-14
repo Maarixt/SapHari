@@ -155,25 +155,24 @@ export function OrganizationsProvider({ children }: { children: ReactNode }) {
     queryClient.invalidateQueries({ queryKey: ['devices'] });
   }, [queryClient, user]);
 
-  // Create organization
+  // Create organization using SECURITY DEFINER RPC to bypass RLS
   const createOrganization = async (name: string, type: OrgType): Promise<Organization> => {
     if (!user) throw new Error('Not authenticated');
     
-    // Insert organization
-    const { data: org, error: orgError } = await supabase
+    // Use RPC to create org + membership atomically
+    const { data: orgId, error: rpcError } = await supabase
+      .rpc('create_organization_with_owner', { p_name: name, p_type: type });
+    
+    if (rpcError) throw rpcError;
+    
+    // Fetch the created organization
+    const { data: org, error: fetchError } = await supabase
       .from('organizations')
-      .insert({ name, type, owner_user_id: user.id })
-      .select()
+      .select('*')
+      .eq('id', orgId)
       .single();
     
-    if (orgError) throw orgError;
-    
-    // Add owner as member
-    const { error: memberError } = await supabase
-      .from('organization_members')
-      .insert({ org_id: org.id, user_id: user.id, role: 'owner' });
-    
-    if (memberError) throw memberError;
+    if (fetchError) throw fetchError;
     
     queryClient.invalidateQueries({ queryKey: ['organizations'] });
     setCurrentOrg(org as Organization);
