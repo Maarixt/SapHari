@@ -13,6 +13,7 @@ import { OrgMembersPanel } from '@/components/organizations/OrgMembersPanel';
 import { PendingInvites } from '@/components/organizations/PendingInvites';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Cpu, Users, Bell, Zap, Settings } from 'lucide-react';
+import { MQTTDebugPanel } from '@/components/debug/MQTTDebugPanel';
 
 interface OrgDashboardProps {
   currentView: string;
@@ -126,6 +127,7 @@ export function OrgDashboard({ currentView, setCurrentView }: OrgDashboardProps)
       {renderContent()}
       <BrokerSettingsDialog open={showBrokerSettings} onOpenChange={setShowBrokerSettings} />
       <AlertRuleDialog open={showAlertRules} onOpenChange={setShowAlertRules} defaultDeviceId={selectedDevice?.id} />
+      <MQTTDebugPanel />
       <Toaster position="top-right" expand richColors closeButton />
     </div>
   );
