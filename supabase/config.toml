@@ -1,5 +1,8 @@
 project_id = "wrdeomgtkbehvbfhiprm"
 
+[functions.mqtt-webhook]
+verify_jwt = false
+
 [functions.master-login]
 verify_jwt = false
 
