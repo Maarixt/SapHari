@@ -24,10 +24,16 @@ import { runSimScript, stopSimScript } from './scriptRuntime';
 import { generateSketchFromState } from './sketchGenerator';
 import { cleanupBuzzerAudio } from './runLoop';
 import { GridBackground } from './GridBackground';
+import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { X, Info } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 // Enhanced simulation imports (optional)
 // import { getSimulationBridge } from './integration/SimulationBridge';
 // import WarningsPanel from '../../sim/ui/WarningsPanel';
 // import { Warning } from '../../sim/core/types';
+
+const SIMULATOR_BETA_DISMISSED_KEY = 'saphari-simulator-beta-dismissed';
 // import { createSimpleCircuit } from '../../sim/examples/simpleCircuit';
 
 interface SimulatorModalProps {
@@ -59,8 +65,16 @@ loop(() => {
   const [rightSidebarOpen, setRightSidebarOpen] = useState(true);
   const [warnings, setWarnings] = useState<any[]>([]);
   const [enhancedMode, setEnhancedMode] = useState(false);
+  const [showBetaNotice, setShowBetaNotice] = useState(() => {
+    return localStorage.getItem(SIMULATOR_BETA_DISMISSED_KEY) !== 'true';
+  });
   const stageRef = useRef<any>(null);
   const { publishMessage, onMessage, brokerConfig, connected } = useMQTT();
+
+  const dismissBetaNotice = () => {
+    setShowBetaNotice(false);
+    localStorage.setItem(SIMULATOR_BETA_DISMISSED_KEY, 'true');
+  };
 
   // MQTT Bridge
   useSimulatorMQTT(state, setState, simId);
@@ -327,7 +341,24 @@ loop(() => {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={isFullscreen ? "max-w-none w-screen h-screen p-0 overflow-hidden" : "max-w-[1100px] h-[80vh] p-0 overflow-hidden"}>
         <DialogHeader className="px-4 py-2 border-b flex items-center justify-between">
-          <DialogTitle>ESP32 Circuit Simulator</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            ESP32 Circuit Simulator
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge 
+                    variant="outline" 
+                    className="ml-2 bg-primary/10 text-primary border-primary/30 text-xs font-medium px-2 py-0.5 cursor-help"
+                  >
+                    BETA
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>This feature is under active development.</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </DialogTitle>
           <div className="flex items-center gap-2">
             <Button 
               size="sm" 
@@ -501,6 +532,27 @@ void buttonInterrupt() {
             </Button>
           </div>
         </DialogHeader>
+        
+        {/* Beta Notice - shown once per user */}
+        {showBetaNotice && (
+          <Alert className="mx-4 mt-2 mb-0 border-primary/30 bg-primary/5">
+            <Info className="h-4 w-4 text-primary" />
+            <AlertDescription className="flex items-center justify-between flex-1">
+              <span className="text-sm">
+                The ESP32 Circuit Simulator is currently in beta and actively being improved. Some features may be limited or change.
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="ml-4 h-6 px-2 text-muted-foreground hover:text-foreground"
+                onClick={dismissBetaNotice}
+              >
+                <X className="h-4 w-4 mr-1" />
+                Got it
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
 
         <div className="flex-1 flex min-h-0">
           {/* Left Toolbar */}
