@@ -1,5 +1,6 @@
 // Device State Store - Centralized state management for device-authoritative system
 import { DeviceState, DevicePresence, DeviceAck, DeviceEvent } from '@/lib/mqttTopics';
+import { registerCleanup } from '@/services/stateResetService';
 
 type DeviceStateListener = (deviceId: string, state: DeviceState) => void;
 type DevicePresenceListener = (deviceId: string, presence: DevicePresence) => void;
@@ -33,6 +34,27 @@ const notifyAckListeners = (deviceId: string, ack: DeviceAck) => {
 const notifyEventListeners = (deviceId: string, event: DeviceEvent) => {
   eventListeners.forEach(listener => listener(deviceId, event));
 };
+
+/**
+ * Clear all state - CRITICAL for logout to prevent cross-account data leakage
+ */
+function clearAllState(): void {
+  console.log('🧹 deviceStateStore: Clearing all state');
+  
+  // Clear all device data
+  Object.keys(deviceStates).forEach(key => delete deviceStates[key]);
+  Object.keys(devicePresence).forEach(key => delete devicePresence[key]);
+  Object.keys(pendingCommands).forEach(key => delete pendingCommands[key]);
+  
+  // Clear all listeners (they'll re-register on next component mount)
+  stateListeners = [];
+  presenceListeners = [];
+  ackListeners = [];
+  eventListeners = [];
+}
+
+// Register cleanup on import
+registerCleanup(clearAllState);
 
 export const deviceStateStore = {
   // State management
@@ -183,7 +205,12 @@ export const deviceStateStore = {
         delete pendingCommands[reqId];
       }
     });
-  }
+  },
+
+  /**
+   * Clear all state - CRITICAL for logout
+   */
+  clear: clearAllState
 };
 
 // Cleanup old pending commands every 10 seconds

@@ -63,12 +63,20 @@ interface OrganizationsContextType {
 
 const OrganizationsContext = createContext<OrganizationsContextType | undefined>(undefined);
 
-const CURRENT_ORG_KEY = 'saphari-current-org';
+// User-scoped organization key to prevent cross-account leakage
+const getCurrentOrgKey = (userId: string) => `saphari:${userId}:current-org`;
 
 export function OrganizationsProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [currentOrg, setCurrentOrgState] = useState<Organization | null>(null);
+  
+  // Clear current org when user changes (logout or switch)
+  useEffect(() => {
+    if (!user) {
+      setCurrentOrgState(null);
+    }
+  }, [user]);
 
   // Fetch organizations
   const { data: organizations = [], isLoading, error, refetch } = useQuery({
@@ -124,24 +132,28 @@ export function OrganizationsProvider({ children }: { children: ReactNode }) {
     enabled: !!currentOrg && !!user,
   });
 
-  // Set current org from localStorage or first org
+  // Set current org from localStorage or first org (user-scoped)
   useEffect(() => {
+    if (!user) return;
+    
     if (organizations.length > 0 && !currentOrg) {
-      const savedOrgId = localStorage.getItem(CURRENT_ORG_KEY);
+      const savedOrgId = localStorage.getItem(getCurrentOrgKey(user.id));
       const savedOrg = organizations.find(o => o.id === savedOrgId);
       setCurrentOrgState(savedOrg || organizations[0]);
     }
-  }, [organizations, currentOrg]);
+  }, [organizations, currentOrg, user]);
 
   const setCurrentOrg = useCallback((org: Organization | null) => {
     setCurrentOrgState(org);
-    if (org) {
-      localStorage.setItem(CURRENT_ORG_KEY, org.id);
-    } else {
-      localStorage.removeItem(CURRENT_ORG_KEY);
+    if (user) {
+      if (org) {
+        localStorage.setItem(getCurrentOrgKey(user.id), org.id);
+      } else {
+        localStorage.removeItem(getCurrentOrgKey(user.id));
+      }
     }
     queryClient.invalidateQueries({ queryKey: ['devices'] });
-  }, [queryClient]);
+  }, [queryClient, user]);
 
   // Create organization
   const createOrganization = async (name: string, type: OrgType): Promise<Organization> => {
