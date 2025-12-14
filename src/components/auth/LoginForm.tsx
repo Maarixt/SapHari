@@ -54,10 +54,12 @@ export const LoginForm = ({ initialMode = 'login' }: LoginFormProps) => {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
+    <div className="flex min-h-screen items-center justify-center p-4">
+      <Card className="w-full max-w-md bg-card/80 backdrop-blur-md border-border/50 shadow-xl">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl">🌐 SapHari Dashboard</CardTitle>
+          <CardTitle className="text-2xl bg-gradient-to-r from-teal-600 to-cyan-600 dark:from-teal-400 dark:to-cyan-400 bg-clip-text text-transparent">
+            🌐 SapHari Dashboard
+          </CardTitle>
           <CardDescription>
             {isSignUp ? 'Create your account' : 'Sign in to your account'}
           </CardDescription>
@@ -73,6 +75,7 @@ export const LoginForm = ({ initialMode = 'login' }: LoginFormProps) => {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 disabled={isLoading}
+                className="bg-background/50"
               />
             </div>
             <div className="space-y-2">
@@ -85,9 +88,14 @@ export const LoginForm = ({ initialMode = 'login' }: LoginFormProps) => {
                 required
                 disabled={isLoading}
                 minLength={6}
+                className="bg-background/50"
               />
             </div>
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button 
+              type="submit" 
+              className="w-full bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white shadow-lg" 
+              disabled={isLoading}
+            >
               {isLoading ? 'Loading...' : (isSignUp ? 'Sign Up' : 'Sign In')}
             </Button>
           </form>
@@ -99,11 +107,12 @@ export const LoginForm = ({ initialMode = 'login' }: LoginFormProps) => {
                 navigate(isSignUp ? '/login' : '/signup');
               }}
               disabled={isLoading}
+              className="text-teal-600 dark:text-teal-400"
             >
               {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
             </Button>
             {!isSignUp && (
-              <div className="mt-2 pt-2 border-t border-border">
+              <div className="mt-2 pt-2 border-t border-border/50">
                 <Button
                   variant="ghost"
                   size="sm"

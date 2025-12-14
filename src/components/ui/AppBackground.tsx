@@ -19,19 +19,61 @@ interface AppBackgroundProps {
 export function AppBackground({ children, className }: AppBackgroundProps) {
   return (
     <div className={cn("relative min-h-screen overflow-hidden", className)}>
-      {/* Base gradient layer */}
+      {/* Base gradient layer - mint/teal theme */}
       <div 
-        className="fixed inset-0 -z-20 bg-gradient-to-br from-background via-background to-primary/5 dark:from-background dark:via-background dark:to-primary/10"
+        className="fixed inset-0 -z-50"
+        style={{
+          background: `
+            linear-gradient(135deg, 
+              hsl(var(--background)) 0%, 
+              hsl(168 76% 97%) 30%, 
+              hsl(199 89% 96%) 60%, 
+              hsl(var(--background)) 100%
+            )
+          `
+        }}
         aria-hidden="true"
       />
       
-      {/* Subtle mesh/glow overlay */}
+      {/* Dark mode gradient overlay */}
       <div 
-        className="fixed inset-0 -z-15 opacity-30 dark:opacity-20 pointer-events-none"
+        className="fixed inset-0 -z-50 dark:block hidden"
         style={{
-          backgroundImage: `radial-gradient(ellipse at 20% 20%, hsl(var(--primary) / 0.08) 0%, transparent 50%),
-                           radial-gradient(ellipse at 80% 80%, hsl(var(--primary) / 0.06) 0%, transparent 50%),
-                           radial-gradient(ellipse at 50% 50%, hsl(var(--primary) / 0.03) 0%, transparent 70%)`
+          background: `
+            linear-gradient(135deg, 
+              hsl(222 47% 7%) 0%, 
+              hsl(222 47% 9%) 30%, 
+              hsl(199 80% 12%) 60%, 
+              hsl(222 47% 7%) 100%
+            )
+          `
+        }}
+        aria-hidden="true"
+      />
+      
+      {/* Subtle mesh/glow overlay - Teal/Mint themed */}
+      <div 
+        className="fixed inset-0 -z-40 pointer-events-none"
+        style={{
+          backgroundImage: `
+            radial-gradient(ellipse at 10% 20%, hsl(168 76% 50% / 0.08) 0%, transparent 50%),
+            radial-gradient(ellipse at 90% 80%, hsl(199 89% 48% / 0.06) 0%, transparent 50%),
+            radial-gradient(ellipse at 50% 50%, hsl(168 76% 50% / 0.04) 0%, transparent 60%),
+            radial-gradient(ellipse at 80% 20%, hsl(214 100% 50% / 0.04) 0%, transparent 40%)
+          `
+        }}
+        aria-hidden="true"
+      />
+      
+      {/* Dark mode glow overlay */}
+      <div 
+        className="fixed inset-0 -z-40 pointer-events-none dark:block hidden"
+        style={{
+          backgroundImage: `
+            radial-gradient(ellipse at 10% 20%, hsl(168 76% 40% / 0.15) 0%, transparent 50%),
+            radial-gradient(ellipse at 90% 80%, hsl(199 89% 48% / 0.12) 0%, transparent 50%),
+            radial-gradient(ellipse at 50% 50%, hsl(168 76% 40% / 0.08) 0%, transparent 60%)
+          `
         }}
         aria-hidden="true"
       />
@@ -53,74 +95,101 @@ export function AppBackground({ children, className }: AppBackgroundProps) {
 function CircuitOverlay() {
   return (
     <svg 
-      className="fixed inset-0 -z-10 w-full h-full pointer-events-none opacity-[0.06] dark:opacity-[0.08]"
+      className="fixed inset-0 -z-30 w-full h-full pointer-events-none"
       aria-hidden="true"
     >
       <defs>
-        {/* Electric pulse gradient for animation */}
-        <linearGradient id="circuit-pulse" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0" />
-          <stop offset="50%" stopColor="hsl(var(--primary))" stopOpacity="1" />
-          <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0" />
-          <animateTransform
-            attributeName="gradientTransform"
-            type="translate"
-            from="-1 0"
-            to="1 0"
-            dur="3s"
-            repeatCount="indefinite"
-            className="motion-reduce:hidden"
-          />
+        {/* Electric pulse gradient for animation - Teal/Mint theme */}
+        <linearGradient id="circuit-pulse-teal" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="hsl(168 76% 50%)" stopOpacity="0" />
+          <stop offset="50%" stopColor="hsl(168 76% 50%)" stopOpacity="1" />
+          <stop offset="100%" stopColor="hsl(168 76% 50%)" stopOpacity="0" />
         </linearGradient>
         
-        {/* Static circuit color */}
-        <linearGradient id="circuit-static" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.5" />
-          <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0.5" />
+        {/* Static circuit color - Teal/Mint */}
+        <linearGradient id="circuit-static-teal" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="hsl(168 76% 50%)" stopOpacity="0.3" />
+          <stop offset="50%" stopColor="hsl(199 89% 48%)" stopOpacity="0.4" />
+          <stop offset="100%" stopColor="hsl(168 76% 50%)" stopOpacity="0.3" />
         </linearGradient>
       </defs>
 
-      {/* Circuit trace paths */}
-      <g stroke="url(#circuit-static)" strokeWidth="1" fill="none">
+      {/* Static circuit trace paths */}
+      <g 
+        stroke="url(#circuit-static-teal)" 
+        strokeWidth="1.5" 
+        fill="none"
+        className="opacity-[0.12] dark:opacity-[0.18]"
+      >
         {/* Top-left circuit cluster */}
-        <path d="M 0 100 H 150 V 50 H 300 V 150 H 200" />
-        <path d="M 50 0 V 80 H 180 V 200" />
-        <path d="M 100 180 H 250 V 80 H 350" />
+        <path d="M 0 80 H 120 V 40 H 280 V 120 H 180" strokeDasharray="8 4" />
+        <path d="M 40 0 V 60 H 160 V 180" strokeDasharray="12 6" />
+        <path d="M 80 160 H 220 V 70 H 320" strokeDasharray="6 3" />
         
         {/* Top-right circuit cluster */}
-        <path d="M 100% 50 H calc(100% - 200px) V 150 H calc(100% - 350px)" />
-        <path d="M calc(100% - 100px) 0 V 120 H calc(100% - 250px) V 200" />
+        <path d="M 100% 40 H calc(100% - 180px) V 130 H calc(100% - 320px)" strokeDasharray="10 5" />
+        <path d="M calc(100% - 80px) 0 V 100 H calc(100% - 220px) V 180" strokeDasharray="8 4" />
+        <path d="M calc(100% - 60px) 200 H calc(100% - 280px) V 60" strokeDasharray="6 3" />
         
         {/* Bottom-left circuit cluster */}
-        <path d="M 0 calc(100% - 150px) H 200 V calc(100% - 80px) H 400" />
-        <path d="M 150 100% V calc(100% - 100px) H 300" />
+        <path d="M 0 calc(100% - 120px) H 180 V calc(100% - 60px) H 360" strokeDasharray="12 6" />
+        <path d="M 120 100% V calc(100% - 80px) H 280" strokeDasharray="8 4" />
+        <path d="M 60 calc(100% - 200px) H 240 V calc(100% - 100px)" strokeDasharray="6 3" />
         
         {/* Bottom-right circuit cluster */}
-        <path d="M 100% calc(100% - 100px) H calc(100% - 250px) V calc(100% - 200px)" />
-        <path d="M calc(100% - 50px) 100% V calc(100% - 150px) H calc(100% - 200px)" />
+        <path d="M 100% calc(100% - 80px) H calc(100% - 220px) V calc(100% - 180px)" strokeDasharray="10 5" />
+        <path d="M calc(100% - 40px) 100% V calc(100% - 130px) H calc(100% - 180px)" strokeDasharray="8 4" />
+        
+        {/* Center diagonal traces */}
+        <path d="M 30% 30% L 40% 40% H 60% L 70% 30%" strokeDasharray="15 8" />
+        <path d="M 30% 70% L 40% 60% H 60% L 70% 70%" strokeDasharray="15 8" />
       </g>
 
       {/* Animated pulse overlay - only visible when motion is allowed */}
       <g 
-        stroke="url(#circuit-pulse)" 
-        strokeWidth="2" 
         fill="none" 
-        className="motion-reduce:opacity-0"
-        style={{ opacity: 0.4 }}
+        className="motion-reduce:hidden"
       >
-        <path d="M 0 100 H 150 V 50 H 300 V 150 H 200">
+        <path 
+          d="M 0 80 H 120 V 40 H 280 V 120 H 180"
+          stroke="hsl(168 76% 50%)"
+          strokeWidth="2"
+          strokeDasharray="20 180"
+          className="opacity-40 dark:opacity-60"
+        >
           <animate
             attributeName="stroke-dashoffset"
-            from="1000"
+            from="200"
             to="0"
-            dur="8s"
+            dur="4s"
             repeatCount="indefinite"
           />
         </path>
-        <path d="M 100% calc(100% - 100px) H calc(100% - 250px) V calc(100% - 200px)">
+        <path 
+          d="M 100% calc(100% - 80px) H calc(100% - 220px) V calc(100% - 180px)"
+          stroke="hsl(199 89% 48%)"
+          strokeWidth="2"
+          strokeDasharray="15 150"
+          className="opacity-40 dark:opacity-60"
+        >
           <animate
             attributeName="stroke-dashoffset"
-            from="500"
+            from="0"
+            to="165"
+            dur="5s"
+            repeatCount="indefinite"
+          />
+        </path>
+        <path 
+          d="M 30% 30% L 40% 40% H 60% L 70% 30%"
+          stroke="hsl(168 76% 50%)"
+          strokeWidth="2"
+          strokeDasharray="10 120"
+          className="opacity-30 dark:opacity-50"
+        >
+          <animate
+            attributeName="stroke-dashoffset"
+            from="130"
             to="0"
             dur="6s"
             repeatCount="indefinite"
@@ -128,13 +197,15 @@ function CircuitOverlay() {
         </path>
       </g>
 
-      {/* Circuit nodes/connection points */}
-      <g fill="hsl(var(--primary))" className="opacity-60">
-        <circle cx="150" cy="100" r="3" />
-        <circle cx="300" cy="50" r="3" />
-        <circle cx="200" cy="150" r="3" />
-        <circle cx="180" cy="80" r="3" />
-        <circle cx="250" cy="180" r="3" />
+      {/* Circuit nodes/connection points - Teal themed */}
+      <g className="opacity-20 dark:opacity-30">
+        <circle cx="120" cy="80" r="4" fill="hsl(168 76% 50%)" />
+        <circle cx="280" cy="40" r="4" fill="hsl(199 89% 48%)" />
+        <circle cx="180" cy="120" r="3" fill="hsl(168 76% 50%)" />
+        <circle cx="160" cy="60" r="3" fill="hsl(199 89% 48%)" />
+        <circle cx="220" cy="160" r="4" fill="hsl(168 76% 50%)" />
+        <circle cx="40%" cy="40%" r="5" fill="hsl(168 76% 50%)" />
+        <circle cx="60%" cy="40%" r="5" fill="hsl(199 89% 48%)" />
       </g>
     </svg>
   );
@@ -142,10 +213,10 @@ function CircuitOverlay() {
 
 function GearOverlay() {
   return (
-    <div className="fixed inset-0 -z-10 pointer-events-none overflow-hidden" aria-hidden="true">
-      {/* Top-left gear */}
+    <div className="fixed inset-0 -z-20 pointer-events-none overflow-hidden" aria-hidden="true">
+      {/* Top-left gear - larger */}
       <svg 
-        className="absolute -top-20 -left-20 w-64 h-64 text-primary opacity-[0.05] dark:opacity-[0.08] motion-reduce:animate-none animate-spin-slow blur-[0.5px]"
+        className="absolute -top-24 -left-24 w-80 h-80 text-teal-500 opacity-[0.06] dark:opacity-[0.10] motion-reduce:animate-none animate-spin-slow blur-[1px]"
         viewBox="0 0 100 100"
         fill="currentColor"
       >
@@ -154,7 +225,7 @@ function GearOverlay() {
 
       {/* Top-right gear */}
       <svg 
-        className="absolute -top-16 -right-16 w-48 h-48 text-primary opacity-[0.04] dark:opacity-[0.06] motion-reduce:animate-none animate-spin-slow-reverse blur-[0.5px]"
+        className="absolute -top-20 -right-20 w-56 h-56 text-cyan-500 opacity-[0.05] dark:opacity-[0.08] motion-reduce:animate-none animate-spin-slow-reverse blur-[0.5px]"
         viewBox="0 0 100 100"
         fill="currentColor"
       >
@@ -163,7 +234,7 @@ function GearOverlay() {
 
       {/* Bottom-left gear */}
       <svg 
-        className="absolute -bottom-24 -left-24 w-72 h-72 text-primary opacity-[0.04] dark:opacity-[0.07] motion-reduce:animate-none animate-spin-slow-reverse blur-[0.5px]"
+        className="absolute -bottom-28 -left-28 w-96 h-96 text-teal-600 opacity-[0.05] dark:opacity-[0.09] motion-reduce:animate-none animate-spin-slow-reverse blur-[1px]"
         viewBox="0 0 100 100"
         fill="currentColor"
       >
@@ -172,7 +243,16 @@ function GearOverlay() {
 
       {/* Bottom-right gear */}
       <svg 
-        className="absolute -bottom-12 -right-12 w-56 h-56 text-primary opacity-[0.05] dark:opacity-[0.08] motion-reduce:animate-none animate-spin-slow blur-[0.5px]"
+        className="absolute -bottom-16 -right-16 w-64 h-64 text-cyan-600 opacity-[0.06] dark:opacity-[0.10] motion-reduce:animate-none animate-spin-slow blur-[0.5px]"
+        viewBox="0 0 100 100"
+        fill="currentColor"
+      >
+        <GearPath />
+      </svg>
+      
+      {/* Center-left small gear */}
+      <svg 
+        className="absolute top-1/3 -left-8 w-32 h-32 text-teal-400 opacity-[0.04] dark:opacity-[0.07] motion-reduce:animate-none animate-spin-slow blur-[0.5px]"
         viewBox="0 0 100 100"
         fill="currentColor"
       >
