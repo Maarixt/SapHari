@@ -24,122 +24,40 @@ interface CodeSnippetDialogProps {
   widgets: Widget[];
 }
 
-const getSwitchState = (widget: Widget) => {
-  const raw = widget.state?.['value'];
-  if (typeof raw === 'boolean') return raw;
-  if (typeof raw === 'number') return raw >= 0.5;
-  if (typeof raw === 'string') {
-    return raw === '1' || raw.toLowerCase() === 'true';
-  }
-  return false;
-};
+// ============================================
+// Toggle-Ready ESP32 Snippet Generator v2
+// ============================================
 
-const getServoAngle = (widget: Widget) => {
-  const raw = widget.state?.['angle'];
-  if (typeof raw === 'number') return raw;
-  if (typeof raw === 'string') {
-    const parsed = Number(raw);
-    if (!Number.isNaN(parsed)) return parsed;
-  }
-  return 90;
-};
-
-const formatGaugeType = (type?: string | null) => `GT_${(type || 'analog').toUpperCase()}`;
-
-export const CodeSnippetDialog = ({ open, onOpenChange, device, widgets }: CodeSnippetDialogProps) => {
-  const { toast } = useToast();
-  const [copied, setCopied] = useState(false);
-
-  const switches = widgets.filter((w) => w.type === 'switch');
-  const gauges = widgets.filter((w) => w.type === 'gauge');
-  const servos = widgets.filter((w) => w.type === 'servo');
-
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    toast({ title: 'Copied to clipboard' });
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const generateCode = () => {
-    const deviceKey = device.device_key || 'DEVICE_KEY_NOT_SET';
-
-    // Build widget arrays only for configured widgets
-    const switchesCode = switches.length > 0
-      ? switches.map((w) =>
-          `  { "${w.address}", ${w.pin ?? -1}, ${getSwitchState(w) ? 'true' : 'false'}, ${w.override_mode ? 'true' : 'false'} }`
-        ).join(',\n')
-      : '  // No switches configured';
-
-    const gaugesCode = gauges.length > 0
-      ? gauges.map((w) =>
-          `  { "${w.address}", ${formatGaugeType(w.gauge_type)}, ${w.pin ?? -1}, ${w.echo_pin ?? -1} }`
-        ).join(',\n')
-      : '  // No gauges configured';
-
-    const servosCode = servos.length > 0
-      ? servos.map((w) => `  { "${w.address}", ${w.pin ?? -1}, ${getServoAngle(w)}, false }`)
-        .join(',\n')
-      : '  // No servos configured';
-
-    // Build topic examples only for configured widget types
-    let topicExamples = `
-// Status Topic (REQUIRED - with LWT)
-// Topic: saphari/${device.device_id}/status/online
-// Payload: "online" (retained) | "offline" (LWT)`;
-
-    if (switches.length > 0) {
-      topicExamples += `
-
-// GPIO Topics (publish when pin changes)
-// Topic: saphari/${device.device_id}/gpio/{PIN}
-// Payload: 1 or 0`;
-      switches.filter(w => w.pin).forEach(w => {
-        topicExamples += `
-// Example: saphari/${device.device_id}/gpio/${w.pin}`;
-      });
-    }
-
-    if (gauges.length > 0) {
-      topicExamples += `
-
-// Gauge Topics (publish sensor readings)
-// Topic: saphari/${device.device_id}/gauge/{ADDRESS}
-// Payload: numeric value`;
-      gauges.forEach(w => {
-        topicExamples += `
-// Example: saphari/${device.device_id}/gauge/${w.address}`;
-      });
-    }
-
-    if (servos.length > 0) {
-      topicExamples += `
-
-// Servo Topics (subscribe for commands)
-// Topic: saphari/${device.device_id}/cmd/servo/{ADDRESS}
-// Payload: angle (0-180)`;
-    }
-
-    topicExamples += `
-
-// Command Subscription (subscribe to receive commands)
-// Topic: saphari/${device.device_id}/cmd/#`;
-
-    return `// ============================================
+function buildSnippetHeader(device: Device): string {
+  return `// ============================================
+// Generator Version: SaphariSnippet v2-toggle-ready
+// ============================================
 // SapHari ESP32 Configuration
 // Device: ${device.name}
 // Generated: ${new Date().toISOString()}
 // ============================================
-// 
-// ⚠️ TLS REQUIRED: Port 1883 is NOT available
-// This configuration uses TLS on port ${PRODUCTION_BROKER.tls_port}
 //
-// ============================================
+// ⚠️ TLS REQUIRED: Port 1883 is NOT available
+// This configuration uses TLS on port 8883
+//
+// Dashboard command format supported:
+// Topic: saphari/<deviceId>/cmd/toggle
+// Payload: {"addr":"S1","pin":2,"state":1,"override":false}
+//
+// ============================================`;
+}
 
+function buildSnippetIncludes(): string {
+  return `
 #include <WiFi.h>
-#include <WiFiClientSecure.h>  // TLS REQUIRED
-#include <PubSubClient.h>
+#include <WiFiClientSecure.h>
+#include <PubSubClient.h>`;
+}
 
+function buildSnippetCredentials(device: Device): string {
+  const deviceKey = device.device_key || 'DEVICE_KEY_NOT_FOUND';
+  
+  return `
 // ========================================
 // WiFi Credentials (CHANGE THESE)
 // ========================================
@@ -163,6 +81,22 @@ export const CodeSnippetDialog = ({ open, onOpenChange, device, widgets }: CodeS
 #define MQTT_PASS   DEVICE_KEY  // Password = Device Key
 
 // ========================================
+// Output Logic (Relay Boards)
+// ========================================
+// If your relay turns ON when GPIO is LOW, set ACTIVE_LOW to 1
+#define ACTIVE_LOW 0`;
+}
+
+function buildSnippetSwitchConfig(switches: Widget[]): string {
+  const switchCount = switches.length;
+  const allowedPins = switches.map(w => w.pin).join(', ');
+  
+  const switchMappingComments = switches.length > 0 
+    ? switches.map(w => `// ${w.address} -> GPIO ${w.pin}`).join('\n')
+    : '// No switches configured';
+
+  return `
+// ========================================
 // TLS Client Setup
 // ========================================
 WiFiClientSecure espClient;
@@ -172,52 +106,164 @@ unsigned long lastReconnectAttempt = 0;
 const unsigned long reconnectInterval = 5000; // 5 seconds
 
 // ========================================
+// Widget Configurations (Generated)
+// ========================================
+// Switches:
+${switchMappingComments}
+#define SWITCH_COUNT ${switchCount}
+
+// Allowed switch pins (generated from switches)
+${switchCount > 0 
+  ? `const int ALLOWED_PINS[] = { ${allowedPins} };
+const int ALLOWED_COUNT = ${switchCount};`
+  : `// Empty because no switches exist in this device
+const int ALLOWED_PINS[] = { };
+const int ALLOWED_COUNT = 0;`}
+
+bool isAllowedPin(int pin) {
+  for (int i = 0; i < ALLOWED_COUNT; i++) {
+    if (ALLOWED_PINS[i] == pin) return true;
+  }
+  return false;
+}`;
+}
+
+function buildSnippetJsonHelpers(): string {
+  return `
+// ========================================
+// Tiny JSON Parsing Helpers (no ArduinoJson)
+// ========================================
+int jsonGetInt(const String& json, const char* key, int defVal) {
+  String k = String("\\"") + key + "\\":";
+  int i = json.indexOf(k);
+  if (i < 0) return defVal;
+  i += k.length();
+  while (i < (int)json.length() && (json[i] == ' ' || json[i] == '"')) i++;
+  int j = i;
+  while (j < (int)json.length() && (isDigit(json[j]) || json[j] == '-')) j++;
+  return json.substring(i, j).toInt();
+}`;
+}
+
+function buildSnippetTopicHelpers(): string {
+  return `
+// ========================================
+// Helper: Topics
+// ========================================
+String tStatus()   { return "saphari/" + String(DEVICE_ID) + "/status/online"; }
+String tCmdAll()   { return "saphari/" + String(DEVICE_ID) + "/cmd/#"; }
+String tCmdToggle(){ return "saphari/" + String(DEVICE_ID) + "/cmd/toggle"; }
+String tGPIO(int pin) { return "saphari/" + String(DEVICE_ID) + "/gpio/" + String(pin); }
+
+// ========================================
+// Helper: Publish GPIO State (retained)
+// ========================================
+void publishGPIO(int pin, int logicalState) {
+  mqtt.publish(tGPIO(pin).c_str(), logicalState ? "1" : "0", true);
+}
+
+// ========================================
+// Apply GPIO (supports ACTIVE_LOW)
+// ========================================
+void applyGPIO(int pin, int logicalState) {
+  pinMode(pin, OUTPUT);
+
+  int level;
+#if ACTIVE_LOW
+  level = logicalState ? LOW : HIGH;
+#else
+  level = logicalState ? HIGH : LOW;
+#endif
+
+  digitalWrite(pin, level);
+
+  Serial.print("GPIO APPLIED pin=");
+  Serial.print(pin);
+  Serial.print(" logical=");
+  Serial.print(logicalState);
+  Serial.print(" level=");
+  Serial.println(level == HIGH ? "HIGH" : "LOW");
+
+  publishGPIO(pin, logicalState);
+}`;
+}
+
+function buildSnippetToggleHandler(): string {
+  return `
+// ========================================
+// Handle cmd/toggle JSON payload
+// Payload: {"addr":"S1","pin":2,"state":1,"override":false}
+// ========================================
+void handleTogglePayload(const String& payload) {
+  if (SWITCH_COUNT == 0) {
+    Serial.println("No switches configured — ignoring toggle.");
+    return;
+  }
+
+  int pin = jsonGetInt(payload, "pin", -1);
+  int state = jsonGetInt(payload, "state", -1);
+
+  if (pin < 0 || (state != 0 && state != 1)) {
+    Serial.println("Bad toggle payload: missing pin/state");
+    return;
+  }
+
+  if (!isAllowedPin(pin)) {
+    Serial.println("Blocked toggle: pin not allowed for this device");
+    return;
+  }
+
+  applyGPIO(pin, state);
+}
+
+// ========================================
 // MQTT Message Handler
 // ========================================
 void onMessage(char* topic, byte* payload, unsigned int length) {
   String msg;
   msg.reserve(length);
-  for (unsigned int i = 0; i < length; i++) {
-    msg += (char)payload[i];
-  }
+  for (unsigned int i = 0; i < length; i++) msg += (char)payload[i];
 
   Serial.print("MQTT IN [");
   Serial.print(topic);
   Serial.print("] ");
   Serial.println(msg);
 
-  // Parse command topics: saphari/<deviceId>/cmd/<action>
-  String topicStr = String(topic);
-  String cmdPrefix = "saphari/" + String(DEVICE_ID) + "/cmd/";
-  
-  if (topicStr.startsWith(cmdPrefix)) {
-    String action = topicStr.substring(cmdPrefix.length());
-    handleCommand(action, msg);
+  String t(topic);
+  if (t == tCmdToggle()) {
+    handleTogglePayload(msg);
   }
+}`;
 }
 
-void handleCommand(String action, String payload) {
-  // TODO: Implement your command handlers
-  // Example: if (action == "gpio/4") digitalWrite(4, payload == "1" ? HIGH : LOW);
-  Serial.print("Command: ");
-  Serial.print(action);
-  Serial.print(" = ");
-  Serial.println(payload);
-}
+function buildSnippetSetup(switches: Widget[], gauges: Widget[]): string {
+  const switchPinSetup = switches.length > 0
+    ? switches.map(w => `  pinMode(${w.pin}, OUTPUT);`).join('\n')
+    : '  // No switch pins to configure';
+  
+  const gaugePinSetup = gauges.length > 0
+    ? gauges.map(w => `  pinMode(${w.pin}, INPUT);`).join('\n')
+    : '';
 
+  const initialGpioPublish = switches.length > 0
+    ? switches.map(w => `    publishGPIO(${w.pin}, digitalRead(${w.pin}));`).join('\n')
+    : '    // No GPIO to publish';
+
+  return `
 // ========================================
 // WiFi Setup
 // ========================================
 void setupWiFi() {
   Serial.print("Connecting to WiFi");
   WiFi.mode(WIFI_STA);
+  WiFi.setSleep(false);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  
+
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
   }
-  
+
   Serial.println();
   Serial.print("Connected! IP: ");
   Serial.println(WiFi.localIP());
@@ -230,30 +276,35 @@ void setupMQTT() {
   // TLS: Skip certificate verification (for development)
   // For production, use: espClient.setCACert(emqx_ca_cert);
   espClient.setInsecure();
-  
+  espClient.setHandshakeTimeout(30);
+  espClient.setTimeout(30);
+
   mqtt.setServer(MQTT_BROKER, MQTT_PORT);
   mqtt.setCallback(onMessage);
+  mqtt.setSocketTimeout(30);
 }
 
 // ========================================
 // Connect with Last Will Testament (LWT)
 // ========================================
 bool connectMQTT() {
-  String statusTopic = "saphari/" + String(DEVICE_ID) + "/status/online";
-  
+  String statusTopic = tStatus();
+
   Serial.print("Connecting to MQTT...");
-  
-  if (mqtt.connect(DEVICE_ID, MQTT_USER, MQTT_PASS, 
+
+  if (mqtt.connect(DEVICE_ID, MQTT_USER, MQTT_PASS,
                    statusTopic.c_str(), 1, true, "offline")) {
     Serial.println("connected!");
-    
+
     // Publish online status (retained)
     mqtt.publish(statusTopic.c_str(), "online", true);
-    
+
     // Subscribe to commands
-    String cmdTopic = "saphari/" + String(DEVICE_ID) + "/cmd/#";
-    mqtt.subscribe(cmdTopic.c_str());
-    
+    mqtt.subscribe(tCmdAll().c_str());
+
+    // Publish initial GPIO states
+${initialGpioPublish}
+
     return true;
   } else {
     Serial.print("failed, rc=");
@@ -263,17 +314,26 @@ bool connectMQTT() {
 }
 
 // ========================================
+// Setup Pins
+// ========================================
+void setupPins() {
+${switchPinSetup}
+${gaugePinSetup}
+}
+
+// ========================================
 // Main Setup
 // ========================================
 void setup() {
   Serial.begin(115200);
   delay(100);
-  
+
   Serial.println();
   Serial.println("=== SapHari ESP32 Starting ===");
   Serial.print("Device ID: ");
   Serial.println(DEVICE_ID);
-  
+
+  setupPins();
   setupWiFi();
   setupMQTT();
   connectMQTT();
@@ -287,62 +347,74 @@ void loop() {
     unsigned long now = millis();
     if (now - lastReconnectAttempt > reconnectInterval) {
       lastReconnectAttempt = now;
-      if (connectMQTT()) {
-        lastReconnectAttempt = 0;
-      }
+      if (connectMQTT()) lastReconnectAttempt = 0;
     }
   } else {
     mqtt.loop();
   }
-  
-  // TODO: Add your sensor reading and publishing logic here
-  // Example: publishGauge("temperature", readTemp());
+}`;
 }
 
-// ========================================
-// Helper: Publish GPIO State
-// ========================================
-void publishGPIO(int pin, bool state) {
-  String topic = "saphari/" + String(DEVICE_ID) + "/gpio/" + String(pin);
-  mqtt.publish(topic.c_str(), state ? "1" : "0");
-}
-
-// ========================================
-// Helper: Publish Gauge Value
-// ========================================
-void publishGauge(const char* name, float value) {
-  String topic = "saphari/" + String(DEVICE_ID) + "/gauge/" + String(name);
-  mqtt.publish(topic.c_str(), String(value).c_str());
-}
-
-// ========================================
-// Widget Configurations
-// ========================================
-${switches.length > 0 ? `#define SWITCH_COUNT ${switches.length}` : '// No switches configured'}
-${gauges.length > 0 ? `#define GAUGE_COUNT  ${gauges.length}` : '// No gauges configured'}
-${servos.length > 0 ? `#define SERVO_COUNT  ${servos.length}` : '// No servos configured'}
-
-/*
-SwitchMap SWITCHES[] = {
-${switchesCode}
-};
-
-GaugeMap GAUGES[] = {
-${gaugesCode}
-};
-
-ServoMap SERVOS[] = {
-${servosCode}
-};
-*/
-
+function buildSnippetTopicReference(): string {
+  return `
 // ========================================
 // MQTT Topics Reference
 // ========================================
-${topicExamples}`;
+//
+// Status Topic (REQUIRED - with LWT)
+// Topic: saphari/<deviceId>/status/online
+// Payload: "online" (retained) | "offline" (LWT)
+//
+// GPIO Confirmation (device -> dashboard)
+// Topic: saphari/<deviceId>/gpio/<pin>
+// Payload: "1" or "0" (retained)
+//
+// Commands (dashboard -> device)
+// Topic: saphari/<deviceId>/cmd/toggle
+// Payload JSON: {"addr":"Sx","pin":<PIN>,"state":0|1,"override":false}
+//
+// Notes:
+// - If SWITCH_COUNT == 0, toggle commands will be ignored.
+// - For relays that are active-low, set ACTIVE_LOW to 1.
+//
+`;
+}
+
+// Main generator function - assembles all parts once
+function generateArduinoSketch(device: Device, widgets: Widget[]): string {
+  const switches = widgets.filter(w => w.type === 'switch' && w.pin != null);
+  const gauges = widgets.filter(w => w.type === 'gauge' && w.pin != null);
+
+  return [
+    buildSnippetHeader(device),
+    buildSnippetIncludes(),
+    buildSnippetCredentials(device),
+    buildSnippetSwitchConfig(switches),
+    buildSnippetJsonHelpers(),
+    buildSnippetTopicHelpers(),
+    buildSnippetToggleHandler(),
+    buildSnippetSetup(switches, gauges),
+    buildSnippetTopicReference()
+  ].join('\n');
+}
+
+export const CodeSnippetDialog = ({ open, onOpenChange, device, widgets }: CodeSnippetDialogProps) => {
+  const { toast } = useToast();
+  const [copied, setCopied] = useState(false);
+
+  const switches = widgets.filter((w) => w.type === 'switch');
+  const gauges = widgets.filter((w) => w.type === 'gauge');
+  const servos = widgets.filter((w) => w.type === 'servo');
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    toast({ title: 'Copied to clipboard' });
+    setTimeout(() => setCopied(false), 2000);
   };
 
-  const code = generateCode();
+  // Generate the toggle-ready snippet
+  const code = generateArduinoSketch(device, widgets);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -356,7 +428,7 @@ ${topicExamples}`;
             </Badge>
           </DialogTitle>
           <DialogDescription>
-            Production-ready configuration for {device.name}
+            Toggle-ready firmware for {device.name}
           </DialogDescription>
         </DialogHeader>
 
@@ -364,7 +436,7 @@ ${topicExamples}`;
           <Shield className="h-4 w-4" />
           <AlertDescription className="text-xs">
             Uses <strong>WiFiClientSecure</strong> with TLS on port {PRODUCTION_BROKER.tls_port}. 
-            Credentials: Username = DEVICE_ID, Password = DEVICE_KEY
+            Supports <code>cmd/toggle</code> JSON commands from dashboard.
           </AlertDescription>
         </Alert>
 
