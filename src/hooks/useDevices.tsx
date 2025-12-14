@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { DeviceWithRole, Role } from '@/lib/types';
+import { initializeDevicePresence } from '@/services/presenceService';
 
 export const useDevices = () => {
   const { user } = useAuth();
@@ -87,6 +88,13 @@ export const useDevices = () => {
           };
         })
       );
+
+      // Initialize presence tracking for all devices
+      initializeDevicePresence(devicesWithCounts.map(d => ({
+        device_id: d.device_id,
+        online: d.online,
+        last_seen: d.last_seen
+      })));
 
       setDevices(devicesWithCounts);
     } catch (err: any) {
