@@ -29,7 +29,7 @@ const CACHE_DURATION_MS = 30 * 60 * 1000; // 30 minutes
  * Caches credentials for 30 minutes to reduce API calls
  */
 export async function fetchMQTTCredentials(): Promise<MQTTCredentials | null> {
-  // Check cache
+  // Check cache first
   if (cachedCredentials && Date.now() - credentialsFetchTime < CACHE_DURATION_MS) {
     // Verify credentials haven't expired
     if (new Date(cachedCredentials.expires_at) > new Date()) {
@@ -39,6 +39,19 @@ export async function fetchMQTTCredentials(): Promise<MQTTCredentials | null> {
   }
 
   try {
+    // CRITICAL: Verify we have a valid session before calling the edge function
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    
+    if (sessionError) {
+      console.error('Session error:', sessionError);
+      return null;
+    }
+    
+    if (!sessionData?.session?.access_token) {
+      console.warn('No valid session found - skipping MQTT credentials fetch');
+      return null;
+    }
+
     console.log('Fetching fresh MQTT credentials from edge function...');
     
     const { data, error } = await supabase.functions.invoke('mqtt-credentials', {
