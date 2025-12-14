@@ -20,7 +20,7 @@ import {
 interface Device {
   id: string;
   device_id: string;
-  device_key: string;
+  device_key?: string; // Optional - not exposed from devices_safe view
   name: string;
   online: boolean;
   widget_counts?: {

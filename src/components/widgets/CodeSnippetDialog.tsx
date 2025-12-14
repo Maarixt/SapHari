@@ -55,8 +55,8 @@ function buildSnippetIncludes(): string {
 }
 
 function buildSnippetCredentials(device: Device): string {
-  const deviceKey = device.device_key || 'DEVICE_KEY_NOT_FOUND';
-  
+  // Device key is intentionally NOT included in generated code for security
+  // User must copy device key from Device Credentials dialog within 5 minutes of creation
   return `
 // ========================================
 // WiFi Credentials (CHANGE THESE)
@@ -68,7 +68,9 @@ function buildSnippetCredentials(device: Device): string {
 // Device Credentials (UNIQUE PER DEVICE)
 // ========================================
 #define DEVICE_ID   "${device.device_id}"
-#define DEVICE_KEY  "${deviceKey}"
+// ⚠️ SECURITY: Device key must be copied from Device Credentials dialog
+// The key is only viewable for 5 minutes after device creation
+#define DEVICE_KEY  "PASTE_YOUR_DEVICE_KEY_HERE"
 
 // ========================================
 // MQTT Broker (PRODUCTION - TLS ONLY)
