@@ -38,18 +38,24 @@ async function performResync(reason: string): Promise<void> {
     // 1. Ensure session is valid
     const session = await getValidSession({ forceRefresh: true });
     if (!session) {
-      console.log('🔄 Session refresh failed during resync');
+      console.log('🔄 Session refresh failed during resync, skipping');
       return;
     }
     
-    // 2. Ensure MQTT is connected
+    // 2. Double-check we're still authenticated after refresh
+    if (!isAuthenticated()) {
+      console.log('🔄 No longer authenticated after session check, skipping');
+      return;
+    }
+    
+    // 3. Ensure MQTT is connected
     const mqttStatus = getStatus();
     if (mqttStatus !== 'connected' && mqttStatus !== 'connecting') {
       console.log('🔄 Reconnecting MQTT...');
       await forceReconnect();
     }
     
-    // 3. Notify listeners to refresh their data
+    // 4. Notify listeners to refresh their data
     console.log('🔄 Notifying sync listeners...');
     syncCallbacks.forEach(cb => {
       try {
@@ -60,8 +66,14 @@ async function performResync(reason: string): Promise<void> {
     });
     
     console.log('🔄 Resync complete');
-  } catch (error) {
-    console.error('🔄 Resync error:', error);
+  } catch (error: any) {
+    // Gracefully handle auth errors without crashing
+    const errorMsg = error?.message?.toLowerCase() || '';
+    if (errorMsg.includes('refresh') || errorMsg.includes('token') || errorMsg.includes('session')) {
+      console.log('🔄 Session expired or invalid, skipping resync');
+    } else {
+      console.error('🔄 Resync error:', error);
+    }
   }
 }
 
