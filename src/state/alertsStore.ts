@@ -1,4 +1,4 @@
-import { AlertRule } from './alertsTypes';
+import { AlertRule } from '@/features/alerts/types';
 
 let rules: AlertRule[] = JSON.parse(localStorage.getItem('alert.rules')||'[]');
 let history: any[] = JSON.parse(localStorage.getItem('alert.history')||'[]');

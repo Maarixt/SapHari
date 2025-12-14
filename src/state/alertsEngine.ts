@@ -65,12 +65,11 @@ export const Alerts = {
       const v = valForRule(r, snap);
       if(v==null) continue;
 
-      if(inQuietHours(now, r.qhStart, r.qhEnd)) continue;
-
       if(!shouldFire(r, v)) continue;
 
       const last = AlertsStore.getLastFire(r.id);
-      if(r.debounceMs && Date.now() - last < r.debounceMs) continue;
+      const cooldown = r.cooldownMs || r.debounceMs || 0;
+      if(cooldown && Date.now() - last < cooldown) continue;
       if(r.once && AlertsStore.listHistory().some(h => h.ruleId===r.id && !h.ack)) continue;
 
       AlertsStore.setLastFire(r.id, Date.now());
@@ -81,9 +80,10 @@ export const Alerts = {
         ruleName: r.name,
         deviceId,
         value: v,
+        message: r.message,
         ts: Date.now(),
-        severity: r.severity || 'warning',
-        channels: r.channels || ['app','toast','browser'],
+        severity: 'warning' as const,
+        channels: ['app','toast','browser'] as const,
         seen: false, ack: false,
       };
               AlertsStore.pushHistory(entry);

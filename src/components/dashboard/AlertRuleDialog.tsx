@@ -49,7 +49,7 @@ import {
 } from 'lucide-react';
 import { AlertsStore } from '@/state/alertsStore';
 import { SnippetBus } from '@/features/snippets/snippetBus';
-import { AlertRule } from '@/state/alertsTypes';
+import { AlertRule, TriggerEdge } from '@/features/alerts/types';
 // NotificationSettings component temporarily disabled
 // import { NotificationSettings } from '@/components/notifications/NotificationSettings';
 
@@ -70,15 +70,17 @@ export const AlertRuleDialog = ({ open, onOpenChange, defaultDeviceId }: AlertRu
   // Form state for creating/editing rules
   const [editingRule, setEditingRule] = useState<AlertRule | null>(null);
   const [ruleName, setRuleName] = useState('');
-  const [ruleDescription, setRuleDescription] = useState('');
+  const [ruleMessage, setRuleMessage] = useState(''); // Custom alert message
   const [ruleEnabled, setRuleEnabled] = useState(true);
   const [deviceId, setDeviceId] = useState(defaultDeviceId || '');
   const [source, setSource] = useState<'GPIO' | 'SENSOR' | 'LOGIC'>('GPIO');
   const [pin, setPin] = useState<number | undefined>(undefined);
+  const [trigger, setTrigger] = useState<TriggerEdge>('rising'); // Edge trigger
   const [whenPinEquals, setWhenPinEquals] = useState<0 | 1>(1);
   const [key, setKey] = useState('');
   const [op, setOp] = useState<'>' | '>=' | '<' | '<=' | '==' | '!='>('>');
   const [value, setValue] = useState<number | string>('');
+  const [cooldownMs, setCooldownMs] = useState(10000); // Default 10s cooldown
   const [debounceMs, setDebounceMs] = useState(0);
   const [hysteresis, setHysteresis] = useState(0);
   const [once, setOnce] = useState(false);
@@ -147,10 +149,13 @@ export const AlertRuleDialog = ({ open, onOpenChange, defaultDeviceId }: AlertRu
         deviceId: deviceId.trim(),
         source: source,
         pin: source === 'GPIO' ? pin : undefined,
+        trigger: source === 'GPIO' ? trigger : undefined,
         whenPinEquals: source === 'GPIO' ? whenPinEquals : undefined,
         key: source !== 'GPIO' ? key.trim() : undefined,
         op: source !== 'GPIO' ? op : undefined,
         value: source !== 'GPIO' ? value : undefined,
+        message: ruleMessage.trim() || `Alert from ${ruleName}`,
+        cooldownMs: cooldownMs,
         debounceMs: debounceMs,
         hysteresis: hysteresis,
         once: once,
@@ -211,15 +216,17 @@ export const AlertRuleDialog = ({ open, onOpenChange, defaultDeviceId }: AlertRu
   const resetForm = () => {
     setEditingRule(null);
     setRuleName('');
-    setRuleDescription('');
+    setRuleMessage('');
     setRuleEnabled(true);
     setDeviceId(defaultDeviceId || '');
     setSource('GPIO');
     setPin(undefined);
+    setTrigger('rising');
     setWhenPinEquals(1);
     setKey('');
     setOp('>');
     setValue('');
+    setCooldownMs(10000);
     setDebounceMs(0);
     setHysteresis(0);
     setOnce(false);
@@ -229,19 +236,21 @@ export const AlertRuleDialog = ({ open, onOpenChange, defaultDeviceId }: AlertRu
   const editRule = (rule: AlertRule) => {
     setEditingRule(rule);
     setRuleName(rule.name);
-    setRuleDescription(''); // No description field in the simple type
+    setRuleMessage(rule.message || '');
     setRuleEnabled(rule.isActive ?? true);
     setDeviceId(rule.deviceId);
     setSource(rule.source);
     setPin(rule.pin);
+    setTrigger(rule.trigger || 'rising');
     setWhenPinEquals(rule.whenPinEquals ?? 1);
     setKey(rule.key || '');
     setOp(rule.op || '>');
     setValue(rule.value || '');
+    setCooldownMs(rule.cooldownMs || 10000);
     setDebounceMs(rule.debounceMs || 0);
     setHysteresis(rule.hysteresis || 0);
     setOnce(rule.once || false);
-    setActiveTab('create-edit');
+    setActiveTab('edit');
   };
 
 
@@ -374,17 +383,19 @@ export const AlertRuleDialog = ({ open, onOpenChange, defaultDeviceId }: AlertRu
                           <div className="text-sm">
                             <strong>Device:</strong> {rule.deviceId}
                           </div>
-                          <div className="text-sm">
-                            <strong>Source:</strong> {rule.source}
-                          </div>
                           {rule.source === 'GPIO' && (
                             <div className="text-sm">
-                              <strong>Pin:</strong> {rule.pin} = {rule.whenPinEquals}
+                              <strong>Trigger:</strong> Pin {rule.pin} → {rule.trigger || (rule.whenPinEquals === 1 ? 'high' : 'low')}
                             </div>
                           )}
                           {rule.source !== 'GPIO' && (
                             <div className="text-sm">
                               <strong>Condition:</strong> {rule.key} {rule.op} {rule.value}
+                            </div>
+                          )}
+                          {rule.message && (
+                            <div className="text-sm text-muted-foreground">
+                              <strong>Message:</strong> "{rule.message}"
                             </div>
                           )}
                         </div>
@@ -451,23 +462,38 @@ export const AlertRuleDialog = ({ open, onOpenChange, defaultDeviceId }: AlertRu
                       type="number"
                       value={pin || ''}
                       onChange={(e) => setPin(parseInt(e.target.value))}
-                      placeholder="Enter pin number"
+                      placeholder="e.g., 2 for GPIO2"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>When Pin Equals</Label>
-                    <Select value={String(whenPinEquals)} onValueChange={(value) => setWhenPinEquals(Number(value) as 0 | 1)}>
+                    <Label>Trigger Edge</Label>
+                    <Select value={trigger} onValueChange={(value) => setTrigger(value as TriggerEdge)}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="0">LOW (0)</SelectItem>
-                        <SelectItem value="1">HIGH (1)</SelectItem>
+                        <SelectItem value="rising">Rising (LOW → HIGH)</SelectItem>
+                        <SelectItem value="falling">Falling (HIGH → LOW)</SelectItem>
+                        <SelectItem value="high">While HIGH</SelectItem>
+                        <SelectItem value="low">While LOW</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
               )}
+
+              {/* Custom alert message */}
+              <div className="space-y-2">
+                <Label>Alert Message</Label>
+                <Input
+                  value={ruleMessage}
+                  onChange={(e) => setRuleMessage(e.target.value)}
+                  placeholder="e.g., Motion detected! or Fire alarm triggered!"
+                />
+                <p className="text-xs text-muted-foreground">
+                  This message will be shown when the alert fires
+                </p>
+              </div>
 
               {source !== 'GPIO' && (
                 <div className="grid grid-cols-3 gap-4">
@@ -506,7 +532,19 @@ export const AlertRuleDialog = ({ open, onOpenChange, defaultDeviceId }: AlertRu
                 </div>
               )}
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Cooldown (ms)</Label>
+                  <Input
+                    type="number"
+                    value={cooldownMs}
+                    onChange={(e) => setCooldownMs(parseInt(e.target.value) || 10000)}
+                    placeholder="10000"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Anti-spam: minimum time between alerts
+                  </p>
+                </div>
                 <div className="space-y-2">
                   <Label>Debounce (ms)</Label>
                   <Input
@@ -515,7 +553,13 @@ export const AlertRuleDialog = ({ open, onOpenChange, defaultDeviceId }: AlertRu
                     onChange={(e) => setDebounceMs(parseInt(e.target.value) || 0)}
                     placeholder="0"
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Signal must be stable for this duration
+                  </p>
                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Hysteresis</Label>
                   <Input
@@ -526,8 +570,8 @@ export const AlertRuleDialog = ({ open, onOpenChange, defaultDeviceId }: AlertRu
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Fire Once Until Ack</Label>
-                  <div className="flex items-center space-x-2">
+                  <Label>Fire Once Until Acknowledged</Label>
+                  <div className="flex items-center space-x-2 pt-2">
                     <Switch
                       checked={once}
                       onCheckedChange={setOnce}
