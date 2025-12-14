@@ -15,12 +15,13 @@ import { EditDeviceDialog } from './EditDeviceDialog';
 
 interface DeviceListProps {
   onDeviceSelect: (device: DeviceWithRole) => void;
+  autoOpenAddDialog?: boolean;
 }
 
-export const DeviceList = ({ onDeviceSelect }: DeviceListProps) => {
+export const DeviceList = ({ onDeviceSelect, autoOpenAddDialog = false }: DeviceListProps) => {
   const { devices, loading, refetch } = useDevices();
   const deviceStates = useAllDevices(); // Get real-time device states
-  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showAddDialog, setShowAddDialog] = useState(autoOpenAddDialog);
   const [showSim, setShowSim] = useState(false);
   const [simFullscreen, setSimFullscreen] = useState(false);
   const [editing, setEditing] = useState<DeviceWithRole | null>(null);

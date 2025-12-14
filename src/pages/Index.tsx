@@ -1,17 +1,8 @@
-import { MQTTProvider } from '@/hooks/useMQTT';
-import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { OrgDashboard } from '@/components/dashboard/OrgDashboard';
+import { Navigate } from 'react-router-dom';
 
+// This page redirects to the main app - the actual routing is handled in App.tsx
 const Index = () => {
-  return (
-    <MQTTProvider>
-      <DashboardLayout>
-        {({ currentView, setCurrentView }) => (
-          <OrgDashboard currentView={currentView} setCurrentView={setCurrentView} />
-        )}
-      </DashboardLayout>
-    </MQTTProvider>
-  );
+  return <Navigate to="/app/devices" replace />;
 };
 
 export default Index;

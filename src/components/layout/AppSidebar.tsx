@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { 
-  LayoutDashboard, 
   Cpu, 
   Settings, 
   Users, 
@@ -30,39 +29,39 @@ import {
 } from '@/components/ui/sidebar';
 import { OrgSwitcher } from '@/components/organizations/OrgSwitcher';
 import { CreateOrgDialog } from '@/components/organizations/CreateOrgDialog';
+import { AddDeviceDialog } from '@/components/devices/AddDeviceDialog';
 import { useOrganizations } from '@/hooks/useOrganizations';
 import { useAuth } from '@/hooks/useAuth';
 import { useMasterAccount } from '@/hooks/useMasterAccount';
 import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
-interface AppSidebarProps {
-  onNavigate?: (view: string) => void;
-  currentView?: string;
-}
-
-export function AppSidebar({ onNavigate, currentView }: AppSidebarProps) {
+export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
   const { currentOrg, isOwnerOrAdmin, pendingInvites } = useOrganizations();
   const { signOut } = useAuth();
   const { isMaster } = useMasterAccount();
+  const navigate = useNavigate();
   const [showCreateOrg, setShowCreateOrg] = useState(false);
-
-  const handleNavClick = (view: string) => {
-    onNavigate?.(view);
-  };
+  const [showAddDevice, setShowAddDevice] = useState(false);
 
   const mainNavItems = [
-    { id: 'devices', label: 'Devices', icon: Cpu },
-    { id: 'automations', label: 'Automations', icon: Zap },
-    { id: 'alerts', label: 'Alerts', icon: Bell },
+    { path: '/app/devices', label: 'Devices', icon: Cpu },
+    { path: '/app/automations', label: 'Automations', icon: Zap },
+    { path: '/app/alerts', label: 'Alerts', icon: Bell },
   ];
 
-  const adminNavItems = [
-    { id: 'members', label: 'Members & Access', icon: Users },
-    { id: 'invites', label: 'Invites', icon: Mail, badge: pendingInvites.length },
-    { id: 'settings', label: 'Settings', icon: Settings },
+  const orgNavItems = [
+    { path: '/app/org/members', label: 'Members & Access', icon: Users },
+    { path: '/app/org/invites', label: 'Invites', icon: Mail, badge: pendingInvites.length },
+    { path: '/app/settings', label: 'Settings', icon: Settings },
   ];
+
+  const handleDeviceAdded = () => {
+    setShowAddDevice(false);
+    // Optionally navigate to devices page after adding
+  };
 
   return (
     <>
@@ -94,7 +93,7 @@ export function AppSidebar({ onNavigate, currentView }: AppSidebarProps) {
                 size="sm" 
                 className="w-full justify-start"
                 disabled={!currentOrg}
-                onClick={() => handleNavClick('add-device')}
+                onClick={() => setShowAddDevice(true)}
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Add Device
@@ -110,14 +109,18 @@ export function AppSidebar({ onNavigate, currentView }: AppSidebarProps) {
             <SidebarGroupContent>
               <SidebarMenu>
                 {mainNavItems.map((item) => (
-                  <SidebarMenuItem key={item.id}>
-                    <SidebarMenuButton
-                      onClick={() => handleNavClick(item.id)}
-                      isActive={currentView === item.id}
-                      tooltip={item.label}
-                    >
-                      <item.icon className="h-4 w-4" />
-                      {!collapsed && <span>{item.label}</span>}
+                  <SidebarMenuItem key={item.path}>
+                    <SidebarMenuButton asChild tooltip={item.label}>
+                      <NavLink 
+                        to={item.path}
+                        className={({ isActive }) => cn(
+                          "flex items-center gap-2 w-full",
+                          isActive && "bg-muted text-foreground font-medium"
+                        )}
+                      >
+                        <item.icon className="h-4 w-4" />
+                        {!collapsed && <span>{item.label}</span>}
+                      </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}
@@ -127,18 +130,40 @@ export function AppSidebar({ onNavigate, currentView }: AppSidebarProps) {
 
           <SidebarSeparator />
 
-          {/* Admin Section (only for owners/admins) */}
-          {isOwnerOrAdmin && (
-            <SidebarGroup>
-              {!collapsed && <SidebarGroupLabel>Organization</SidebarGroupLabel>}
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {adminNavItems.map((item) => (
-                    <SidebarMenuItem key={item.id}>
-                      <SidebarMenuButton
-                        onClick={() => handleNavClick(item.id)}
-                        isActive={currentView === item.id}
-                        tooltip={item.label}
+          {/* Organization Section */}
+          <SidebarGroup>
+            {!collapsed && (
+              <SidebarGroupLabel className={cn(!currentOrg && "text-muted-foreground/50")}>
+                Organization
+              </SidebarGroupLabel>
+            )}
+            <SidebarGroupContent>
+              {!currentOrg && !collapsed && (
+                <p className="px-2 py-1 text-xs text-muted-foreground/70">
+                  Select or create an organization
+                </p>
+              )}
+              <SidebarMenu>
+                {orgNavItems.map((item) => (
+                  <SidebarMenuItem key={item.path}>
+                    <SidebarMenuButton 
+                      asChild 
+                      tooltip={item.label}
+                      disabled={!currentOrg || (!isOwnerOrAdmin && item.path !== '/app/org/invites')}
+                    >
+                      <NavLink 
+                        to={item.path}
+                        className={({ isActive }) => cn(
+                          "flex items-center gap-2 w-full",
+                          isActive && currentOrg && "bg-muted text-foreground font-medium",
+                          (!currentOrg || (!isOwnerOrAdmin && item.path !== '/app/org/invites')) && 
+                            "opacity-50 pointer-events-none"
+                        )}
+                        onClick={(e) => {
+                          if (!currentOrg || (!isOwnerOrAdmin && item.path !== '/app/org/invites')) {
+                            e.preventDefault();
+                          }
+                        }}
                       >
                         <item.icon className="h-4 w-4" />
                         {!collapsed && (
@@ -151,15 +176,15 @@ export function AppSidebar({ onNavigate, currentView }: AppSidebarProps) {
                             )}
                           </span>
                         )}
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          )}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
 
-          {/* Pending Invites for all users */}
+          {/* Pending Invites for non-admin users */}
           {pendingInvites.length > 0 && !isOwnerOrAdmin && (
             <>
               <SidebarSeparator />
@@ -168,20 +193,24 @@ export function AppSidebar({ onNavigate, currentView }: AppSidebarProps) {
                 <SidebarGroupContent>
                   <SidebarMenu>
                     <SidebarMenuItem>
-                      <SidebarMenuButton
-                        onClick={() => handleNavClick('pending-invites')}
-                        isActive={currentView === 'pending-invites'}
-                        tooltip="Pending Invites"
-                      >
-                        <Mail className="h-4 w-4" />
-                        {!collapsed && (
-                          <span className="flex items-center gap-2 flex-1">
-                            Pending Invites
-                            <Badge variant="secondary" className="ml-auto h-5 px-1.5 text-xs">
-                              {pendingInvites.length}
-                            </Badge>
-                          </span>
-                        )}
+                      <SidebarMenuButton asChild tooltip="Pending Invites">
+                        <NavLink 
+                          to="/app/org/invites"
+                          className={({ isActive }) => cn(
+                            "flex items-center gap-2 w-full",
+                            isActive && "bg-muted text-foreground font-medium"
+                          )}
+                        >
+                          <Mail className="h-4 w-4" />
+                          {!collapsed && (
+                            <span className="flex items-center gap-2 flex-1">
+                              Pending Invites
+                              <Badge variant="secondary" className="ml-auto h-5 px-1.5 text-xs">
+                                {pendingInvites.length}
+                              </Badge>
+                            </span>
+                          )}
+                        </NavLink>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   </SidebarMenu>
@@ -200,10 +229,16 @@ export function AppSidebar({ onNavigate, currentView }: AppSidebarProps) {
                   <SidebarMenu>
                     <SidebarMenuItem>
                       <SidebarMenuButton asChild tooltip="Master Dashboard">
-                        <Link to="/master">
+                        <NavLink 
+                          to="/master"
+                          className={({ isActive }) => cn(
+                            "flex items-center gap-2 w-full",
+                            isActive && "bg-muted text-foreground font-medium"
+                          )}
+                        >
                           <Shield className="h-4 w-4" />
                           {!collapsed && <span>Master Dashboard</span>}
-                        </Link>
+                        </NavLink>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   </SidebarMenu>
@@ -229,6 +264,11 @@ export function AppSidebar({ onNavigate, currentView }: AppSidebarProps) {
       </Sidebar>
 
       <CreateOrgDialog open={showCreateOrg} onOpenChange={setShowCreateOrg} />
+      <AddDeviceDialog 
+        open={showAddDevice} 
+        onOpenChange={setShowAddDevice}
+        onDeviceAdded={handleDeviceAdded}
+      />
     </>
   );
 }
