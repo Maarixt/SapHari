@@ -177,308 +177,319 @@ ${generateWidgetDefines()}
   };
 
   const generateArduinoSketch = () => {
+    const switches = widgets.filter(w => w.type === 'switch' && w.pin != null);
+    const gauges = widgets.filter(w => w.type === 'gauge' && w.pin != null);
+    const switchCount = switches.length;
+    const allowedPins = switches.map(w => w.pin).join(', ');
+    const deviceKey = device.device_key || 'DEVICE_KEY_NOT_FOUND';
+    
+    // Generate switch mapping comments
+    const switchMappingComments = switches.length > 0 
+      ? switches.map((w, i) => `// ${w.address} -> GPIO ${w.pin}`).join('\n')
+      : '// No switches configured';
+
     return `// ============================================
-// SapHari ESP32 Production Firmware
+// SapHari ESP32 Configuration
 // Device: ${device.name}
-// Broker: ${PRODUCTION_BROKER.tcp_host}:${PRODUCTION_BROKER.tls_port} (TLS)
+// Generated: ${new Date().toISOString()}
 // ============================================
 //
-// REQUIREMENTS:
-// - ESP32 board
-// - PubSubClient library
-// - WiFiClientSecure (built-in)
+// ⚠️ TLS REQUIRED: Port 1883 is NOT available
+// This configuration uses TLS on port 8883
 //
-// SETUP:
-// 1. Copy saphari_config.h to your project
-// 2. Update DEVICE_TOKEN with your actual token from EMQX Cloud
-// 3. Update WiFi credentials below
-// 4. Upload to your ESP32
+// Dashboard command format supported:
+// Topic: saphari/<deviceId>/cmd/toggle
+// Payload: {"addr":"S1","pin":2,"state":1,"override":false}
 //
 // ============================================
 
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <PubSubClient.h>
-#include "saphari_config.h"
 
 // ========================================
-// WiFi Credentials (UPDATE THESE)
+// WiFi Credentials (CHANGE THESE)
 // ========================================
-const char* ssid = "YOUR_WIFI_SSID";
-const char* password = "YOUR_WIFI_PASSWORD";
+#define WIFI_SSID     "YOUR_WIFI_SSID"
+#define WIFI_PASSWORD "YOUR_WIFI_PASSWORD"
 
 // ========================================
-// MQTT Client (TLS)
+// Device Credentials (UNIQUE PER DEVICE)
+// ========================================
+#define DEVICE_ID   "${device.device_id}"
+#define DEVICE_KEY  "${deviceKey}"
+
+// ========================================
+// MQTT Broker (PRODUCTION - TLS ONLY)
+// ========================================
+#define MQTT_BROKER "${PRODUCTION_BROKER.tcp_host}"
+#define MQTT_PORT   ${PRODUCTION_BROKER.tls_port}  // TLS port - NOT 1883
+
+// MQTT Authentication
+#define MQTT_USER   DEVICE_ID   // Username = Device ID
+#define MQTT_PASS   DEVICE_KEY  // Password = Device Key
+
+// ========================================
+// Output Logic (Relay Boards)
+// ========================================
+// If your relay turns ON when GPIO is LOW, set ACTIVE_LOW to 1
+#define ACTIVE_LOW 0
+
+// ========================================
+// TLS Client Setup
 // ========================================
 WiFiClientSecure espClient;
 PubSubClient mqtt(espClient);
 
-// ========================================
-// State Variables
-// ========================================
-unsigned long lastHeartbeat = 0;
 unsigned long lastReconnectAttempt = 0;
-unsigned long reconnectDelay = RECONNECT_DELAY_MS;
-bool wasConnected = false;
+const unsigned long reconnectInterval = 5000; // 5 seconds
 
 // ========================================
-// Setup
+// Widget Configurations (Generated)
+// ========================================
+// Switches:
+${switchMappingComments}
+#define SWITCH_COUNT ${switchCount}
+
+// Allowed switch pins (generated from switches)
+${switchCount > 0 
+  ? `const int ALLOWED_PINS[] = { ${allowedPins} };
+const int ALLOWED_COUNT = ${switchCount};`
+  : `// Empty because no switches exist in this device
+const int ALLOWED_PINS[] = { };
+const int ALLOWED_COUNT = 0;`}
+
+bool isAllowedPin(int pin) {
+  for (int i = 0; i < ALLOWED_COUNT; i++) {
+    if (ALLOWED_PINS[i] == pin) return true;
+  }
+  return false;
+}
+
+// ========================================
+// Tiny JSON Parsing Helpers (no ArduinoJson)
+// ========================================
+int jsonGetInt(const String& json, const char* key, int defVal) {
+  String k = String("\\"") + key + "\\":";
+  int i = json.indexOf(k);
+  if (i < 0) return defVal;
+  i += k.length();
+  while (i < (int)json.length() && (json[i] == ' ' || json[i] == '"')) i++;
+  int j = i;
+  while (j < (int)json.length() && (isDigit(json[j]) || json[j] == '-')) j++;
+  return json.substring(i, j).toInt();
+}
+
+// ========================================
+// Helper: Topics
+// ========================================
+String tStatus()   { return "saphari/" + String(DEVICE_ID) + "/status/online"; }
+String tCmdAll()   { return "saphari/" + String(DEVICE_ID) + "/cmd/#"; }
+String tCmdToggle(){ return "saphari/" + String(DEVICE_ID) + "/cmd/toggle"; }
+String tGPIO(int pin) { return "saphari/" + String(DEVICE_ID) + "/gpio/" + String(pin); }
+
+// ========================================
+// Helper: Publish GPIO State (retained)
+// ========================================
+void publishGPIO(int pin, int logicalState) {
+  mqtt.publish(tGPIO(pin).c_str(), logicalState ? "1" : "0", true);
+}
+
+// ========================================
+// Apply GPIO (supports ACTIVE_LOW)
+// ========================================
+void applyGPIO(int pin, int logicalState) {
+  pinMode(pin, OUTPUT);
+
+  int level;
+#if ACTIVE_LOW
+  level = logicalState ? LOW : HIGH;
+#else
+  level = logicalState ? HIGH : LOW;
+#endif
+
+  digitalWrite(pin, level);
+
+  Serial.print("GPIO APPLIED pin=");
+  Serial.print(pin);
+  Serial.print(" logical=");
+  Serial.print(logicalState);
+  Serial.print(" level=");
+  Serial.println(level == HIGH ? "HIGH" : "LOW");
+
+  publishGPIO(pin, logicalState);
+}
+
+// ========================================
+// Handle cmd/toggle JSON payload
+// Payload: {"addr":"S1","pin":2,"state":1,"override":false}
+// ========================================
+void handleTogglePayload(const String& payload) {
+  if (SWITCH_COUNT == 0) {
+    Serial.println("No switches configured — ignoring toggle.");
+    return;
+  }
+
+  int pin = jsonGetInt(payload, "pin", -1);
+  int state = jsonGetInt(payload, "state", -1);
+
+  if (pin < 0 || (state != 0 && state != 1)) {
+    Serial.println("Bad toggle payload: missing pin/state");
+    return;
+  }
+
+  if (!isAllowedPin(pin)) {
+    Serial.println("Blocked toggle: pin not allowed for this device");
+    return;
+  }
+
+  applyGPIO(pin, state);
+}
+
+// ========================================
+// MQTT Message Handler
+// ========================================
+void onMessage(char* topic, byte* payload, unsigned int length) {
+  String msg;
+  msg.reserve(length);
+  for (unsigned int i = 0; i < length; i++) msg += (char)payload[i];
+
+  Serial.print("MQTT IN [");
+  Serial.print(topic);
+  Serial.print("] ");
+  Serial.println(msg);
+
+  String t(topic);
+  if (t == tCmdToggle()) {
+    handleTogglePayload(msg);
+  }
+}
+
+// ========================================
+// WiFi Setup
+// ========================================
+void setupWiFi() {
+  Serial.print("Connecting to WiFi");
+  WiFi.mode(WIFI_STA);
+  WiFi.setSleep(false);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.println();
+  Serial.print("Connected! IP: ");
+  Serial.println(WiFi.localIP());
+}
+
+// ========================================
+// MQTT Setup
+// ========================================
+void setupMQTT() {
+  // TLS: Skip certificate verification (for development)
+  // For production, use: espClient.setCACert(emqx_ca_cert);
+  espClient.setInsecure();
+  espClient.setHandshakeTimeout(30);
+  espClient.setTimeout(30);
+
+  mqtt.setServer(MQTT_BROKER, MQTT_PORT);
+  mqtt.setCallback(onMessage);
+  mqtt.setSocketTimeout(30);
+}
+
+// ========================================
+// Connect with Last Will Testament (LWT)
+// ========================================
+bool connectMQTT() {
+  String statusTopic = tStatus();
+
+  Serial.print("Connecting to MQTT...");
+
+  if (mqtt.connect(DEVICE_ID, MQTT_USER, MQTT_PASS,
+                   statusTopic.c_str(), 1, true, "offline")) {
+    Serial.println("connected!");
+
+    // Publish online status (retained)
+    mqtt.publish(statusTopic.c_str(), "online", true);
+
+    // Subscribe to commands
+    mqtt.subscribe(tCmdAll().c_str());
+
+    // Publish initial GPIO states
+${switches.map(w => `    publishGPIO(${w.pin}, digitalRead(${w.pin}));`).join('\n') || '    // No GPIO to publish'}
+
+    return true;
+  } else {
+    Serial.print("failed, rc=");
+    Serial.println(mqtt.state());
+    return false;
+  }
+}
+
+// ========================================
+// Setup Pins
+// ========================================
+void setupPins() {
+${switches.map(w => `  pinMode(${w.pin}, OUTPUT);`).join('\n') || '  // No switch pins to configure'}
+${gauges.map(w => `  pinMode(${w.pin}, INPUT);`).join('\n') || ''}
+}
+
+// ========================================
+// Main Setup
 // ========================================
 void setup() {
   Serial.begin(115200);
-  delay(1000);
-  
-  Serial.println("\\n\\n========================================");
-  Serial.println("  SapHari ESP32 Device Starting");
-  Serial.println("========================================");
-  Serial.printf("Device ID: %s\\n", DEVICE_ID);
-  Serial.printf("Device Name: %s\\n", DEVICE_NAME);
-  Serial.printf("MQTT Broker: %s:%d (TLS)\\n", MQTT_HOST, MQTT_PORT);
-  Serial.println("========================================\\n");
-  
+  delay(100);
+
+  Serial.println();
+  Serial.println("=== SapHari ESP32 Starting ===");
+  Serial.print("Device ID: ");
+  Serial.println(DEVICE_ID);
+
   setupPins();
   setupWiFi();
   setupMQTT();
-}
-
-void setupPins() {
-  // Configure GPIO pins based on widgets
-${widgets.filter(w => w.type === 'switch' && w.pin).map(w => 
-  `  pinMode(${w.pin}, OUTPUT);`
-).join('\n') || '  // No switch pins configured'}
-}
-
-void setupWiFi() {
-  Serial.printf("📶 Connecting to WiFi: %s\\n", ssid);
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(ssid, password);
-  
-  int attempts = 0;
-  while (WiFi.status() != WL_CONNECTED && attempts < 30) {
-    delay(500);
-    Serial.print(".");
-    attempts++;
-  }
-  
-  if (WiFi.status() == WL_CONNECTED) {
-    Serial.printf("\\n✅ WiFi connected!\\n");
-    Serial.printf("   IP Address: %s\\n", WiFi.localIP().toString().c_str());
-    Serial.printf("   RSSI: %d dBm\\n", WiFi.RSSI());
-  } else {
-    Serial.println("\\n❌ WiFi connection failed!");
-    Serial.println("   Check credentials and try again.");
-  }
-}
-
-void setupMQTT() {
-  // ========================================
-  // TLS Configuration (REQUIRED for EMQX Cloud)
-  // ========================================
-  // setInsecure() skips certificate verification
-  // For production security, embed the EMQX Cloud CA certificate:
-  //   espClient.setCACert(emqx_ca_cert);
-  // CA certificate available at: https://assets.emqx.com/data/emqxsl-ca.crt
-  espClient.setInsecure();
-  
-  mqtt.setServer(MQTT_HOST, MQTT_PORT);  // Port 8883 (TLS) - NOT 1883
-  mqtt.setCallback(mqttCallback);
-  mqtt.setBufferSize(512);
-  mqtt.setKeepAlive(MQTT_KEEPALIVE);
+  connectMQTT();
 }
 
 // ========================================
-// Main Loop
+// Main Loop (with reconnect)
 // ========================================
 void loop() {
-  // Ensure WiFi is connected
-  if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("⚠️ WiFi disconnected, reconnecting...");
-    setupWiFi();
-    return;
-  }
-  
-  // Maintain MQTT connection
   if (!mqtt.connected()) {
-    if (wasConnected) {
-      Serial.println("⚠️ MQTT disconnected!");
-      wasConnected = false;
+    unsigned long now = millis();
+    if (now - lastReconnectAttempt > reconnectInterval) {
+      lastReconnectAttempt = now;
+      if (connectMQTT()) lastReconnectAttempt = 0;
     }
-    reconnectMQTT();
   } else {
-    if (!wasConnected) {
-      Serial.println("✅ MQTT connected!");
-      wasConnected = true;
-      reconnectDelay = RECONNECT_DELAY_MS; // Reset backoff
-    }
     mqtt.loop();
-    
-    // Send heartbeat
-    if (millis() - lastHeartbeat >= HEARTBEAT_INTERVAL_MS) {
-      sendHeartbeat();
-      lastHeartbeat = millis();
-    }
   }
 }
 
 // ========================================
-// MQTT Connection with LWT
+// MQTT Topics Reference
 // ========================================
-void reconnectMQTT() {
-  if (millis() - lastReconnectAttempt < reconnectDelay) return;
-  lastReconnectAttempt = millis();
-  
-  Serial.printf("🔌 Connecting to MQTT broker...\\n");
-  Serial.printf("   Host: %s:%d\\n", MQTT_HOST, MQTT_PORT);
-  Serial.printf("   Username: %s\\n", MQTT_USERNAME);
-  
-  // Connect with Last Will and Testament (LWT)
-  // When connection drops, broker publishes "offline" to status topic
-  bool connected = mqtt.connect(
-    DEVICE_ID,          // Client ID
-    MQTT_USERNAME,      // Username = Device ID
-    MQTT_PASSWORD,      // Password = Device Token
-    TOPIC_STATUS,       // Will topic
-    1,                  // Will QoS
-    true,               // Will retain
-    "offline"           // Will message
-  );
-  
-  if (connected) {
-    Serial.println("✅ MQTT connected!");
-    
-    // Publish online status (retained)
-    mqtt.publish(TOPIC_STATUS, "online", true);
-    Serial.printf("   Published: %s = online\\n", TOPIC_STATUS);
-    
-    // Subscribe to command topics
-    mqtt.subscribe(TOPIC_CMD);
-    Serial.printf("   Subscribed: %s\\n", TOPIC_CMD);
-    
-    // Publish initial state
-    publishState();
-  } else {
-    int state = mqtt.state();
-    Serial.printf("❌ MQTT connect failed, rc=%d\\n", state);
-    printMQTTError(state);
-    
-    // Exponential backoff
-    reconnectDelay = min(reconnectDelay * 2, (unsigned long)MAX_RECONNECT_DELAY_MS);
-    Serial.printf("   Next attempt in %lu ms\\n", reconnectDelay);
-  }
-}
-
-void printMQTTError(int state) {
-  switch (state) {
-    case -4: Serial.println("   Error: Connection timeout"); break;
-    case -3: Serial.println("   Error: Connection lost"); break;
-    case -2: Serial.println("   Error: Connect failed"); break;
-    case -1: Serial.println("   Error: Disconnected"); break;
-    case 1: Serial.println("   Error: Bad protocol"); break;
-    case 2: Serial.println("   Error: Bad client ID"); break;
-    case 3: Serial.println("   Error: Unavailable"); break;
-    case 4: Serial.println("   Error: Bad credentials"); break;
-    case 5: Serial.println("   Error: Unauthorized"); break;
-    default: Serial.printf("   Error: Unknown (%d)\\n", state); break;
-  }
-}
-
-// ========================================
-// Message Handler
-// ========================================
-void mqttCallback(char* topic, byte* payload, unsigned int length) {
-  String topicStr = String(topic);
-  String message = "";
-  for (unsigned int i = 0; i < length; i++) {
-    message += (char)payload[i];
-  }
-  
-  Serial.printf("📨 Received: %s = %s\\n", topic, message.c_str());
-  
-  // Parse command from topic: saphari/DEVICE_ID/cmd/TYPE/ADDRESS
-  if (topicStr.startsWith(String(TOPIC_PREFIX) + "/cmd/")) {
-    handleCommand(topicStr, message);
-  }
-}
-
-void handleCommand(String topic, String payload) {
-  int cmdStart = topic.indexOf("/cmd/") + 5;
-  String remaining = topic.substring(cmdStart);
-  int slashPos = remaining.indexOf('/');
-  
-  String cmdType = slashPos > 0 ? remaining.substring(0, slashPos) : remaining;
-  String address = slashPos > 0 ? remaining.substring(slashPos + 1) : "";
-  
-  Serial.printf("⚡ Command: type=%s, address=%s, payload=%s\\n", 
-    cmdType.c_str(), address.c_str(), payload.c_str());
-  
-  // Handle GPIO commands
-  if (cmdType == "gpio") {
-    handleGpioCommand(address, payload);
-  }
-  // Handle servo commands
-  else if (cmdType == "servo") {
-    handleServoCommand(address, payload);
-  }
-  
-  // Send acknowledgment
-  sendAck(cmdType, address, "ok");
-  
-  // Publish updated state
-  publishState();
-}
-
-void handleGpioCommand(String address, String payload) {
-${widgets.filter(w => w.type === 'switch' && w.pin).map(w => 
-  `  if (address == "${w.address}") {
-    digitalWrite(${w.pin}, payload == "1" ? HIGH : LOW);
-    Serial.printf("   GPIO ${w.pin} -> %s\\n", payload.c_str());
-  }`
-).join(' else\n') || '  // No switch widgets configured'}
-}
-
-void handleServoCommand(String address, String payload) {
-  int angle = payload.toInt();
-  Serial.printf("   Servo %s -> %d°\\n", address.c_str(), angle);
-  // TODO: Implement servo control
-}
-
-void sendAck(String cmdType, String address, String status) {
-  String ackPayload = "{\\"cmd\\":\\"" + cmdType + "\\",\\"addr\\":\\"" + address + "\\",\\"status\\":\\"" + status + "\\"}";
-  mqtt.publish(TOPIC_ACK, ackPayload.c_str());
-  Serial.printf("   ACK sent: %s\\n", ackPayload.c_str());
-}
-
-// ========================================
-// Heartbeat & State Publishing
-// ========================================
-void sendHeartbeat() {
-  // Refresh online status
-  mqtt.publish(TOPIC_STATUS, "online", true);
-  
-  // Publish current state
-  publishState();
-  
-  Serial.printf("💓 Heartbeat (RSSI: %d dBm)\\n", WiFi.RSSI());
-}
-
-void publishState() {
-  // Publish GPIO states
-${widgets.filter(w => w.type === 'switch' && w.pin).map(w => 
-  `  {
-    String topic = String(TOPIC_PREFIX) + "/gpio/${w.pin}";
-    mqtt.publish(topic.c_str(), digitalRead(${w.pin}) ? "1" : "0");
-  }`
-).join('\n') || '  // No GPIO widgets to publish'}
-  
-  // Publish sensor readings
-${widgets.filter(w => w.type === 'gauge' && w.pin).map(w => 
-  `  {
-    String topic = String(TOPIC_PREFIX) + "/sensor/${w.address}";
-    int value = analogRead(${w.pin});
-    mqtt.publish(topic.c_str(), String(value).c_str());
-  }`
-).join('\n') || '  // No gauge widgets to publish'}
-}`;
+//
+// Status Topic (REQUIRED - with LWT)
+// Topic: saphari/<deviceId>/status/online
+// Payload: "online" (retained) | "offline" (LWT)
+//
+// GPIO Confirmation (device -> dashboard)
+// Topic: saphari/<deviceId>/gpio/<pin>
+// Payload: "1" or "0" (retained)
+//
+// Commands (dashboard -> device)
+// Topic: saphari/<deviceId>/cmd/toggle
+// Payload JSON: {"addr":"Sx","pin":<PIN>,"state":0|1,"override":false}
+//
+// Notes:
+// - If SWITCH_COUNT == 0, toggle commands will be ignored.
+// - For relays that are active-low, set ACTIVE_LOW to 1.
+//
+`;
   };
 
   const generatePlatformIO = () => {
