@@ -8,6 +8,7 @@ import { mqttPublishLimiter, mqttSubscribeLimiter } from '@/lib/rateLimiter';
 import { handleGpioConfirmation } from '@/services/commandService';
 import { useMQTTDebugStore } from '@/stores/mqttDebugStore';
 import { handlePresenceUpdate, recordDeviceActivity, startPresenceChecker, stopPresenceChecker } from '@/services/presenceService';
+import { fetchMQTTCredentials, clearMQTTCredentials, type MQTTCredentials } from '@/services/mqttCredentials';
 // Production broker configuration - AUTHORITATIVE SOURCE (TLS ONLY)
 // DO NOT use port 1883 in production - TLS is REQUIRED
 const PRODUCTION_BROKER = {
@@ -39,6 +40,7 @@ interface MQTTContextType {
   connected: boolean;
   status: 'connecting' | 'connected' | 'disconnected' | 'error';
   brokerConfig: BrokerConfig | null;
+  credentials: MQTTCredentials | null;
   publishMessage: (topic: string, payload: string, retain?: boolean) => void;
   subscribeToTopic: (topic: string) => void;
   onMessage: (callback: (topic: string, message: string) => void) => () => void;
@@ -55,80 +57,59 @@ export const MQTTProvider = ({ children }: { children: React.ReactNode }) => {
   const [connected, setConnected] = useState(false);
   const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('disconnected');
   const [brokerConfig, setBrokerConfig] = useState<BrokerConfig | null>(null);
+  const [credentials, setCredentials] = useState<MQTTCredentials | null>(null);
   
   const messageCallbacks = useRef<((topic: string, message: string) => void)[]>([]);
   const clientRef = useRef<MqttClient | null>(null);
 
-  // Load platform broker config from database (authoritative source)
-  const loadBrokerConfig = useCallback(async () => {
-    if (!user) return;
+  // Load MQTT credentials securely from edge function
+  const loadSecureCredentials = useCallback(async () => {
+    if (!user) {
+      setCredentials(null);
+      clearMQTTCredentials();
+      return;
+    }
 
     try {
-      // Fetch from platform_broker_config table directly to get dashboard credentials
-      const { data, error } = await supabase
-        .from('platform_broker_config')
-        .select('*')
-        .eq('is_active', true)
-        .eq('is_default', true)
-        .single();
-
-      if (error) {
-        console.warn('Failed to load broker config, using fallback:', error);
+      console.log('🔐 Fetching secure MQTT credentials...');
+      const creds = await fetchMQTTCredentials();
+      
+      if (creds) {
+        setCredentials(creds);
+        // Also set broker config for compatibility
         setBrokerConfig({
-          ...PRODUCTION_BROKER,
+          wss_url: creds.wss_url,
+          tcp_host: creds.tcp_host,
+          tcp_port: 8883,
+          tls_port: 8883,
+          wss_port: creds.wss_port,
+          use_tls: true,
           username: null,
           password: null,
-          dashboard_username: null,
-          dashboard_password: null,
+          dashboard_username: creds.username,
+          dashboard_password: creds.password,
           source: 'platform'
         });
-        return;
-      }
-
-      if (data) {
-        setBrokerConfig({
-          wss_url: data.wss_url,
-          tcp_host: data.tcp_host,
-          tcp_port: data.tcp_port,
-          tls_port: data.tls_port || 8883,
-          wss_port: data.wss_port || 8084,
-          use_tls: data.use_tls ?? true,
-          username: data.username,
-          password: data.password,
-          dashboard_username: (data as any).dashboard_username || null,
-          dashboard_password: (data as any).dashboard_password || null,
-          source: 'platform'
-        });
+        console.log('✅ Secure MQTT credentials loaded');
       } else {
-        setBrokerConfig({
-          ...PRODUCTION_BROKER,
-          username: null,
-          password: null,
-          dashboard_username: null,
-          dashboard_password: null,
-          source: 'platform'
-        });
+        console.warn('⚠️ Failed to load MQTT credentials');
+        setCredentials(null);
+        setBrokerConfig(null);
       }
     } catch (error) {
-      console.error('Error loading broker config:', error);
-      setBrokerConfig({
-        ...PRODUCTION_BROKER,
-        username: null,
-        password: null,
-        dashboard_username: null,
-        dashboard_password: null,
-        source: 'platform'
-      });
+      console.error('Error loading secure credentials:', error);
+      setCredentials(null);
+      setBrokerConfig(null);
     }
   }, [user]);
 
   useEffect(() => {
-    loadBrokerConfig();
-  }, [loadBrokerConfig]);
+    loadSecureCredentials();
+  }, [loadSecureCredentials]);
 
-  // Connect to MQTT broker using dashboard credentials
+  // Connect to MQTT broker using secure credentials from edge function
   useEffect(() => {
-    if (!user || !brokerConfig?.wss_url) return;
+    if (!user || !credentials) return;
 
     // Cleanup previous connection
     if (clientRef.current) {
@@ -136,11 +117,9 @@ export const MQTTProvider = ({ children }: { children: React.ReactNode }) => {
       clientRef.current = null;
     }
 
-    // Check if dashboard credentials are configured
-    const hasDashboardCredentials = brokerConfig.dashboard_username && brokerConfig.dashboard_password;
-    
-    if (!hasDashboardCredentials) {
-      console.warn('⚠️ MQTT disabled: dashboard broker credentials not configured');
+    // Check if credentials are valid
+    if (!credentials.username || !credentials.password || !credentials.wss_url) {
+      console.warn('⚠️ MQTT disabled: secure credentials not available');
       setStatus('disconnected');
       setConnected(false);
       return;
@@ -149,13 +128,13 @@ export const MQTTProvider = ({ children }: { children: React.ReactNode }) => {
     const connectMQTT = () => {
       try {
         setStatus('connecting');
-        const clientId = `dashboard-${Math.random().toString(36).substring(2, 10)}`;
-        console.info(`🔌 Connecting to MQTT: ${brokerConfig.wss_url} as ${clientId}`);
+        const clientId = credentials.client_id || `dashboard-${Math.random().toString(36).substring(2, 10)}`;
+        console.info(`🔌 Connecting to MQTT: ${credentials.wss_url} as ${clientId}`);
         
-        const mqttClient = mqtt.connect(brokerConfig.wss_url, {
+        const mqttClient = mqtt.connect(credentials.wss_url, {
           clientId,
-          username: brokerConfig.dashboard_username || undefined,
-          password: brokerConfig.dashboard_password || undefined,
+          username: credentials.username,
+          password: credentials.password,
           reconnectPeriod: 2000,
           keepalive: 60,
           clean: true,
@@ -306,7 +285,7 @@ export const MQTTProvider = ({ children }: { children: React.ReactNode }) => {
         clientRef.current = null;
       }
     };
-  }, [user, brokerConfig?.wss_url, brokerConfig?.dashboard_username, brokerConfig?.dashboard_password]);
+  }, [user, credentials]);
 
   const publishMessage = useCallback((topic: string, payload: string, retain = false) => {
     if (!clientRef.current || !connected) {
@@ -432,6 +411,7 @@ export const MQTTProvider = ({ children }: { children: React.ReactNode }) => {
       connected,
       status,
       brokerConfig,
+      credentials,
       publishMessage,
       subscribeToTopic,
       onMessage

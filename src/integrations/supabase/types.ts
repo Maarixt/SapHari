@@ -334,6 +334,30 @@ export type Database = {
           },
         ]
       }
+      device_presence_events: {
+        Row: {
+          created_at: string
+          device_id: string
+          id: string
+          source: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          device_id: string
+          id?: string
+          source?: string | null
+          status: string
+        }
+        Update: {
+          created_at?: string
+          device_id?: string
+          id?: string
+          source?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       devices: {
         Row: {
           created_at: string
