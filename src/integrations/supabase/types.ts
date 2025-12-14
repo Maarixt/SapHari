@@ -1108,6 +1108,7 @@ export type Database = {
           model: string | null
           name: string | null
           online: boolean | null
+          org_id: string | null
           tags: string[] | null
           updated_at: string | null
           user_id: string | null
@@ -1124,6 +1125,7 @@ export type Database = {
           model?: string | null
           name?: string | null
           online?: boolean | null
+          org_id?: string | null
           tags?: string[] | null
           updated_at?: string | null
           user_id?: string | null
@@ -1140,11 +1142,20 @@ export type Database = {
           model?: string | null
           name?: string | null
           online?: boolean | null
+          org_id?: string | null
           tags?: string[] | null
           updated_at?: string | null
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "devices_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Functions: {

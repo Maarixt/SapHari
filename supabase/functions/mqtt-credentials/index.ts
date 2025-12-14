@@ -11,6 +11,8 @@ const corsHeaders = {
  * 
  * Issues short-lived MQTT credentials for authenticated users.
  * Returns dashboard-scoped credentials that allow subscribing to the user's device topics.
+ * 
+ * SECURITY: Dashboard credentials are now stored in Supabase secrets, not in the database.
  */
 serve(async (req) => {
   // Handle CORS preflight
@@ -30,7 +32,6 @@ serve(async (req) => {
     }
 
     // Initialize Supabase client with the user's auth header
-    // This is the key fix - create the client with the user's token forwarded
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     
@@ -80,10 +81,10 @@ serve(async (req) => {
       );
     }
 
-    // Get platform broker config
+    // Get platform broker config (without password - we'll use secrets)
     const { data: brokerConfig, error: brokerError } = await supabaseAdmin
       .from('platform_broker_config')
-      .select('wss_url, tcp_host, wss_port, dashboard_username, dashboard_password')
+      .select('wss_url, tcp_host, wss_port')
       .eq('is_active', true)
       .eq('is_default', true)
       .single();
@@ -92,6 +93,18 @@ serve(async (req) => {
       console.error('Broker config error:', brokerError);
       return new Response(
         JSON.stringify({ error: 'Configuration error', message: 'MQTT broker not configured' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Get dashboard credentials from Supabase secrets (NOT from database)
+    const dashboardUsername = Deno.env.get('MQTT_DASHBOARD_USERNAME');
+    const dashboardPassword = Deno.env.get('MQTT_DASHBOARD_PASSWORD');
+
+    if (!dashboardUsername || !dashboardPassword) {
+      console.error('MQTT dashboard credentials not configured in secrets');
+      return new Response(
+        JSON.stringify({ error: 'Configuration error', message: 'MQTT credentials not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -111,13 +124,13 @@ serve(async (req) => {
     // Generate a unique client ID for this session (avoids collision with ESP32 devices)
     const clientId = `web_${user.id.substring(0, 8)}_${Date.now().toString(36)}`;
 
-    // Return credentials (these are the dashboard credentials from platform config)
+    // Return credentials (dashboard credentials from secrets, NOT database)
     const credentials = {
       wss_url: brokerConfig.wss_url,
       tcp_host: brokerConfig.tcp_host,
       wss_port: brokerConfig.wss_port || 8084,
-      username: brokerConfig.dashboard_username,
-      password: brokerConfig.dashboard_password,
+      username: dashboardUsername,
+      password: dashboardPassword,
       client_id: clientId,
       allowed_topics: allowedTopics,
       device_ids: deviceIds,
