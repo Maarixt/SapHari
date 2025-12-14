@@ -12,12 +12,39 @@ import { disconnect as disconnectMQTT } from './mqttConnectionService';
 
 // Registry of cleanup functions for state stores
 type CleanupFn = () => void;
-const cleanupRegistry: CleanupFn[] = [];
+let cleanupRegistry: CleanupFn[] = [];
+let isInitialized = false;
+
+// Deferred registrations that happen before initialization
+const deferredRegistrations: CleanupFn[] = [];
+
+/**
+ * Initialize the cleanup registry (call early in app lifecycle)
+ */
+export function initCleanupRegistry(): void {
+  if (isInitialized) return;
+  isInitialized = true;
+  
+  // Process any deferred registrations
+  deferredRegistrations.forEach(fn => cleanupRegistry.push(fn));
+  deferredRegistrations.length = 0;
+}
 
 /**
  * Register a cleanup function to be called on state reset
  */
 export function registerCleanup(fn: CleanupFn): () => void {
+  if (!isInitialized) {
+    // Defer registration until initialization
+    deferredRegistrations.push(fn);
+    return () => {
+      const index = deferredRegistrations.indexOf(fn);
+      if (index > -1) {
+        deferredRegistrations.splice(index, 1);
+      }
+    };
+  }
+  
   cleanupRegistry.push(fn);
   return () => {
     const index = cleanupRegistry.indexOf(fn);
@@ -103,9 +130,10 @@ export async function resetAllState(): Promise<void> {
     clearMQTTCredentials();
     cancelCredentialRefresh();
     
-    // 2. Run all registered cleanup functions
-    console.log(`🧹 Running ${cleanupRegistry.length} registered cleanup functions...`);
-    cleanupRegistry.forEach(fn => {
+    // 2. Run all registered cleanup functions (both deferred and normal)
+    const allCleanups = [...cleanupRegistry, ...deferredRegistrations];
+    console.log(`🧹 Running ${allCleanups.length} registered cleanup functions...`);
+    allCleanups.forEach(fn => {
       try {
         fn();
       } catch (error) {
