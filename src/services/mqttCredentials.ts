@@ -39,7 +39,16 @@ export async function fetchMQTTCredentials(): Promise<MQTTCredentials | null> {
   }
 
   try {
-    // CRITICAL: Verify we have a valid session before calling the edge function
+    // CRITICAL: Force refresh the session to get a fresh token
+    // This prevents "session not found" errors from stale tokens
+    const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+    
+    if (refreshError) {
+      console.warn('Session refresh failed:', refreshError.message);
+      // Try to get current session anyway
+    }
+
+    // Get the current session (after refresh attempt)
     const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
     
     if (sessionError) {
@@ -48,7 +57,7 @@ export async function fetchMQTTCredentials(): Promise<MQTTCredentials | null> {
     }
     
     if (!sessionData?.session?.access_token) {
-      console.warn('No valid session found - skipping MQTT credentials fetch');
+      console.warn('No valid session found - user needs to log in');
       return null;
     }
 
@@ -61,6 +70,13 @@ export async function fetchMQTTCredentials(): Promise<MQTTCredentials | null> {
 
     if (error) {
       console.error('Failed to fetch MQTT credentials:', error);
+      
+      // If we get a 401, the session is truly invalid - clear it
+      if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
+        console.warn('Session invalid - clearing local session');
+        await supabase.auth.signOut();
+      }
+      
       return null;
     }
 
