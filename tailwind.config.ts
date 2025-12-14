@@ -168,6 +168,30 @@ export default {
             opacity: "1",
           },
         },
+        "spin-slow": {
+          from: {
+            transform: "rotate(0deg)",
+          },
+          to: {
+            transform: "rotate(360deg)",
+          },
+        },
+        "spin-slow-reverse": {
+          from: {
+            transform: "rotate(360deg)",
+          },
+          to: {
+            transform: "rotate(0deg)",
+          },
+        },
+        "pulse-glow": {
+          "0%, 100%": {
+            boxShadow: "0 0 0 0 hsl(var(--primary) / 0.2)",
+          },
+          "50%": {
+            boxShadow: "0 0 20px 4px hsl(var(--primary) / 0.3)",
+          },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -175,6 +199,9 @@ export default {
         "fade-in": "fade-in 0.2s ease-out",
         "slide-in-from-bottom": "slide-in-from-bottom 0.2s ease-out",
         "slide-in-from-top": "slide-in-from-top 0.2s ease-out",
+        "spin-slow": "spin-slow 60s linear infinite",
+        "spin-slow-reverse": "spin-slow-reverse 45s linear infinite",
+        "pulse-glow": "pulse-glow 2s ease-in-out infinite",
       },
     },
   },
