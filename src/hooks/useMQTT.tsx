@@ -5,7 +5,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from './use-toast';
 import { validateMQTTTopic, validateMQTTMessage, validateSapHariTopic } from '@/lib/mqttValidation';
 import { mqttPublishLimiter, mqttSubscribeLimiter } from '@/lib/rateLimiter';
-
+import { handleGpioConfirmation } from '@/services/commandService';
+import { useMQTTDebugStore } from '@/stores/mqttDebugStore';
 // Production broker configuration - AUTHORITATIVE SOURCE (TLS ONLY)
 // DO NOT use port 1883 in production - TLS is REQUIRED
 const PRODUCTION_BROKER = {
@@ -198,12 +199,22 @@ export const MQTTProvider = ({ children }: { children: React.ReactNode }) => {
         mqttClient.on('message', (topic, payload) => {
           const message = payload.toString();
           
+          // Log incoming message if debug enabled
+          const debugStore = useMQTTDebugStore.getState();
+          if (debugStore.enabled) {
+            debugStore.addLog({
+              direction: 'incoming',
+              topic,
+              payload: message,
+            });
+          }
+          
           // Update DeviceStore for device state tracking and trigger alerts
           if (topic.startsWith('saphari/')) {
             const parts = topic.split('/');
             if (parts.length >= 3) {
               const deviceId = parts[1];
-              const channel = parts[2]; // 'status', 'state', 'sensor', etc.
+              const channel = parts[2]; // 'status', 'state', 'sensor', 'gpio', etc.
               
               // Handle device online/offline status
               if (channel === 'status') {
@@ -223,6 +234,28 @@ export const MQTTProvider = ({ children }: { children: React.ReactNode }) => {
                   .then(({ error }) => {
                     if (error) console.error('Failed to update device status in DB:', error);
                   });
+              }
+              
+              // Handle GPIO confirmations from device
+              // Topic format: saphari/<deviceId>/gpio/<pin>
+              if (channel === 'gpio' && parts.length >= 4) {
+                const pin = parseInt(parts[3], 10);
+                const value = parseInt(message, 10) as 0 | 1;
+                
+                if (!isNaN(pin) && (value === 0 || value === 1)) {
+                  // Update DeviceStore with new GPIO state
+                  import('@/state/deviceStore').then(({ DeviceStore }) => {
+                    DeviceStore.upsertState(deviceId, {
+                      gpio: { [pin]: value },
+                      online: true
+                    });
+                  });
+                  
+                  // Notify command service of confirmation
+                  handleGpioConfirmation(deviceId, pin, value);
+                  
+                  console.log(`📥 GPIO update: ${deviceId} pin ${pin} = ${value}`);
+                }
               }
               
               // Handle device state updates
@@ -249,9 +282,9 @@ export const MQTTProvider = ({ children }: { children: React.ReactNode }) => {
                 }
               }
               
-              // Handle GPIO updates and trigger alert engine
-              if (parts.length >= 4) {
-                const type = parts[2]; // 'sensor', 'gpio', 'gauge', etc.
+              // Handle other updates and trigger alert engine
+              if (parts.length >= 4 && channel !== 'gpio') {
+                const type = parts[2]; // 'sensor', 'gauge', etc.
                 const key = parts.slice(3).join('.'); // remaining parts as key
                 
                 // Import and update device state service for alerts
@@ -330,6 +363,16 @@ export const MQTTProvider = ({ children }: { children: React.ReactNode }) => {
     }
 
     try {
+      // Log outgoing message if debug enabled
+      const debugStore = useMQTTDebugStore.getState();
+      if (debugStore.enabled) {
+        debugStore.addLog({
+          direction: 'outgoing',
+          topic,
+          payload,
+        });
+      }
+      
       clientRef.current.publish(topic, payload, { retain });
     } catch (error) {
       console.error('Error publishing message:', error);
