@@ -10,50 +10,6 @@
 import { clearMQTTCredentials, cancelCredentialRefresh } from './mqttCredentialsManager';
 import { disconnect as disconnectMQTT } from './mqttConnectionService';
 
-// Registry of cleanup functions for state stores
-type CleanupFn = () => void;
-let cleanupRegistry: CleanupFn[] = [];
-let isInitialized = false;
-
-// Deferred registrations that happen before initialization
-const deferredRegistrations: CleanupFn[] = [];
-
-/**
- * Initialize the cleanup registry (call early in app lifecycle)
- */
-export function initCleanupRegistry(): void {
-  if (isInitialized) return;
-  isInitialized = true;
-  
-  // Process any deferred registrations
-  deferredRegistrations.forEach(fn => cleanupRegistry.push(fn));
-  deferredRegistrations.length = 0;
-}
-
-/**
- * Register a cleanup function to be called on state reset
- */
-export function registerCleanup(fn: CleanupFn): () => void {
-  if (!isInitialized) {
-    // Defer registration until initialization
-    deferredRegistrations.push(fn);
-    return () => {
-      const index = deferredRegistrations.indexOf(fn);
-      if (index > -1) {
-        deferredRegistrations.splice(index, 1);
-      }
-    };
-  }
-  
-  cleanupRegistry.push(fn);
-  return () => {
-    const index = cleanupRegistry.indexOf(fn);
-    if (index > -1) {
-      cleanupRegistry.splice(index, 1);
-    }
-  };
-}
-
 /**
  * Get all localStorage keys that belong to the app
  */
@@ -118,6 +74,33 @@ function clearSessionStorage(): void {
 }
 
 /**
+ * Clear in-memory stores - imported dynamically to avoid circular deps
+ */
+async function clearInMemoryStores(): Promise<void> {
+  console.log('🧹 Clearing in-memory stores...');
+  
+  try {
+    // Dynamic imports to avoid circular dependency issues
+    const [deviceStoreModule, deviceStateStoreModule, alertsStoreModule, mqttDebugStoreModule] = await Promise.all([
+      import('@/state/deviceStore'),
+      import('@/stores/deviceStateStore'),
+      import('@/features/alerts/alertsStore'),
+      import('@/stores/mqttDebugStore'),
+    ]);
+    
+    // Clear each store using their exported clear methods
+    deviceStoreModule.DeviceStore.clear();
+    deviceStateStoreModule.deviceStateStore.clear();
+    alertsStoreModule.AlertsStore.clear();
+    mqttDebugStoreModule.useMQTTDebugStore.getState().clearLogs();
+    
+    console.log('🧹 In-memory stores cleared');
+  } catch (error) {
+    console.error('🧹 Error clearing stores:', error);
+  }
+}
+
+/**
  * Complete app state reset - call on logout
  */
 export async function resetAllState(): Promise<void> {
@@ -130,16 +113,8 @@ export async function resetAllState(): Promise<void> {
     clearMQTTCredentials();
     cancelCredentialRefresh();
     
-    // 2. Run all registered cleanup functions (both deferred and normal)
-    const allCleanups = [...cleanupRegistry, ...deferredRegistrations];
-    console.log(`🧹 Running ${allCleanups.length} registered cleanup functions...`);
-    allCleanups.forEach(fn => {
-      try {
-        fn();
-      } catch (error) {
-        console.error('Cleanup function error:', error);
-      }
-    });
+    // 2. Clear in-memory stores
+    await clearInMemoryStores();
     
     // 3. Clear localStorage (user-specific)
     console.log('🧹 Clearing user localStorage...');

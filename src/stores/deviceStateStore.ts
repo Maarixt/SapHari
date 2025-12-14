@@ -1,6 +1,5 @@
 // Device State Store - Centralized state management for device-authoritative system
 import { DeviceState, DevicePresence, DeviceAck, DeviceEvent } from '@/lib/mqttTopics';
-import { registerCleanup } from '@/services/stateResetService';
 
 type DeviceStateListener = (deviceId: string, state: DeviceState) => void;
 type DevicePresenceListener = (deviceId: string, presence: DevicePresence) => void;
@@ -52,9 +51,6 @@ function clearAllState(): void {
   ackListeners = [];
   eventListeners = [];
 }
-
-// Register cleanup on import
-registerCleanup(clearAllState);
 
 export const deviceStateStore = {
   // State management

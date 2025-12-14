@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { registerCleanup } from '@/services/stateResetService';
 
 interface MQTTDebugEntry {
   id: string;
@@ -45,14 +44,3 @@ export const useMQTTDebugStore = create<MQTTDebugStore>()(
     }
   )
 );
-
-/**
- * Clear debug logs on logout
- */
-function clearDebugLogs(): void {
-  console.log('🧹 MQTTDebugStore: Clearing logs');
-  useMQTTDebugStore.getState().clearLogs();
-}
-
-// Register cleanup
-registerCleanup(clearDebugLogs);

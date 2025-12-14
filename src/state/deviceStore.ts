@@ -1,5 +1,3 @@
-import { registerCleanup } from '@/services/stateResetService';
-
 type GPIO = Record<number, 0|1>;
 type Sensors = Record<string, any>;
 
@@ -24,9 +22,6 @@ function clearAllState(): void {
   Object.keys(devices).forEach(key => delete devices[key]);
   notify();
 }
-
-// Register cleanup on import
-registerCleanup(clearAllState);
 
 export const DeviceStore = {
   subscribe(fn: Listener): () => void { 
