@@ -34,6 +34,7 @@ import { useOrganizations } from '@/hooks/useOrganizations';
 import { useAuth } from '@/hooks/useAuth';
 import { useMasterAccount } from '@/hooks/useMasterAccount';
 import { Badge } from '@/components/ui/badge';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { cn } from '@/lib/utils';
 
 export function AppSidebar() {
@@ -248,18 +249,22 @@ export function AppSidebar() {
           )}
         </SidebarContent>
 
-        <SidebarFooter className="p-4 border-t">
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                onClick={() => signOut()}
-                tooltip="Sign Out"
-              >
-                <LogOut className="h-4 w-4" />
-                {!collapsed && <span>Sign Out</span>}
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
+        <SidebarFooter className="p-4 border-t border-sidebar-border">
+          <div className="space-y-2">
+            <ThemeToggle collapsed={collapsed} />
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => signOut()}
+                  tooltip="Sign Out"
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <LogOut className="h-4 w-4" />
+                  {!collapsed && <span>Sign Out</span>}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </div>
         </SidebarFooter>
       </Sidebar>
 
