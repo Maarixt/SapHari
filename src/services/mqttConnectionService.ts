@@ -18,8 +18,15 @@ import {
 } from './mqttCredentialsManager';
 import { onAuthStateChange, isAuthenticated } from './sessionManager';
 import { useMQTTDebugStore } from '@/stores/mqttDebugStore';
+import { 
+  canConnectMQTT, 
+  fetchAuthorizedDevices, 
+  clearAuthorizedDevices,
+  buildAuthorizedSubscriptions,
+  isDeviceAuthorized 
+} from './mqttGate';
 
-export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error' | 'reconnecting';
+export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error' | 'reconnecting' | 'blocked';
 export type StatusChangeCallback = (status: ConnectionStatus) => void;
 export type MessageCallback = (topic: string, payload: string) => void;
 
@@ -39,17 +46,6 @@ let isManualDisconnect = false;
 // Callbacks
 const statusCallbacks: StatusChangeCallback[] = [];
 const messageCallbacks: MessageCallback[] = [];
-
-// Default subscriptions
-const DEFAULT_SUBSCRIPTIONS = [
-  'saphari/+/status/online',
-  'saphari/+/sensor/#',
-  'saphari/+/gpio/#',
-  'saphari/+/gauge/#',
-  'saphari/+/state',
-  'saphari/+/ack',
-  'saphari/+/heartbeat'
-];
 
 /**
  * Generate unique client ID for browser session
@@ -166,8 +162,11 @@ async function connectWithCredentials(credentials: MQTTCredentials): Promise<boo
         setStatus('connected');
         reconnectDelay = INITIAL_RECONNECT_DELAY; // Reset backoff
         
-        // Subscribe to default topics
-        DEFAULT_SUBSCRIPTIONS.forEach(topic => {
+        // Subscribe ONLY to authorized device topics - NO wildcards
+        const authorizedTopics = buildAuthorizedSubscriptions();
+        console.log(`📡 Subscribing to ${authorizedTopics.length} authorized topics`);
+        
+        authorizedTopics.forEach(topic => {
           client?.subscribe(topic, { qos: 1 }, (err) => {
             if (err) {
               console.error(`📡 Subscribe error for ${topic}:`, err);
@@ -264,6 +263,7 @@ async function connectWithCredentials(credentials: MQTTCredentials): Promise<boo
 
 /**
  * Connect to MQTT (fetches credentials if needed)
+ * CRITICAL: Gate connection based on authorized devices
  */
 export async function connect(): Promise<boolean> {
   if (!isAuthenticated()) {
@@ -273,6 +273,16 @@ export async function connect(): Promise<boolean> {
   
   isManualDisconnect = false;
   clearReconnectTimer();
+  
+  // GATE: Fetch authorized devices first
+  await fetchAuthorizedDevices();
+  
+  // GATE: Check if connection is allowed
+  if (!canConnectMQTT()) {
+    console.log('📡 MQTT connection blocked - no authorized devices');
+    setStatus('blocked');
+    return false;
+  }
   
   // Get credentials
   const credentials = await getMQTTCredentials();
@@ -415,6 +425,7 @@ onAuthStateChange((event, session) => {
     case 'SIGNED_OUT':
       disconnect();
       clearMQTTCredentials();
+      clearAuthorizedDevices(); // Clear authorized devices on logout
       break;
       
     case 'TOKEN_REFRESHED':
@@ -429,6 +440,8 @@ onAuthStateChange((event, session) => {
       break;
       
     case 'SIGNED_IN':
+      // Clear any stale authorized devices from previous session
+      clearAuthorizedDevices();
       if (!client && session) {
         connect();
       }

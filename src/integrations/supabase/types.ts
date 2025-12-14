@@ -1172,6 +1172,10 @@ export type Database = {
         Args: { _device_id: string; _name: string; _user_id?: string }
         Returns: string
       }
+      create_organization_with_owner: {
+        Args: { p_name: string; p_type?: string }
+        Returns: string
+      }
       dashboard_next_booking: {
         Args: never
         Returns: {

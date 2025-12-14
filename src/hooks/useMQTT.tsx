@@ -21,6 +21,7 @@ import {
 import { type MQTTCredentials } from '@/services/mqttCredentialsManager';
 import { initBrowserSync, onSync, fetchPresenceSnapshot } from '@/services/browserSyncService';
 import { DeviceStore } from '@/state/deviceStore';
+import { isDeviceAuthorized, fetchAuthorizedDevices } from '@/services/mqttGate';
 
 interface BrokerConfig {
   wss_url: string;
@@ -74,6 +75,11 @@ export const MQTTProvider = ({ children }: { children: React.ReactNode }) => {
     // Initialize browser sync service
     const cleanupBrowserSync = initBrowserSync();
     
+    // Fetch authorized devices first (required for MQTT gate), then connect
+    fetchAuthorizedDevices().then(() => {
+      mqttConnect();
+    });
+    
     // Subscribe to status changes
     const cleanupStatus = onStatusChange((newStatus) => {
       setStatus(newStatus);
@@ -108,9 +114,6 @@ export const MQTTProvider = ({ children }: { children: React.ReactNode }) => {
         initializeDevicePresence(presenceData);
       }
     });
-    
-    // Connect to MQTT
-    mqttConnect();
 
     return () => {
       cleanupBrowserSync();
@@ -121,7 +124,7 @@ export const MQTTProvider = ({ children }: { children: React.ReactNode }) => {
     };
   }, [user]);
 
-  // Handle incoming MQTT messages
+  // Handle incoming MQTT messages - ONLY process authorized devices
   const handleIncomingMessage = useCallback((topic: string, message: string) => {
     if (!topic.startsWith('saphari/')) return;
     
@@ -129,6 +132,13 @@ export const MQTTProvider = ({ children }: { children: React.ReactNode }) => {
     if (parts.length < 3) return;
     
     const deviceId = parts[1];
+    
+    // SECURITY: Only process messages from authorized devices
+    if (!isDeviceAuthorized(deviceId)) {
+      console.warn(`🚫 Ignoring message from unauthorized device: ${deviceId}`);
+      return;
+    }
+    
     const channel = parts[2];
     
     // Handle device online/offline status
