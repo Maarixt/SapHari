@@ -17,6 +17,8 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { connectMqtt } from "@/services/mqtt";
 import { NotificationPermissionBanner } from "@/components/alerts/NotificationPermissionBanner";
 import AlertRulesModal from "@/components/alerts/AlertRulesModal";
+import { ThemeProvider } from "@/hooks/useTheme";
+import { AppBackground } from "@/components/ui/AppBackground";
 
 // App pages
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -35,65 +37,69 @@ connectMqtt();
 const App = () => (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <AlertRulesModal />
-        <NotificationPermissionBanner />
-        <AuthProvider>
-          <MasterAccountProvider>
-            <BrowserRouter future={{ v7_startTransition: true }}>
-              <Routes>
-                <Route path="/login" element={<Login />} />
-                <Route path="/signup" element={<Signup />} />
-                <Route path="/master-login" element={<MasterLogin />} />
-                
-                {/* Redirect root to /app/devices */}
-                <Route path="/" element={<Navigate to="/app/devices" replace />} />
-                
-                {/* App routes with sidebar layout */}
-                <Route
-                  path="/app"
-                  element={
-                    <AuthGuard>
-                      <AppLayout />
-                    </AuthGuard>
-                  }
-                >
-                  <Route index element={<Navigate to="devices" replace />} />
-                  <Route path="devices" element={<DevicesPage />} />
-                  <Route path="automations" element={<AutomationsPage />} />
-                  <Route path="alerts" element={<AlertsPage />} />
-                  <Route path="org/members" element={<MembersPage />} />
-                  <Route path="org/invites" element={<InvitesPage />} />
-                  <Route path="settings" element={<SettingsPage />} />
-                </Route>
+      <ThemeProvider>
+        <TooltipProvider>
+          <AppBackground>
+            <Toaster />
+            <Sonner />
+            <AlertRulesModal />
+            <NotificationPermissionBanner />
+            <AuthProvider>
+              <MasterAccountProvider>
+                <BrowserRouter future={{ v7_startTransition: true }}>
+                  <Routes>
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/signup" element={<Signup />} />
+                    <Route path="/master-login" element={<MasterLogin />} />
+                    
+                    {/* Redirect root to /app/devices */}
+                    <Route path="/" element={<Navigate to="/app/devices" replace />} />
+                    
+                    {/* App routes with sidebar layout */}
+                    <Route
+                      path="/app"
+                      element={
+                        <AuthGuard>
+                          <AppLayout />
+                        </AuthGuard>
+                      }
+                    >
+                      <Route index element={<Navigate to="devices" replace />} />
+                      <Route path="devices" element={<DevicesPage />} />
+                      <Route path="automations" element={<AutomationsPage />} />
+                      <Route path="alerts" element={<AlertsPage />} />
+                      <Route path="org/members" element={<MembersPage />} />
+                      <Route path="org/invites" element={<InvitesPage />} />
+                      <Route path="settings" element={<SettingsPage />} />
+                    </Route>
 
-                <Route
-                  path="/master"
-                  element={
-                    <AuthGuard>
-                      <RequireMaster>
-                        <MasterDashboard />
-                      </RequireMaster>
-                    </AuthGuard>
-                  }
-                />
-                <Route
-                  path="/docs/mqtt"
-                  element={
-                    <AuthGuard>
-                      <MQTTSetup />
-                    </AuthGuard>
-                  }
-                />
-                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </BrowserRouter>
-          </MasterAccountProvider>
-        </AuthProvider>
-      </TooltipProvider>
+                    <Route
+                      path="/master"
+                      element={
+                        <AuthGuard>
+                          <RequireMaster>
+                            <MasterDashboard />
+                          </RequireMaster>
+                        </AuthGuard>
+                      }
+                    />
+                    <Route
+                      path="/docs/mqtt"
+                      element={
+                        <AuthGuard>
+                          <MQTTSetup />
+                        </AuthGuard>
+                      }
+                    />
+                    {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </BrowserRouter>
+              </MasterAccountProvider>
+            </AuthProvider>
+          </AppBackground>
+        </TooltipProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   </ErrorBoundary>
 );

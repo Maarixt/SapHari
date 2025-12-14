@@ -6,7 +6,7 @@
 
 @layer base {
   :root {
-    /* Light Theme - Clean Blue/White */
+    /* Light Theme - Teal/Mint Engineering Theme */
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
 
@@ -16,17 +16,17 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    /* Primary Blue Palette */
-    --primary: 214 100% 50%;
+    /* Primary Teal Palette */
+    --primary: 168 76% 42%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 98%;
+    --secondary: 168 30% 96%;
     --secondary-foreground: 222.2 47.4% 11.2%;
 
-    --muted: 210 40% 98%;
+    --muted: 168 20% 96%;
     --muted-foreground: 215.4 16.3% 46.9%;
 
-    --accent: 210 40% 96%;
+    --accent: 199 89% 94%;
     --accent-foreground: 222.2 47.4% 11.2%;
 
     /* Status Colors */
@@ -39,56 +39,56 @@
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 214 100% 50%;
+    --border: 168 20% 88%;
+    --input: 168 20% 90%;
+    --ring: 168 76% 42%;
 
     /* Modern Radius */
     --radius: 1rem;
     
     /* IoT Dashboard specific colors */
-    --iot-bg: 0 0% 100%;
+    --iot-bg: 168 30% 98%;
     --iot-card: 0 0% 100%;
-    --iot-border: 214.3 31.8% 91.4%;
+    --iot-border: 168 20% 88%;
     --iot-muted: 215.4 16.3% 46.9%;
     --iot-online: 142 76% 36%;
     --iot-offline: 0 84% 60%;
     --iot-warning: 38 92% 50%;
 
-    /* Sidebar */
-    --sidebar-background: 0 0% 100%;
+    /* Sidebar - Glass effect */
+    --sidebar-background: 0 0% 100% / 0.8;
     --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 214 100% 50%;
+    --sidebar-primary: 168 76% 42%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 40% 96%;
+    --sidebar-accent: 168 30% 94%;
     --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 214.3 31.8% 91.4%;
-    --sidebar-ring: 214 100% 50%;
+    --sidebar-border: 168 20% 88%;
+    --sidebar-ring: 168 76% 42%;
   }
 
   .dark {
-    /* Dark Theme - Professional Dark Blue */
-    --background: 222 47% 7%;
-    --foreground: 210 40% 98%;
+    /* Dark Theme - Professional Dark Teal */
+    --background: 220 20% 8%;
+    --foreground: 168 30% 96%;
 
-    --card: 222 47% 9%;
-    --card-foreground: 210 40% 98%;
+    --card: 220 20% 10%;
+    --card-foreground: 168 30% 96%;
 
-    --popover: 222 47% 9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 220 20% 10%;
+    --popover-foreground: 168 30% 96%;
 
-    /* Primary Blue - Brighter for dark mode */
-    --primary: 214 100% 60%;
+    /* Primary Teal - Brighter for dark mode */
+    --primary: 168 76% 52%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 215 20% 25%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 220 15% 18%;
+    --secondary-foreground: 168 30% 96%;
 
-    --muted: 215 20% 25%;
-    --muted-foreground: 215 20% 75%;
+    --muted: 220 15% 18%;
+    --muted-foreground: 168 20% 65%;
 
-    --accent: 215 20% 25%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 199 60% 20%;
+    --accent-foreground: 168 30% 96%;
 
     /* Status Colors - Adjusted for dark mode */
     --success: 142 76% 46%;
@@ -100,28 +100,28 @@
     --destructive: 0 84% 70%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 215 20% 30%;
-    --input: 215 20% 15%;
-    --ring: 214 100% 60%;
+    --border: 220 15% 22%;
+    --input: 220 15% 15%;
+    --ring: 168 76% 52%;
 
     /* IoT Dashboard dark colors */
-    --iot-bg: 222 47% 7%;
-    --iot-card: 222 47% 9%;
-    --iot-border: 215 20% 30%;
-    --iot-muted: 215 20% 75%;
+    --iot-bg: 220 20% 8%;
+    --iot-card: 220 20% 10%;
+    --iot-border: 220 15% 22%;
+    --iot-muted: 168 20% 65%;
     --iot-online: 142 76% 46%;
     --iot-offline: 0 84% 70%;
     --iot-warning: 38 92% 60%;
 
-    /* Sidebar dark */
-    --sidebar-background: 240 5.9% 10%;
+    /* Sidebar dark - Glass effect */
+    --sidebar-background: 220 20% 10% / 0.85;
     --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 214 100% 60%;
+    --sidebar-primary: 168 76% 52%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent: 220 15% 18%;
     --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 214 100% 60%;
+    --sidebar-border: 220 15% 22%;
+    --sidebar-ring: 168 76% 52%;
   }
 }
 
