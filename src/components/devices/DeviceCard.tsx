@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useState } from 'react';
 import { DeviceCredentialsDialog } from './DeviceCredentialsDialog';
+import { useDevicePresence } from '@/hooks/useDevicePresence';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,10 +40,13 @@ interface DeviceCardProps {
 
 export const DeviceCard = ({ device, onSelect, onDelete, onEdit }: DeviceCardProps) => {
   const [showCredentials, setShowCredentials] = useState(false);
+  
+  // Use real-time presence from MQTT status messages
+  const { isOnline } = useDevicePresence(device.device_id);
 
   return (
     <Card className={`border-border/50 hover:shadow-lg transition-all duration-300 ${
-      device.online 
+      isOnline 
         ? 'border-success/20 bg-gradient-to-br from-success/5 to-success/10' 
         : 'border-muted/20 bg-gradient-to-br from-muted/5 to-muted/10'
     }`}>
@@ -50,8 +54,8 @@ export const DeviceCard = ({ device, onSelect, onDelete, onEdit }: DeviceCardPro
         <div className="flex items-start justify-between">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <div className={`p-2 rounded-lg ${device.online ? 'bg-success/20' : 'bg-muted/20'}`}>
-                <Cpu className={`h-5 w-5 ${device.online ? 'text-success' : 'text-muted-foreground'}`} />
+              <div className={`p-2 rounded-lg ${isOnline ? 'bg-success/20' : 'bg-muted/20'}`}>
+                <Cpu className={`h-5 w-5 ${isOnline ? 'text-success' : 'text-muted-foreground'}`} />
               </div>
               <div>
                 <h3 className="font-bold text-lg tracking-tight">{device.name}</h3>
@@ -61,13 +65,13 @@ export const DeviceCard = ({ device, onSelect, onDelete, onEdit }: DeviceCardPro
           </div>
           <Badge 
             variant="outline"
-            className={device.online 
+            className={isOnline 
               ? "bg-success/10 text-success border-success/20" 
               : "bg-muted/10 text-muted-foreground border-muted/20"
             }
           >
-            <div className={`h-2 w-2 rounded-full mr-2 ${device.online ? 'bg-success animate-pulse' : 'bg-muted-foreground'}`}></div>
-            {device.online ? 'Online' : 'Offline'}
+            <div className={`h-2 w-2 rounded-full mr-2 ${isOnline ? 'bg-success animate-pulse' : 'bg-muted-foreground'}`}></div>
+            {isOnline ? 'Online' : 'Offline'}
           </Badge>
         </div>
       </CardHeader>

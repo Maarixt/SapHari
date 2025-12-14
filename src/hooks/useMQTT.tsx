@@ -7,6 +7,7 @@ import { validateMQTTTopic, validateMQTTMessage, validateSapHariTopic } from '@/
 import { mqttPublishLimiter, mqttSubscribeLimiter } from '@/lib/rateLimiter';
 import { handleGpioConfirmation } from '@/services/commandService';
 import { useMQTTDebugStore } from '@/stores/mqttDebugStore';
+import { handlePresenceUpdate, recordDeviceActivity, startPresenceChecker, stopPresenceChecker } from '@/services/presenceService';
 // Production broker configuration - AUTHORITATIVE SOURCE (TLS ONLY)
 // DO NOT use port 1883 in production - TLS is REQUIRED
 const PRODUCTION_BROKER = {
@@ -171,13 +172,16 @@ export const MQTTProvider = ({ children }: { children: React.ReactNode }) => {
           setClient(mqttClient);
           console.info('✅ MQTT connected to production broker');
           
-          // Subscribe to all device topics
-          mqttClient.subscribe('saphari/+/status/online');
+          // Subscribe to all device topics (including retained status messages)
+          mqttClient.subscribe('saphari/+/status/online', { qos: 1 });
           mqttClient.subscribe('saphari/+/sensor/#');
           mqttClient.subscribe('saphari/+/gpio/#');
           mqttClient.subscribe('saphari/+/gauge/#');
           mqttClient.subscribe('saphari/+/state');
           mqttClient.subscribe('saphari/+/ack');
+          
+          // Start presence TTL checker
+          startPresenceChecker();
         });
 
         mqttClient.on('reconnect', () => {
@@ -188,6 +192,7 @@ export const MQTTProvider = ({ children }: { children: React.ReactNode }) => {
         mqttClient.on('close', () => {
           setConnected(false);
           setStatus('disconnected');
+          stopPresenceChecker();
         });
 
         mqttClient.on('error', (error) => {
@@ -216,24 +221,11 @@ export const MQTTProvider = ({ children }: { children: React.ReactNode }) => {
               const deviceId = parts[1];
               const channel = parts[2]; // 'status', 'state', 'sensor', 'gpio', etc.
               
-              // Handle device online/offline status
-              if (channel === 'status') {
-                const isOnline = message === 'online';
-                import('@/state/deviceStore').then(({ DeviceStore }) => {
-                  DeviceStore.setOnline(deviceId, isOnline);
-                });
-                
-                // Update database for global visibility
-                supabase
-                  .from('devices')
-                  .update({ 
-                    online: isOnline,
-                    last_seen: new Date().toISOString()
-                  })
-                  .eq('device_id', deviceId)
-                  .then(({ error }) => {
-                    if (error) console.error('Failed to update device status in DB:', error);
-                  });
+              // Handle device online/offline status via presence service
+              // Topic: saphari/<deviceId>/status/online
+              if (channel === 'status' && parts[3] === 'online') {
+                const status = message === 'online' ? 'online' : 'offline';
+                handlePresenceUpdate(deviceId, status);
               }
               
               // Handle GPIO confirmations from device
@@ -243,6 +235,9 @@ export const MQTTProvider = ({ children }: { children: React.ReactNode }) => {
                 const value = parseInt(message, 10) as 0 | 1;
                 
                 if (!isNaN(pin) && (value === 0 || value === 1)) {
+                  // Record activity to keep device online
+                  recordDeviceActivity(deviceId);
+                  
                   // Update DeviceStore with new GPIO state
                   import('@/state/deviceStore').then(({ DeviceStore }) => {
                     DeviceStore.upsertState(deviceId, {
@@ -260,6 +255,9 @@ export const MQTTProvider = ({ children }: { children: React.ReactNode }) => {
               
               // Handle device state updates
               if (channel === 'state' || channel === 'sensor') {
+                // Record activity to keep device online
+                recordDeviceActivity(deviceId);
+                
                 try {
                   const stateData = JSON.parse(message);
                   import('@/state/deviceStore').then(({ DeviceStore }) => {
@@ -268,15 +266,6 @@ export const MQTTProvider = ({ children }: { children: React.ReactNode }) => {
                       online: true
                     });
                   });
-                  
-                  // Update last_seen in database
-                  supabase
-                    .from('devices')
-                    .update({ last_seen: new Date().toISOString() })
-                    .eq('device_id', deviceId)
-                    .then(({ error }) => {
-                      if (error) console.error('Failed to update device last_seen:', error);
-                    });
                 } catch {
                   // Non-JSON message, that's okay for some topics
                 }
