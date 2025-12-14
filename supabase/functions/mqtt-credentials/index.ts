@@ -11,11 +11,6 @@ const corsHeaders = {
  * 
  * Issues short-lived MQTT credentials for authenticated users.
  * Returns dashboard-scoped credentials that allow subscribing to the user's device topics.
- * 
- * Security: 
- * - Requires valid Supabase JWT
- * - Only returns credentials scoped to user's devices
- * - Credentials are for dashboard read-only access (subscribe only)
  */
 serve(async (req) => {
   // Handle CORS preflight
@@ -26,38 +21,31 @@ serve(async (req) => {
   try {
     // Get authorization header
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      console.error('No authorization header provided or invalid format');
+    if (!authHeader) {
+      console.error('No authorization header provided');
       return new Response(
         JSON.stringify({ error: 'Unauthorized', message: 'No authorization header' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const token = authHeader.replace('Bearer ', '');
-    if (!token) {
-      console.error('Empty token');
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized', message: 'Empty token' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Initialize Supabase clients
+    // Initialize Supabase client with the user's auth header
+    // This is the key fix - create the client with the user's token forwarded
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-    const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     
-    // Use service role client to verify the JWT and get user
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
+    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: {
+        headers: { Authorization: authHeader }
+      },
       auth: {
         autoRefreshToken: false,
         persistSession: false,
       }
     });
 
-    // Verify the JWT token and get user
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+    // Verify the user using the forwarded auth header
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
     
     if (authError || !user) {
       console.error('Auth error:', authError?.message || 'No user found');
@@ -68,6 +56,15 @@ serve(async (req) => {
     }
 
     console.log(`Issuing MQTT credentials for user: ${user.id}`);
+
+    // Use service role for database queries
+    const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      }
+    });
 
     // Get the user's devices to scope the credentials
     const { data: devices, error: devicesError } = await supabaseAdmin
@@ -111,7 +108,7 @@ serve(async (req) => {
       `saphari/${deviceId}/ack`
     ]);
 
-    // Generate a unique client ID for this session
+    // Generate a unique client ID for this session (avoids collision with ESP32 devices)
     const clientId = `web_${user.id.substring(0, 8)}_${Date.now().toString(36)}`;
 
     // Return credentials (these are the dashboard credentials from platform config)
