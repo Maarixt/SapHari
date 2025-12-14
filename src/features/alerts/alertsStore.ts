@@ -1,5 +1,4 @@
 import { AlertEntry, AlertRule } from './types';
-import { registerCleanup } from '@/services/stateResetService';
 
 let openManageUI: null | (() => void) = null;
 
@@ -61,9 +60,6 @@ function clearAllState(): void {
   currentUserId = null;
   notify();
 }
-
-// Register cleanup on import
-registerCleanup(clearAllState);
 
 export const AlertsStore = {
   /**

@@ -1,5 +1,4 @@
 import { AlertRule } from '@/features/alerts/types';
-import { registerCleanup } from '@/services/stateResetService';
 
 // Use user-scoped keys - will be set dynamically
 let currentUserId: string | null = null;
@@ -54,9 +53,6 @@ function clearAllState(): void {
   currentUserId = null;
   notify();
 }
-
-// Register cleanup on import
-registerCleanup(clearAllState);
 
 export const AlertsStore = {
   /**
