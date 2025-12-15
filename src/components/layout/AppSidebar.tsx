@@ -35,6 +35,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useMasterAccount } from '@/hooks/useMasterAccount';
 import { Badge } from '@/components/ui/badge';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
+import { BetaBadge } from '@/components/beta/BetaBadge';
+import { BetaFeedbackModal } from '@/components/beta/BetaFeedbackModal';
 import { cn } from '@/lib/utils';
 
 export function AppSidebar() {
@@ -73,7 +75,10 @@ export function AppSidebar() {
               <span className="text-primary-foreground font-bold text-sm">S</span>
             </div>
             {!collapsed && (
-              <span className="font-semibold text-lg">SapHari</span>
+              <>
+                <span className="font-semibold text-lg">SapHari</span>
+                <BetaBadge />
+              </>
             )}
           </div>
           
@@ -251,6 +256,7 @@ export function AppSidebar() {
 
         <SidebarFooter className="p-4 border-t border-sidebar-border">
           <div className="space-y-2">
+            <BetaFeedbackModal collapsed={collapsed} />
             <ThemeToggle collapsed={collapsed} />
             <SidebarMenu>
               <SidebarMenuItem>

@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { BetaBadge } from '@/components/beta/BetaBadge';
 
 interface LoginFormProps {
   initialMode?: 'login' | 'signup';
@@ -57,8 +58,9 @@ export const LoginForm = ({ initialMode = 'login' }: LoginFormProps) => {
     <div className="flex min-h-screen items-center justify-center p-4">
       <Card className="w-full max-w-md bg-card/80 backdrop-blur-md border-border/50 shadow-xl">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl bg-gradient-to-r from-teal-600 to-cyan-600 dark:from-teal-400 dark:to-cyan-400 bg-clip-text text-transparent">
+          <CardTitle className="text-2xl bg-gradient-to-r from-teal-600 to-cyan-600 dark:from-teal-400 dark:to-cyan-400 bg-clip-text text-transparent flex items-center justify-center gap-2">
             🌐 SapHari Dashboard
+            <BetaBadge size="md" />
           </CardTitle>
           <CardDescription>
             {isSignUp ? 'Create your account' : 'Sign in to your account'}
