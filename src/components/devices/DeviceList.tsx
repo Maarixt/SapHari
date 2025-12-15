@@ -12,6 +12,7 @@ import { DeviceWithRole } from '@/lib/types';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { EditDeviceDialog } from './EditDeviceDialog';
+import { BetaWatermark } from '@/components/beta/BetaWatermark';
 
 interface DeviceListProps {
   onDeviceSelect: (device: DeviceWithRole) => void;
@@ -117,8 +118,9 @@ export const DeviceList = ({ onDeviceSelect, autoOpenAddDialog = false }: Device
       </div>
 
       {devices.length === 0 ? (
-        <div className="text-center py-16">
-          <div className="p-6 rounded-2xl bg-muted/30 border border-border/50 max-w-md mx-auto">
+        <div className="text-center py-16 relative">
+          <BetaWatermark />
+          <div className="p-6 rounded-2xl bg-muted/30 border border-border/50 max-w-md mx-auto relative z-10">
             <div className="p-3 rounded-xl bg-primary/10 w-fit mx-auto mb-4">
               <Cpu className="h-8 w-8 text-primary" />
             </div>

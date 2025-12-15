@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { MQTTProvider } from '@/hooks/useMQTT';
 import { MQTTDebugPanel } from '@/components/debug/MQTTDebugPanel';
 import { Toaster } from 'sonner';
+import { BetaNoticeBanner } from '@/components/beta/BetaNoticeBanner';
 
 function AppLayoutContent() {
   const { organizations, currentOrg, isLoading } = useOrganizations();
@@ -31,6 +32,7 @@ function AppLayoutContent() {
 
   return (
     <SidebarProvider>
+      <BetaNoticeBanner />
       <div className="min-h-screen flex w-full">
         <AppSidebar />
         <SidebarInset className="flex-1 bg-transparent">
