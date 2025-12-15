@@ -111,27 +111,30 @@ export function SecurityDebugPanel() {
   const [debugInfo, setDebugInfo] = useState<DebugInfo | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
   
-  // Only show for master users
-  if (isLoading || !isMaster) {
-    return null;
-  }
-  
-  const refresh = () => {
-    const info = collectDebugInfo(user?.id || null);
-    info.auth.email = user?.email || null;
+  const refresh = React.useCallback(() => {
+    if (!user) return;
+    const info = collectDebugInfo(user.id);
+    info.auth.email = user.email || null;
     info.auth.sessionExpiry = session?.expires_at 
       ? new Date(session.expires_at * 1000).toISOString()
       : null;
     setDebugInfo(info);
-  };
+  }, [user, session?.expires_at]);
   
   useEffect(() => {
+    if (isLoading || !isMaster || !user) return;
+    
     refresh();
     
     // Refresh every 5 seconds
     const interval = setInterval(refresh, 5000);
     return () => clearInterval(interval);
-  }, [user?.id, session?.expires_at]);
+  }, [user?.id, session?.expires_at, isLoading, isMaster, refresh]);
+  
+  // Only show for master users - AFTER all hooks
+  if (isLoading || !isMaster) {
+    return null;
+  }
   
   if (!debugInfo) return null;
   
