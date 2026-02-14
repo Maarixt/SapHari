@@ -1,9 +1,8 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 /**
@@ -14,16 +13,16 @@ const corsHeaders = {
  * 
  * SECURITY: Dashboard credentials are now stored in Supabase secrets, not in the database.
  */
-serve(async (req) => {
+Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response('ok', { headers: corsHeaders });
   }
 
   try {
     // Get authorization header
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
+    if (!authHeader?.startsWith('Bearer ')) {
       console.error('No authorization header provided');
       return new Response(
         JSON.stringify({ error: 'Unauthorized', message: 'No authorization header' }),
@@ -45,18 +44,20 @@ serve(async (req) => {
       }
     });
 
-    // Verify the user using the forwarded auth header
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
-    
-    if (authError || !user) {
-      console.error('Auth error:', authError?.message || 'No user found');
+    // Verify user via getClaims (faster, local JWT validation)
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claimsData, error: claimsError } = await supabaseClient.auth.getClaims(token);
+
+    if (claimsError || !claimsData?.claims) {
+      console.error('Auth claims error:', claimsError?.message || 'No claims');
       return new Response(
         JSON.stringify({ error: 'Unauthorized', message: 'Invalid token' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`Issuing MQTT credentials for user: ${user.id}`);
+    const userId = claimsData.claims.sub as string;
+    console.log(`Issuing MQTT credentials for user: ${userId}`);
 
     // Use service role for database queries
     const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -71,7 +72,7 @@ serve(async (req) => {
     const { data: devices, error: devicesError } = await supabaseAdmin
       .from('devices')
       .select('device_id')
-      .eq('user_id', user.id);
+      .eq('user_id', userId);
 
     if (devicesError) {
       console.error('Error fetching devices:', devicesError);
@@ -122,7 +123,7 @@ serve(async (req) => {
     ]);
 
     // Generate a unique client ID for this session (avoids collision with ESP32 devices)
-    const clientId = `web_${user.id.substring(0, 8)}_${Date.now().toString(36)}`;
+    const clientId = `web_${userId.substring(0, 8)}_${Date.now().toString(36)}`;
 
     // Return credentials (dashboard credentials from secrets, NOT database)
     const credentials = {
@@ -135,7 +136,7 @@ serve(async (req) => {
       allowed_topics: allowedTopics,
       device_ids: deviceIds,
       expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours
-      user_id: user.id
+      user_id: userId
     };
 
     console.log(`Issued credentials for ${deviceIds.length} devices, client: ${clientId}`);

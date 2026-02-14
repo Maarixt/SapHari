@@ -22,7 +22,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.device-command]
-verify_jwt = true
+verify_jwt = false
 
 [functions.mqtt-credentials]
-verify_jwt = true
+verify_jwt = false
