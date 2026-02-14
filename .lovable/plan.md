@@ -1,87 +1,132 @@
 
+# Plan: MQTT Reconnect Loop Fix and Post-Key-Reset Audit
 
-# Plan: Supabase Configuration Alignment and Hardening
+## Root Cause Analysis
 
-## Problem Summary
+The console logs show a clear pattern: **connect -> subscribe -> connection closed -> reconnect** repeating every 1-2 seconds. The edge function (`mqtt-credentials`) is working correctly -- it successfully issues credentials each time. The problem is that **EMQX Cloud is rejecting the connection immediately after it's established**.
 
-The project has a naming mismatch between environment variables. The `.env` file uses `VITE_SUPABASE_PUBLISHABLE_KEY` but some code or validation may expect `VITE_SUPABASE_ANON_KEY`. Additionally, `src/integrations/supabase/client.ts` hardcodes the Supabase URL and key (this is Lovable's auto-generated pattern), but there's no runtime safety net if these values ever become stale.
+Two issues identified:
 
-The `process.env.NODE_ENV` usage in `ErrorBoundary.tsx` is harmless (Vite replaces it at build time) but should ideally use `import.meta.env.DEV`.
+1. **MQTT dashboard credentials are likely stale on EMQX.** The secrets `MQTT_DASHBOARD_USERNAME` and `MQTT_DASHBOARD_PASSWORD` stored in Supabase are being sent to EMQX, but EMQX Cloud may have had its credentials changed or the account may be misconfigured. The browser connects (TCP handshake succeeds over WSS), EMQX briefly accepts, then closes the connection -- classic "bad credentials" behavior on EMQX Cloud Serverless.
+
+2. **`verify_jwt = true` on two edge functions will break after JWT key reset.** `mqtt-credentials` and `device-command` both have `verify_jwt = true` in `config.toml`. After resetting JWT signing keys in Supabase, the old verification path may fail. The fix is to set `verify_jwt = false` and validate auth in code (which both functions already do via `getUser()`).
+
+3. **`gen_random_bytes` error** (visible in screenshot 1) -- pgcrypto extension IS enabled, so this error is likely from a function/trigger that runs in a context where it's not available. Needs investigation but is separate from the MQTT loop.
 
 ## Changes
 
-### 1. Add `VITE_SUPABASE_ANON_KEY` alias to `.env`
+### 1. Fix `verify_jwt` in `supabase/config.toml`
 
-Add a line aliasing the publishable key so both naming conventions work:
+Set both `mqtt-credentials` and `device-command` to `verify_jwt = false`. Both functions already authenticate users in code via `getUser()`, so the gateway-level JWT check is redundant and breaks after key rotation.
+
+```toml
+[functions.device-command]
+verify_jwt = false
+
+[functions.mqtt-credentials]
+verify_jwt = false
 ```
-VITE_SUPABASE_ANON_KEY="eyJhbG..."
-```
-This ensures any code expecting either name will find the value.
 
-### 2. Add runtime env validation in `src/integrations/supabase/client.ts`
+### 2. Stop the reconnect loop on auth rejection
 
-The auto-generated file hardcodes values, but we'll add a small validation block that warns in development if the env vars are missing (for future-proofing when the project is ejected or self-hosted):
+The core bug: when EMQX closes the connection (bad credentials), the `close` event fires, which calls `scheduleReconnect()`, which fetches new (identical) credentials, connects again, and loops forever.
+
+In `src/services/mqttConnectionService.ts`:
+
+- Track consecutive connection failures
+- After 3 rapid failures (within 30 seconds), stop reconnecting and set status to `error`
+- Surface a clear message: "MQTT broker rejected credentials. Check EMQX configuration."
+- Only resume reconnect on explicit user action or auth state change
+
+### 3. Add connection failure detection in the `close` handler
+
+Currently the `close` handler blindly calls `scheduleReconnect()`. Fix:
 
 ```typescript
-const SUPABASE_URL = "https://wrdeomgtkbehvbfhiprm.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "eyJ...";
+// Track rapid failures
+let consecutiveFailures = 0;
+let lastConnectAttempt = 0;
+const MAX_CONSECUTIVE_FAILURES = 3;
+const FAILURE_WINDOW_MS = 30000;
 
-// Runtime validation for self-hosted / ejected deployments
-if (import.meta.env.DEV) {
-  if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
-    console.error(
-      'Missing Supabase configuration. ' +
-      'Create a .env file with VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY, then restart Vite.'
-    );
+client.on('connect', () => {
+  consecutiveFailures = 0; // Reset on successful sustained connection
+  // ... existing code
+});
+
+client.on('close', () => {
+  const timeSinceLastAttempt = Date.now() - lastConnectAttempt;
+  if (timeSinceLastAttempt < FAILURE_WINDOW_MS) {
+    consecutiveFailures++;
   }
-}
+  
+  if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+    console.error('MQTT: Too many rapid failures, stopping reconnect');
+    setStatus('error');
+    return; // Don't schedule reconnect
+  }
+  
+  if (!isManualDisconnect) {
+    scheduleReconnect();
+  }
+});
 ```
 
-### 3. Fix `process.env` usage in ErrorBoundary
+### 4. Update CORS headers in edge functions
 
-Replace `process.env.NODE_ENV === 'development'` with `import.meta.env.DEV` in `src/components/ErrorBoundary.tsx` to follow Vite conventions properly.
+Add the missing CORS headers that Supabase's client SDK sends:
 
-### 4. Update `.gitignore` to explicitly ignore `.env` files
-
-Add these lines:
-```
-.env
-.env.local
-.env.*.local
-```
-
-### 5. Hardcoded project ID cleanup in `useAuth.tsx`
-
-Line 160 hardcodes `const projectId = 'wrdeomgtkbehvbfhiprm'`. Replace with:
 ```typescript
-const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID || 'wrdeomgtkbehvbfhiprm';
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
+};
 ```
 
-### 6. Add README snippet
+This applies to both `mqtt-credentials/index.ts` and `device-command/index.ts`.
 
-Add a section to `README.md` explaining env setup for Supabase.
+### 5. Use `getClaims()` instead of `getUser()` in edge functions
 
-## What Will NOT Change
+After JWT key reset, `getUser()` makes a network call to Supabase Auth which is slower. `getClaims()` validates the JWT locally and is the recommended approach. Update both edge functions.
 
-- **`src/integrations/supabase/client.ts` structure**: This is auto-generated by Lovable. We keep the hardcoded values as they are (Lovable manages them), but add dev-mode validation.
-- **No new libraries**: All changes use existing code patterns.
-- **Schema/RPC/Edge Functions**: These are already aligned with the current Supabase project (verified via the types file and existing functions).
-- **RLS patterns**: Already correctly implemented -- all client queries go through RLS, and privileged operations use `SECURITY DEFINER` functions or edge functions.
+## What You Need To Do (Cannot Be Done By Code)
 
-## Technical Details
+**CRITICAL**: The MQTT credentials stored in Supabase secrets (`MQTT_DASHBOARD_USERNAME` / `MQTT_DASHBOARD_PASSWORD`) must match what's configured in your EMQX Cloud dashboard. After the key reset, you need to:
 
-Files to modify:
-- `.env` -- add `VITE_SUPABASE_ANON_KEY` alias
-- `.gitignore` -- add `.env` exclusions
-- `src/components/ErrorBoundary.tsx` -- replace `process.env` with `import.meta.env.DEV`
-- `src/hooks/useAuth.tsx` -- use env var for project ID
-- `README.md` -- add env setup documentation
+1. Log into EMQX Cloud console
+2. Go to Authentication > Password-Based
+3. Verify the dashboard username/password are still valid
+4. If not, create new credentials and update the Supabase secrets
+
+Without this step, the reconnect loop will continue even after the code fix (the code fix just stops the infinite loop and surfaces the error clearly).
+
+## Files to Modify
+
+- `supabase/config.toml` -- fix `verify_jwt` for 2 functions
+- `src/services/mqttConnectionService.ts` -- add consecutive failure detection, stop infinite reconnect loop
+- `supabase/functions/mqtt-credentials/index.ts` -- update CORS headers, use `getClaims()`
+- `supabase/functions/device-command/index.ts` -- update CORS headers, use `getClaims()`
+
+## Inventory Table
+
+| Secret/Key | Where Used | Status |
+|---|---|---|
+| `SUPABASE_URL` | Edge functions (auto-injected) | OK |
+| `SUPABASE_ANON_KEY` | Edge functions (auto-injected) | OK (updated) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Edge functions (auto-injected) | OK (auto-rotated with project) |
+| `MQTT_DASHBOARD_USERNAME` | mqtt-credentials edge fn | Set (needs EMQX verification) |
+| `MQTT_DASHBOARD_PASSWORD` | mqtt-credentials edge fn | Set (needs EMQX verification) |
+| `AUTH_COOKIE_SECRET` | master-login edge fn | Set |
+| `MASTER_EMAIL` | master-login edge fn | Set |
+| `MASTER_PASSWORD` | master-login edge fn | Set |
+| `VITE_SUPABASE_URL` | Frontend .env | OK |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Frontend .env + client.ts | OK (updated) |
+| `VITE_SUPABASE_ANON_KEY` | Frontend .env alias | OK (updated) |
 
 ## How to Verify
 
-1. Run dev server -- no console errors about missing Supabase vars
-2. Open browser console -- confirm Supabase client initializes
-3. Test login/signup flow -- auth works correctly
-4. Test logout -- state resets, no stale data
-5. Check that no `process.env` warnings appear in browser console
-
+1. Deploy changes, open browser console
+2. Login -- should see "MQTT credentials cached for 1 devices"
+3. If EMQX creds are valid: connection stays connected (no loop)
+4. If EMQX creds are stale: connection fails 3 times then stops with clear error message
+5. Fix EMQX creds in Supabase secrets if needed, then click reconnect
