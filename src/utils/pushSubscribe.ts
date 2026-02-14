@@ -1,7 +1,7 @@
 export async function subscribePush(vapidPublicKey: string){
   if(!('serviceWorker' in navigator)) throw new Error('No SW');
   const reg = await navigator.serviceWorker.ready;
-  const sub = await reg.pushManager.subscribe({
+  const sub = await (reg as any).pushManager.subscribe({
     userVisibleOnly: true,
     applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
   });

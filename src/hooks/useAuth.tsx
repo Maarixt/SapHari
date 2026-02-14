@@ -157,7 +157,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
       
       // Force clear any remaining session data from localStorage
-      const projectId = 'wrdeomgtkbehvbfhiprm';
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID || 'wrdeomgtkbehvbfhiprm';
       localStorage.removeItem(`sb-${projectId}-auth-token`);
       
       // Clear all Supabase-related localStorage items

@@ -72,6 +72,22 @@ To connect a domain, navigate to Project > Settings > Domains and click Connect 
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
 
+## Environment Setup (Supabase)
+
+Create a `.env` file in the project root with your Supabase credentials:
+
+```env
+VITE_SUPABASE_URL="https://your-project.supabase.co"
+VITE_SUPABASE_PUBLISHABLE_KEY="eyJ..."
+VITE_SUPABASE_ANON_KEY="eyJ..."
+VITE_SUPABASE_PROJECT_ID="your-project-id"
+VITE_BETA_MODE=true
+```
+
+- Use the **publishable** (anon) key from your Supabase dashboard → Settings → API.
+- **Never** store the `service_role` key in frontend code.
+- Vite requires a **restart** after changing `.env` files.
+
 ## Planned Enhancements
 
 For a roadmap toward adding sensor alerts and multi-user account support, see [docs/alerts-multi-user.md](docs/alerts-multi-user.md).
