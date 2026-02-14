@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
 const SUPABASE_URL = "https://wrdeomgtkbehvbfhiprm.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZGVvbWd0a2JlaHZiZmhpcHJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc1OTYxMTEsImV4cCI6MjA3MzE3MjExMX0.mZNoXWuvPUKZfHgkjtlg4IPP1vyHTxdehTs9yiOgPlE";
+const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyZGVvbWd0a2JlaHZiZmhpcHJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwOTY1ODksImV4cCI6MjA4NjQ1NjU4OX0.K-ECqKpbcxbMka60WJwQ8FBXOgNiqbpJxqIxmn7BWyU";
 
 // Runtime validation for self-hosted / ejected deployments
 if (import.meta.env.DEV) {
