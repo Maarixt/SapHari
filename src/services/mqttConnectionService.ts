@@ -34,6 +34,8 @@ export type MessageCallback = (topic: string, payload: string) => void;
 const INITIAL_RECONNECT_DELAY = 1000;
 const MAX_RECONNECT_DELAY = 10000;
 const RECONNECT_MULTIPLIER = 2;
+const MAX_CONSECUTIVE_FAILURES = 3;
+const FAILURE_WINDOW_MS = 30000;
 
 // Connection state
 let client: MqttClient | null = null;
@@ -42,6 +44,8 @@ let connectionStatus: ConnectionStatus = 'disconnected';
 let reconnectDelay = INITIAL_RECONNECT_DELAY;
 let reconnectTimer: number | null = null;
 let isManualDisconnect = false;
+let consecutiveFailures = 0;
+let lastConnectAttempt = 0;
 
 // Callbacks
 const statusCallbacks: StatusChangeCallback[] = [];
@@ -137,6 +141,7 @@ async function connectWithCredentials(credentials: MQTTCredentials): Promise<boo
   
   currentCredentials = credentials;
   setStatus('connecting');
+  lastConnectAttempt = Date.now();
   
   const clientId = credentials.client_id || generateClientId(credentials.user_id);
   console.log(`📡 Connecting to MQTT: ${credentials.wss_url} as ${clientId}`);
@@ -161,6 +166,7 @@ async function connectWithCredentials(credentials: MQTTCredentials): Promise<boo
         console.log('📡 MQTT connected');
         setStatus('connected');
         reconnectDelay = INITIAL_RECONNECT_DELAY; // Reset backoff
+        consecutiveFailures = 0; // Reset failure counter on successful connect
         
         // Subscribe ONLY to authorized device topics - NO wildcards
         const authorizedTopics = buildAuthorizedSubscriptions();
@@ -183,6 +189,20 @@ async function connectWithCredentials(credentials: MQTTCredentials): Promise<boo
       client.on('close', () => {
         console.log('📡 MQTT connection closed');
         if (!isManualDisconnect) {
+          // Track rapid failures
+          const timeSinceLastAttempt = Date.now() - lastConnectAttempt;
+          if (timeSinceLastAttempt < FAILURE_WINDOW_MS) {
+            consecutiveFailures++;
+          } else {
+            consecutiveFailures = 1;
+          }
+          
+          if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+            console.error('📡 MQTT: Too many rapid connection failures, stopping reconnect. Check EMQX credentials.');
+            setStatus('error');
+            return; // Don't schedule reconnect
+          }
+          
           setStatus('disconnected');
           scheduleReconnect();
         }
@@ -410,6 +430,7 @@ export async function forceReconnect(): Promise<boolean> {
   
   disconnect();
   isManualDisconnect = false;
+  consecutiveFailures = 0; // Reset failure counter on manual reconnect
   
   // Clear cached credentials to force fresh fetch
   clearMQTTCredentials();

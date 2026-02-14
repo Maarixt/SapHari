@@ -3,7 +3,7 @@ import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 }
 
 // Command validation schemas
@@ -21,43 +21,44 @@ const commandSchema = z.object({
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
+    return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    // 1. Authenticate user
+    // 1. Authenticate user via getClaims
     const authHeader = req.headers.get('Authorization')
-    if (!authHeader) {
+    if (!authHeader?.startsWith('Bearer ')) {
       return new Response(
         JSON.stringify({ error: 'Missing authorization header' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
 
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        global: {
-          headers: { Authorization: authHeader }
-        }
-      }
-    )
+    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+      auth: { autoRefreshToken: false, persistSession: false }
+    })
 
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
-    
-    if (authError || !user) {
-      console.error('Authentication failed:', authError)
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claimsData, error: claimsError } = await supabaseClient.auth.getClaims(token);
+
+    if (claimsError || !claimsData?.claims) {
+      console.error('Authentication failed:', claimsError)
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
+
+    const userId = claimsData.claims.sub as string;
+
+    const supabaseAdmin = createClient(
+      supabaseUrl,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    )
 
     // 2. Validate request body
     const body = await req.json()
@@ -73,12 +74,12 @@ Deno.serve(async (req) => {
 
     const { deviceId, command, params } = validation.data
 
-    // 3. Check device ownership (uses RLS via service client with user context)
+    // 3. Check device ownership
     const { data: device, error: deviceError } = await supabaseAdmin
       .from('devices')
       .select('id, device_key, device_id')
       .eq('device_id', deviceId)
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .single()
 
     if (deviceError || !device) {
@@ -91,14 +92,14 @@ Deno.serve(async (req) => {
 
     // 4. Rate limit check (100 commands per minute per user)
     const oneMinuteAgo = new Date(Date.now() - 60000).toISOString()
-    const { count, error: countError } = await supabaseAdmin
+    const { count } = await supabaseAdmin
       .from('commands')
       .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .gte('created_at', oneMinuteAgo)
 
     if (count && count > 100) {
-      console.log('Rate limit exceeded for user:', user.id)
+      console.log('Rate limit exceeded for user:', userId)
       return new Response(
         JSON.stringify({ error: 'Rate limit exceeded: max 100 commands per minute' }),
         { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -140,7 +141,7 @@ Deno.serve(async (req) => {
     const { error: commandLogError } = await supabaseAdmin
       .from('commands')
       .insert({
-        user_id: user.id,
+        user_id: userId,
         device_id: device.id,
         command,
         payload: params,
@@ -155,9 +156,7 @@ Deno.serve(async (req) => {
 
     console.log(`Command ${command} sent to device ${deviceId} with signature`)
 
-    // 8. Return success (MQTT publishing would happen here in production)
-    // Note: In production, you'd publish to your MQTT broker here
-    // For now, we return the signed payload for the client to publish
+    // 8. Return success
     return new Response(
       JSON.stringify({
         ok: true,
@@ -172,7 +171,7 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('Device command error:', error)
     return new Response(
-      JSON.stringify({ error: 'Internal server error', message: error.message }),
+      JSON.stringify({ error: 'Internal server error', message: (error as Error).message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
