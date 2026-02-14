@@ -8,9 +8,14 @@ import { MQTTProvider } from '@/hooks/useMQTT';
 import { MQTTDebugPanel } from '@/components/debug/MQTTDebugPanel';
 import { Toaster } from 'sonner';
 import { BetaNoticeBanner } from '@/components/beta/BetaNoticeBanner';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 
 function AppLayoutContent() {
-  const { organizations, currentOrg, isLoading } = useOrganizations();
+  const { organizations, currentOrg, isLoading, error, refetch } = useOrganizations();
+  const { signOut } = useAuth();
 
   // Loading state
   if (isLoading) {
@@ -25,7 +30,35 @@ function AppLayoutContent() {
     );
   }
 
-  // Show onboarding if no organizations
+  // Show error state when organizations query failed (don't confuse with "no orgs")
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
+              <AlertTriangle className="h-6 w-6 text-destructive" />
+            </div>
+            <CardTitle>Could not load organizations</CardTitle>
+            <CardDescription>
+              {error}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col items-center gap-3">
+            <Button onClick={() => refetch()} variant="outline">
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Try again
+            </Button>
+            <Button onClick={() => signOut()} variant="ghost" size="sm" className="text-muted-foreground">
+              Sign out and try again
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Show onboarding only when we successfully loaded and user has no organizations
   if (organizations.length === 0) {
     return <OrgOnboarding />;
   }

@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useOrganizations, OrgType } from '@/hooks/useOrganizations';
 import { toast } from 'sonner';
-import { Building2, Home, Tractor, Briefcase, ArrowRight, Sparkles } from 'lucide-react';
+import { Building2, Home, Tractor, Briefcase, ArrowRight, ArrowLeft, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PendingInvites } from './PendingInvites';
 
@@ -93,15 +93,25 @@ export function OrgOnboarding() {
                       {orgTypes.find(t => t.value === selectedType)?.description}
                     </div>
                   </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="ml-auto"
-                    onClick={() => setStep('type')}
-                  >
-                    Change
-                  </Button>
+                  <div className="ml-auto flex gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setStep('type')}
+                    >
+                      <ArrowLeft className="mr-2 h-4 w-4" />
+                      Back
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setStep('type')}
+                    >
+                      Change
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="space-y-2">

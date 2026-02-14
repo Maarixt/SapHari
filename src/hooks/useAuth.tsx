@@ -100,7 +100,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const signup = async (email: string, password: string, profile: SignupProfile = {}) => {
-    const redirectUrl = `${window.location.origin}/`;
+    const baseUrl = import.meta.env.VITE_APP_URL || window.location.origin;
+    const redirectUrl = `${baseUrl}/auth/callback`;
     const displayName = [profile.firstName, profile.lastName]
       .filter(Boolean)
       .join(' ')

@@ -1,8 +1,9 @@
 import { FormEvent, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CheckCircle2, Loader2 } from 'lucide-react';
+import { CheckCircle2, Loader2, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -139,7 +140,16 @@ export const SignupForm = () => {
           </div>
         </section>
 
-        <div className="flex items-center justify-center bg-background px-4 py-12 sm:px-6 lg:px-10 lg:py-16">
+        <div className="flex flex-col items-center justify-center bg-background px-4 py-12 sm:px-6 lg:px-10 lg:py-16">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate('/login')}
+            className="self-start mb-4 text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to sign in
+          </Button>
           <Card className="w-full max-w-md border-border/80 shadow-xl">
             <CardHeader className="space-y-3 text-center">
               <CardTitle className="text-3xl font-semibold">Create your SapHari account</CardTitle>
@@ -208,9 +218,8 @@ export const SignupForm = () => {
                 <div className="grid gap-5 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="password">Password</Label>
-                    <Input
+                    <PasswordInput
                       id="password"
-                      type="password"
                       value={password}
                       onChange={(event) => setPassword(event.target.value)}
                       required
@@ -225,9 +234,8 @@ export const SignupForm = () => {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="confirmPassword">Confirm password</Label>
-                    <Input
+                    <PasswordInput
                       id="confirmPassword"
-                      type="password"
                       value={confirmPassword}
                       onChange={(event) => setConfirmPassword(event.target.value)}
                       required

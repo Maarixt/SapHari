@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { BetaBadge } from '@/components/beta/BetaBadge';
+import { ArrowLeft } from 'lucide-react';
 
 interface LoginFormProps {
   initialMode?: 'login' | 'signup';
@@ -56,6 +58,17 @@ export const LoginForm = ({ initialMode = 'login' }: LoginFormProps) => {
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
+      <div className="absolute left-4 top-4">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => navigate('/')}
+          className="text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back
+        </Button>
+      </div>
       <Card className="w-full max-w-md bg-card/80 backdrop-blur-md border-border/50 shadow-xl">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl bg-gradient-to-r from-teal-600 to-cyan-600 dark:from-teal-400 dark:to-cyan-400 bg-clip-text text-transparent flex items-center justify-center gap-2">
@@ -82,9 +95,8 @@ export const LoginForm = ({ initialMode = 'login' }: LoginFormProps) => {
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input
+              <PasswordInput
                 id="password"
-                type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required

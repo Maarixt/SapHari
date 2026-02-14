@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
+import AuthCallback from "./pages/AuthCallback";
 import MasterLogin from "./pages/MasterLogin";
 import MasterDashboard from "./pages/master/MasterDashboard";
 import QADiagnostics from "./pages/master/QADiagnostics";
@@ -52,6 +53,7 @@ const App = () => (
                   <Routes>
                     <Route path="/login" element={<Login />} />
                     <Route path="/signup" element={<Signup />} />
+                    <Route path="/auth/callback" element={<AuthCallback />} />
                     <Route path="/master-login" element={<MasterLogin />} />
                     
                     {/* Redirect root to /app/devices */}
