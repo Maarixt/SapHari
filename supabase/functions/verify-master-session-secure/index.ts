@@ -33,9 +33,9 @@ Deno.serve(async (req) => {
         false,
         ['verify']
       )
-      payload = await verify(sessionToken, key, 'HS256')
+      payload = await verify(sessionToken, key)
     } catch (error) {
-      console.log('JWT verification failed:', error.message)
+      console.log('JWT verification failed:', (error as Error).message)
       return new Response(
         JSON.stringify({ ok: false, error: 'Invalid or expired session token' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
