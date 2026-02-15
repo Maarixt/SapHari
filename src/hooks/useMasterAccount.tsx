@@ -20,7 +20,7 @@ interface MasterAccountProviderProps {
 
 export const MasterAccountProvider = ({ children }: MasterAccountProviderProps) => {
   const [userRole, setUserRole] = useState<UserRole>('user');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true); // Start true — we must verify before rendering
   const [error, setError] = useState<string | null>(null);
 
   const isMaster = isMasterAccount(userRole);
@@ -32,29 +32,32 @@ export const MasterAccountProvider = ({ children }: MasterAccountProviderProps) 
       try {
         const sessionToken = localStorage.getItem('saphari_master_session');
         
-        // CRITICAL: Never trust localStorage role - always verify server-side
-        if (sessionToken) {
-          // Verify session with secure endpoint
-          const { data, error } = await supabase.functions.invoke('verify-master-session-secure', {
-            body: { sessionToken }
-          });
-          
-          if (!error && data?.ok && data?.role === 'master') {
-            // Only set master role if server confirms it
-            setUserRole('master');
-          } else {
-            // Clear invalid session
-            localStorage.removeItem('saphari_master_session');
-            localStorage.removeItem('saphari_master_email');
-            localStorage.removeItem('saphari_master_login_time');
-          }
+        if (!sessionToken) {
+          setIsLoading(false);
+          return;
         }
-      } catch (error) {
-        console.error('Failed to verify master session:', error);
-        // Clear session on error
+
+        // Verify session with secure endpoint
+        const { data, error } = await supabase.functions.invoke('verify-master-session-secure', {
+          body: { sessionToken }
+        });
+        
+        if (!error && data?.ok && data?.role === 'master') {
+          setUserRole('master');
+        } else {
+          // Clear invalid/expired session silently
+          console.log('Master session expired or invalid after key reset, clearing.');
+          localStorage.removeItem('saphari_master_session');
+          localStorage.removeItem('saphari_master_email');
+          localStorage.removeItem('saphari_master_login_time');
+        }
+      } catch (err) {
+        console.warn('Master session check failed, clearing stale token.');
         localStorage.removeItem('saphari_master_session');
         localStorage.removeItem('saphari_master_email');
         localStorage.removeItem('saphari_master_login_time');
+      } finally {
+        setIsLoading(false);
       }
     };
 
