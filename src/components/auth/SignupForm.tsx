@@ -1,6 +1,7 @@
 import { FormEvent, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { CheckCircle2, Loader2, ArrowLeft } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { CheckCircle2, Loader2 } from 'lucide-react';
+import { BackButton } from '@/components/nav/BackButton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
@@ -13,21 +14,24 @@ import { useToast } from '@/hooks/use-toast';
 
 const signupHighlights = [
   {
-    title: 'Realtime environmental monitoring',
+    title: 'Real-time device monitoring',
     description: 'See temperature, humidity, and device health updates as they happen from any device.',
   },
   {
     title: 'Smart automation & alerts',
-    description: 'Automate irrigation and lighting schedules and receive proactive notifications before issues escalate.',
+    description: 'Automate schedules and routines and receive proactive notifications before issues escalate.',
   },
   {
     title: 'Team-ready from day one',
-    description: 'Invite agronomists and field operators with granular permissions to collaborate securely.',
+    description: 'Invite team members with granular permissions to collaborate securely.',
   },
 ];
 
+const RETURN_TO_KEY = 'saphari.returnTo';
+
 export const SignupForm = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { signup } = useAuth();
   const { toast } = useToast();
 
@@ -73,11 +77,24 @@ export const SignupForm = () => {
     setIsLoading(true);
 
     try {
-      await signup(email.trim(), password, {
+      const { session } = await signup(email.trim(), password, {
         firstName: firstName.trim() || undefined,
         lastName: lastName.trim() || undefined,
         company: company.trim() || undefined,
       });
+
+      if (session) {
+        const raw =
+          sessionStorage.getItem(RETURN_TO_KEY) ||
+          (location.state as { from?: { pathname?: string } } | null)?.from?.pathname ||
+          '/app/devices';
+        sessionStorage.removeItem(RETURN_TO_KEY);
+        const allowed =
+          raw &&
+          (raw.startsWith('/app') || raw === '/master' || raw.startsWith('/master/'));
+        navigate(allowed ? raw : '/app/devices', { replace: true });
+        return;
+      }
 
       toast({
         title: 'Check your inbox',
@@ -110,16 +127,16 @@ export const SignupForm = () => {
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto grid min-h-screen w-full max-w-6xl grid-cols-1 overflow-hidden rounded-none bg-card shadow-none lg:grid-cols-2 lg:rounded-3xl lg:shadow-2xl">
-        <section className="flex flex-col justify-between bg-muted/60 px-8 py-12 sm:px-12 sm:py-16 lg:px-14 lg:py-20">
+        <section className="flex flex-col justify-between bg-muted/60 px-4 py-8 sm:px-8 sm:py-12 lg:px-14 lg:py-20">
           <div>
             <span className="inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary">
               New to SapHari?
             </span>
-            <h1 className="mt-6 text-3xl font-bold leading-tight tracking-tight text-foreground sm:text-4xl lg:text-5xl">
-              Bring clarity to every corner of your smart farm
+            <h1 className="mt-6 text-2xl font-bold leading-tight tracking-tight text-foreground sm:text-3xl lg:text-4xl">
+              Bring clarity to every connected space
             </h1>
             <p className="mt-4 max-w-xl text-base text-muted-foreground sm:text-lg">
-              Create your SapHari account to unlock realtime dashboards, intelligent automations, and sensor health alerts that keep your crops thriving.
+              Create your SapHari account to unlock real-time dashboards, smart automation, and device health alerts—for homes, farms, and businesses.
             </p>
           </div>
 
@@ -136,20 +153,19 @@ export const SignupForm = () => {
           </ul>
 
           <div className="mt-10 rounded-2xl border border-dashed border-primary/40 bg-primary/5 p-5 text-sm text-primary">
-            Guided onboarding is available—our specialists can help you connect your first field device in minutes.
+            Guided onboarding is available—our specialists can help you connect your first device in minutes.
           </div>
         </section>
 
-        <div className="flex flex-col items-center justify-center bg-background px-4 py-12 sm:px-6 lg:px-10 lg:py-16">
-          <Button
+        <div className="flex flex-col items-center justify-center bg-background px-4 py-8 sm:px-6 sm:py-12 lg:px-10 lg:py-16">
+          <BackButton
+            fallback="/login"
             variant="ghost"
             size="sm"
-            onClick={() => navigate('/login')}
             className="self-start mb-4 text-muted-foreground hover:text-foreground"
           >
-            <ArrowLeft className="mr-2 h-4 w-4" />
             Back to sign in
-          </Button>
+          </BackButton>
           <Card className="w-full max-w-md border-border/80 shadow-xl">
             <CardHeader className="space-y-3 text-center">
               <CardTitle className="text-3xl font-semibold">Create your SapHari account</CardTitle>

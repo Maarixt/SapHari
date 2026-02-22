@@ -69,20 +69,10 @@ export const MasterAccountProvider = ({ children }: MasterAccountProviderProps) 
     setError(null);
 
     try {
-      // 1) Ensure Supabase auth session for RLS (sign in or create account)
-      let sessionRes = await supabase.auth.signInWithPassword({ email, password });
+      // 1) Sign in with Supabase so RLS and session are valid (master accounts must already exist)
+      const sessionRes = await supabase.auth.signInWithPassword({ email, password });
       if (sessionRes.error) {
-        // If user doesn't exist, create it (normal signup flow)
-        const signUpRes = await supabase.auth.signUp({ email, password });
-        if (signUpRes.error) {
-          // If signup also failed, surface error
-          throw new Error(signUpRes.error.message || 'Failed to authenticate');
-        }
-        // After signup, sign in again
-        sessionRes = await supabase.auth.signInWithPassword({ email, password });
-        if (sessionRes.error) {
-          throw new Error(sessionRes.error.message || 'Failed to authenticate');
-        }
+        throw new Error(sessionRes.error.message || 'Invalid email or password');
       }
 
       // 2) Obtain signed master session token (and ensure role exists)

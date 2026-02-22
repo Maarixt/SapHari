@@ -469,6 +469,8 @@ export const iconMap = {
   
   // Input Devices
   'push-button': PushButtonIcon,
+  'push-button-momentary': PushButtonIcon,
+  'push-button-latch': PushButtonIcon,
   'toggle-switch': ToggleSwitchIcon,
   'potentiometer': PotentiometerIcon,
   'ldr': LDRIcon,

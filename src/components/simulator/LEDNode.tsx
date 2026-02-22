@@ -17,6 +17,7 @@ export function LEDNode({ comp }: { comp: SimComponent }) {
         shadowOpacity={on ? 0.9 : 0.2}
         stroke="#111827"
         strokeWidth={1}
+        strokeScaleEnabled={false}
       />
     </Group>
   );

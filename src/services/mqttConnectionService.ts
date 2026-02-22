@@ -155,7 +155,7 @@ async function connectWithCredentials(credentials: MQTTCredentials): Promise<boo
     clean: true,
     connectTimeout: 15000,
     protocolVersion: 4,
-    rejectUnauthorized: false,
+    rejectUnauthorized: true, // Browser WSS uses UA cert validation; true required for Node/tls
   };
   
   return new Promise((resolve) => {

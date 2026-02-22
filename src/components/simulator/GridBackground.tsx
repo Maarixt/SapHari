@@ -6,41 +6,51 @@ interface GridBackgroundProps {
   height: number;
   gridSize?: number;
   color?: string;
+  /** Optional: draw grid in circuit space over a range (for zoom/pan). Defaults to 0..width, 0..height. */
+  minX?: number;
+  maxX?: number;
+  minY?: number;
+  maxY?: number;
 }
 
-export const GridBackground = ({ 
-  width, 
-  height, 
-  gridSize = 20, 
-  color = '#374151' 
+export const GridBackground = ({
+  width,
+  height,
+  gridSize = 20,
+  color = '#374151',
+  minX,
+  maxX,
+  minY,
+  maxY,
 }: GridBackgroundProps) => {
+  const xMin = minX ?? 0;
+  const xMax = maxX ?? width;
+  const yMin = minY ?? 0;
+  const yMax = maxY ?? height;
   const lines = [];
-  
-  // Vertical lines
-  for (let i = 0; i <= width; i += gridSize) {
+
+  for (let i = xMin; i <= xMax; i += gridSize) {
     lines.push(
       <Line
         key={`v-${i}`}
-        points={[i, 0, i, height]}
+        points={[i, yMin, i, yMax]}
         stroke={color}
         strokeWidth={0.5}
         opacity={0.3}
       />
     );
   }
-  
-  // Horizontal lines
-  for (let i = 0; i <= height; i += gridSize) {
+  for (let i = yMin; i <= yMax; i += gridSize) {
     lines.push(
       <Line
         key={`h-${i}`}
-        points={[0, i, width, i]}
+        points={[xMin, i, xMax, i]}
         stroke={color}
         strokeWidth={0.5}
         opacity={0.3}
       />
     );
   }
-  
+
   return <Group>{lines}</Group>;
 };

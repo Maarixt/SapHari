@@ -5,6 +5,7 @@ import { BrokerSettingsDialog } from './BrokerSettingsDialog';
 import { AlertRuleDialog } from './AlertRuleDialog';
 import { useAuth } from '@/hooks/useAuth';
 import { useOrganizations } from '@/hooks/useOrganizations';
+import { useMasterAccount } from '@/hooks/useMasterAccount';
 import { seedAlertRules } from '@/dev/seedRules';
 import { connectMqtt } from '@/services/mqtt';
 import { Toaster } from 'sonner';
@@ -22,6 +23,7 @@ interface OrgDashboardProps {
 
 export function OrgDashboard({ currentView, setCurrentView }: OrgDashboardProps) {
   const { user } = useAuth();
+  const { isMaster } = useMasterAccount();
   const { currentOrg, pendingInvites } = useOrganizations();
   const [selectedDevice, setSelectedDevice] = useState<DeviceWithRole | null>(null);
   const [showBrokerSettings, setShowBrokerSettings] = useState(false);
@@ -127,7 +129,7 @@ export function OrgDashboard({ currentView, setCurrentView }: OrgDashboardProps)
       {renderContent()}
       <BrokerSettingsDialog open={showBrokerSettings} onOpenChange={setShowBrokerSettings} />
       <AlertRuleDialog open={showAlertRules} onOpenChange={setShowAlertRules} defaultDeviceId={selectedDevice?.id} />
-      <MQTTDebugPanel />
+      {isMaster && <MQTTDebugPanel />}
       <Toaster position="top-right" expand richColors closeButton />
     </div>
   );

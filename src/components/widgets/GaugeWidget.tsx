@@ -12,10 +12,11 @@ interface GaugeWidgetProps {
   device: Device;
   allWidgets: Widget[];
   onUpdate: (updates: Partial<Widget>) => void;
-  onDelete: () => void;
+  onDeleteRequest?: (widgetId: string) => void;
+  isDeleting?: boolean;
 }
 
-export const GaugeWidget = ({ widget, device, allWidgets, onUpdate, onDelete }: GaugeWidgetProps) => {
+export const GaugeWidget = ({ widget, device, allWidgets, onUpdate, onDeleteRequest, isDeleting: isDeletingProp }: GaugeWidgetProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { toast } = useToast();
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -83,28 +84,8 @@ export const GaugeWidget = ({ widget, device, allWidgets, onUpdate, onDelete }: 
     setShowEditDialog(true);
   };
 
-  const handleDelete = async () => {
-    if (!confirm('Delete this gauge widget?')) return;
-
-    try {
-      const { error } = await supabase
-        .from('widgets')
-        .delete()
-        .eq('id', widget.id);
-
-      if (error) throw error;
-      onDelete();
-      toast({
-        title: "Widget deleted",
-        description: "Gauge widget has been removed"
-      });
-    } catch (error: unknown) {
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : 'Failed to delete widget',
-        variant: "destructive"
-      });
-    }
+  const handleDeleteClick = () => {
+    onDeleteRequest?.(widget.id);
   };
 
   return (
@@ -124,7 +105,8 @@ export const GaugeWidget = ({ widget, device, allWidgets, onUpdate, onDelete }: 
             <Button
               variant="ghost"
               size="sm"
-              onClick={handleDelete}
+              onClick={handleDeleteClick}
+              disabled={isDeletingProp}
               className="h-8 w-8 p-0 ghost-enhanced"
             >
               <Trash2 className="h-4 w-4" />

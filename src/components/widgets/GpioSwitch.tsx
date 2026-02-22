@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { DeviceStore } from '@/state/deviceStore';
 import { CommandTracker } from '@/state/commandTracker';
+import { useMQTT } from '@/hooks/useMQTT';
 import { useToast } from '@/hooks/use-toast';
 
 export function GpioSwitch({ deviceId, pin }: { deviceId: string; pin: number }){
   const { toast } = useToast();
+  const { publishMessage } = useMQTT();
   const [, setTick] = useState(0);
   
   useEffect(() => {
@@ -28,7 +30,7 @@ export function GpioSwitch({ deviceId, pin }: { deviceId: string; pin: number })
     const desired = effective ? 0 : 1;
     setOptimistic(desired as 0|1); // quick visual feedback
     try{
-      await CommandTracker.toggleGpio(deviceId, pin, desired as 0|1);
+      await CommandTracker.toggleGpio(publishMessage, deviceId, pin, desired as 0|1);
       // final UI update occurs when device publishes state → store → rerender → optimistic reset
     } catch(e){
       setOptimistic(null);

@@ -102,7 +102,7 @@
 4. **View generated Arduino code** in Sketch tab
 
 ### **Keyboard Shortcuts**
-- **Delete/Backspace** - Remove selected component/wire
+- **Delete** - Remove selected component/wire (Backspace does nothing)
 - **Click empty space** - Deselect all
 
 ---

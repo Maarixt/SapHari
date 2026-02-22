@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { BetaBadge } from '@/components/beta/BetaBadge';
-import { ArrowLeft } from 'lucide-react';
+import { BackButton } from '@/components/nav/BackButton';
 
 interface LoginFormProps {
   initialMode?: 'login' | 'signup';
@@ -57,17 +57,9 @@ export const LoginForm = ({ initialMode = 'login' }: LoginFormProps) => {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4">
+    <div className="flex min-h-screen items-center justify-center p-4 pt-14">
       <div className="absolute left-4 top-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => navigate('/')}
-          className="text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back
-        </Button>
+        <BackButton fallback="/" variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground" />
       </div>
       <Card className="w-full max-w-md bg-card/80 backdrop-blur-md border-border/50 shadow-xl">
         <CardHeader className="text-center">

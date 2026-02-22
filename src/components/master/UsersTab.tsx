@@ -64,6 +64,20 @@ interface User {
   updated_at: string;
 }
 
+function getUserDisplayName(user: User): string {
+  const name = user.full_name || user.display_name;
+  if (name?.trim()) return name.trim();
+  if (user.email) {
+    const local = user.email.split('@')[0] ?? '';
+    const cleaned = local.replace(/[^a-zA-Z0-9]+/g, ' ').trim();
+    if (cleaned) {
+      return cleaned.charAt(0).toUpperCase() + cleaned.slice(1).toLowerCase();
+    }
+    return local || user.email;
+  }
+  return '—';
+}
+
 function UserRoleBadge({ role }: { role: string }) {
   const roleStyles = {
     master: 'bg-primary/10 text-primary border-primary/20',
@@ -371,7 +385,7 @@ export function UsersTab() {
                   <TableRow key={user.id} className="hover:bg-muted/50 transition-colors">
                     <TableCell>
                       <div>
-                        <div className="font-medium">{user.full_name || user.email}</div>
+                        <div className="font-medium">{getUserDisplayName(user)}</div>
                         <div className="text-sm text-muted-foreground">{user.email}</div>
                       </div>
                     </TableCell>

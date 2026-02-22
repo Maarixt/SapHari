@@ -87,6 +87,10 @@ String buildGpioTopic(int pin) {
   return String("saphari/") + DEVICE_ID + "/gpio/" + String(pin);
 }
 
+String buildStatusOnlineTopic() {
+  return String("saphari/") + DEVICE_ID + "/status/online";
+}
+
 // ===== WIFI MANAGEMENT =====
 void setupWiFi() {
   Serial.print("Connecting to WiFi: ");
@@ -158,7 +162,7 @@ bool publishWithRetry(const char* topic, const char* payload, bool retain = fals
 
 // ===== STATUS PUBLISHING =====
 void publishOnlineStatus() {
-  String topic = buildTopic("status");
+  String topic = buildStatusOnlineTopic();
   publishWithRetry(topic.c_str(), "online", true);
 }
 
@@ -295,8 +299,8 @@ bool connectMqtt() {
   mqtt.setKeepAlive(60);
   mqtt.setBufferSize(1024);
   
-  // Build LWT topic
-  String statusTopic = buildTopic("status");
+  // Build LWT topic: saphari/ID/status/online (dashboard expects this)
+  String statusTopic = buildStatusOnlineTopic();
   
   // Connect with LWT
   String clientId = String("esp32_") + DEVICE_ID;
@@ -304,7 +308,7 @@ bool connectMqtt() {
     clientId.c_str(),
     DEVICE_ID,             // username
     DEVICE_KEY,            // password
-    statusTopic.c_str(),   // LWT topic
+    statusTopic.c_str(),   // LWT topic: saphari/ID/status/online
     1,                     // LWT QoS
     true,                  // LWT retain
     "offline"              // LWT payload

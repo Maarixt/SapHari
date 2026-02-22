@@ -21,7 +21,8 @@ export function simulateDeviceFlow() {
   
   // 3) User tries to toggle GPIO 4 → will throw if offline
   console.log('3️⃣ User attempting to toggle GPIO 4...');
-  CommandTracker.toggleGpio('pump-1', 4, 1).catch((error) => {
+  const stubPublish = (_t: string, _p: string) => {};
+  CommandTracker.toggleGpio(stubPublish, 'pump-1', 4, 1).catch((error) => {
     console.warn('Command failed (expected during simulation):', error.message);
   });
   
@@ -66,7 +67,8 @@ export function simulateDeviceFlow() {
   // 8) Try to control offline device (should fail)
   console.log('8️⃣ Attempting to control offline device...');
   setTimeout(() => {
-    CommandTracker.toggleGpio('pump-1', 4, 0).catch((error) => {
+    const stubPublish = (_t: string, _p: string) => {};
+    CommandTracker.toggleGpio(stubPublish, 'pump-1', 4, 0).catch((error) => {
       console.warn('❌ Command blocked (device offline):', error.message);
     });
   }, 5000);

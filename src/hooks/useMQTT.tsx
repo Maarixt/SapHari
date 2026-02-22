@@ -4,8 +4,8 @@ import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
 import { validateMQTTTopic, validateMQTTMessage, validateSapHariTopic } from '@/lib/mqttValidation';
 import { mqttPublishLimiter, mqttSubscribeLimiter } from '@/lib/rateLimiter';
-import { handleGpioConfirmation } from '@/services/commandService';
 import { handlePresenceUpdate, recordDeviceActivity, startPresenceChecker, stopPresenceChecker, initializeDevicePresence } from '@/services/presenceService';
+import { handleIncomingMessage } from '@/services/mqttMessageHandler';
 import { 
   connect as mqttConnect, 
   disconnect as mqttDisconnect, 
@@ -22,6 +22,7 @@ import { type MQTTCredentials } from '@/services/mqttCredentialsManager';
 import { initBrowserSync, onSync, fetchPresenceSnapshot } from '@/services/browserSyncService';
 import { DeviceStore } from '@/state/deviceStore';
 import { isDeviceAuthorized, fetchAuthorizedDevices } from '@/services/mqttGate';
+import { RealtimeContext } from './useRealtime';
 
 interface BrokerConfig {
   wss_url: string;
@@ -51,7 +52,11 @@ interface MQTTContextType {
 
 const MQTTContext = createContext<MQTTContextType>({} as MQTTContextType);
 
-export const useMQTT = () => useContext(MQTTContext);
+export const useMQTT = () => {
+  const useBridge = import.meta.env.VITE_USE_MQTT_BRIDGE === 'true';
+  if (useBridge) return useContext(RealtimeContext);
+  return useContext(MQTTContext);
+};
 
 export const MQTTProvider = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAuth();
@@ -124,78 +129,6 @@ export const MQTTProvider = ({ children }: { children: React.ReactNode }) => {
     };
   }, [user]);
 
-  // Handle incoming MQTT messages - ONLY process authorized devices
-  const handleIncomingMessage = useCallback((topic: string, message: string) => {
-    if (!topic.startsWith('saphari/')) return;
-    
-    const parts = topic.split('/');
-    if (parts.length < 3) return;
-    
-    const deviceId = parts[1];
-    
-    // SECURITY: Only process messages from authorized devices
-    if (!isDeviceAuthorized(deviceId)) {
-      console.warn(`🚫 Ignoring message from unauthorized device: ${deviceId}`);
-      return;
-    }
-    
-    const channel = parts[2];
-    
-    // Handle device online/offline status
-    if (channel === 'status' && parts[3] === 'online') {
-      const presenceStatus = message === 'online' ? 'online' : 'offline';
-      handlePresenceUpdate(deviceId, presenceStatus);
-    }
-    
-    // Handle GPIO confirmations
-    if (channel === 'gpio' && parts.length >= 4) {
-      const pin = parseInt(parts[3], 10);
-      const value = parseInt(message, 10) as 0 | 1;
-      
-      if (!isNaN(pin) && (value === 0 || value === 1)) {
-        recordDeviceActivity(deviceId);
-        
-        DeviceStore.upsertState(deviceId, {
-          gpio: { [pin]: value },
-          online: true
-        });
-        
-        handleGpioConfirmation(deviceId, pin, value);
-        console.log(`📥 GPIO update: ${deviceId} pin ${pin} = ${value}`);
-      }
-    }
-    
-    // Handle state/sensor updates
-    if (channel === 'state' || channel === 'sensor') {
-      recordDeviceActivity(deviceId);
-      
-      try {
-        const stateData = JSON.parse(message);
-        DeviceStore.upsertState(deviceId, {
-          sensors: stateData,
-          online: true
-        });
-      } catch {
-        // Non-JSON message, that's okay
-      }
-    }
-    
-    // Handle heartbeat
-    if (channel === 'heartbeat') {
-      recordDeviceActivity(deviceId);
-    }
-    
-    // Handle other updates for alerts
-    if (parts.length >= 4 && channel !== 'gpio') {
-      const type = parts[2];
-      const key = parts.slice(3).join('.');
-      
-      import('@/services/deviceState').then(({ onMqttMessage }) => {
-        onMqttMessage(deviceId, `${type}.${key}`, message);
-      });
-    }
-  }, []);
-
   const publishMessage = useCallback((topic: string, payload: string, retain = false) => {
     if (status !== 'connected') {
       toast({
@@ -224,6 +157,20 @@ export const MQTTProvider = ({ children }: { children: React.ReactNode }) => {
         variant: "destructive"
       });
       return;
+    }
+
+    // SECURITY: Only allow publish to topics for devices the user owns
+    if (topic.startsWith('saphari/')) {
+      const parts = topic.split('/');
+      const deviceId = parts[1];
+      if (!deviceId || !isDeviceAuthorized(deviceId)) {
+        toast({
+          title: "Not allowed",
+          description: "You can only publish to your own devices",
+          variant: "destructive"
+        });
+        return;
+      }
     }
 
     const messageValidation = validateMQTTMessage(payload);

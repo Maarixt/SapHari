@@ -39,10 +39,18 @@ export function makeBuzzer(x = 100, y = 100): SimComponent {
     x,
     y,
     pins: [
-      { id: 'positive', label: '+', kind: 'digital', x: 0, y: 0 },
-      { id: 'negative', label: '-', kind: 'digital', x: 20, y: 0 }
+      { id: 'P', label: '+', kind: 'digital', x: 18, y: 45 },
+      { id: 'N', label: '−', kind: 'digital', x: 42, y: 45 },
     ],
-    props: { frequency: 2000 }
+    props: {
+      active: false,
+      mode: 'active',
+      volume: 0.5,
+      frequency: 2000,
+      vMin: 2,
+      rOn: 167,
+      iMin: 0.001,
+    },
   };
 }
 
@@ -135,8 +143,8 @@ export function makeResistor(x = 100, y = 100, ohms = 220): SimComponent {
     x,
     y,
     pins: [
-      { id: 'pin1', label: '1', kind: 'digital', x: 0, y: 0 },
-      { id: 'pin2', label: '2', kind: 'digital', x: 40, y: 0 }
+      { id: 'a', label: 'A', kind: 'digital', x: 10, y: 25 },
+      { id: 'b', label: 'B', kind: 'digital', x: 80, y: 25 }
     ],
     props: { ohms, tolerance: 5 }
   };

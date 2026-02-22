@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/select';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { isBetaMode } from '@/lib/betaConfig';
 
 interface BetaFeedbackModalProps {
@@ -51,20 +51,16 @@ export function BetaFeedbackModal({ collapsed }: BetaFeedbackModalProps) {
 
     setIsSubmitting(true);
     try {
-      // Use raw SQL insert since beta_feedback is not in generated types
-      const { error } = await supabase.rpc('log_audit_event', {
-        _action: 'beta_feedback',
-        _actor_email: user.email || '',
-        _actor_role: 'user',
-        _details: {
-          feedback_type: feedbackType,
-          message: message.trim(),
-          page_url: window.location.href,
-        },
-        _resource: 'beta_feedback',
+      // Insert into beta_feedback so master feedback page can display and manage it
+      const { error: insertError } = await supabase.from('beta_feedback').insert({
+        user_id: user.id,
+        feedback_type: feedbackType,
+        message: message.trim(),
+        page_url: window.location.href,
+        user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
       });
 
-      if (error) throw error;
+      if (insertError) throw insertError;
 
       toast({
         title: 'Feedback submitted',

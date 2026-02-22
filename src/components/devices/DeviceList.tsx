@@ -89,13 +89,13 @@ export const DeviceList = ({ onDeviceSelect, autoOpenAddDialog = false }: Device
   }
 
   return (
-    <div className="py-8">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">Devices</h2>
+    <div className="py-4 sm:py-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8">
+        <div className="min-w-0">
+          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Devices</h2>
           <p className="text-muted-foreground mt-1">Manage your IoT devices and sensors</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-2">
           <Button 
             onClick={() => {
               setSimFullscreen(true);

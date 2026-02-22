@@ -69,8 +69,8 @@ export function AppSidebar() {
   return (
     <>
       <Sidebar collapsible="icon">
-        <SidebarHeader className="p-4">
-          <div className="flex items-center gap-2 mb-4">
+        <SidebarHeader className={cn("p-4", collapsed && "items-center justify-center")}>
+          <div className={cn("flex items-center gap-2 mb-4", collapsed && "justify-center")}>
             <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
               <span className="text-primary-foreground font-bold text-sm">S</span>
             </div>
@@ -150,11 +150,16 @@ export function AppSidebar() {
                 </p>
               )}
               <SidebarMenu>
-                {orgNavItems.map((item) => (
+                {orgNavItems.map((item) => {
+                  const isInvites = item.path === '/app/org/invites';
+                  const tooltip = isInvites
+                    ? (pendingInvites.length > 0 ? `Invites (${pendingInvites.length} pending)` : 'Invites')
+                    : item.label;
+                  return (
                   <SidebarMenuItem key={item.path}>
                     <SidebarMenuButton 
                       asChild 
-                      tooltip={item.label}
+                      tooltip={tooltip}
                       disabled={!currentOrg || (!isOwnerOrAdmin && item.path !== '/app/org/invites')}
                     >
                       <NavLink 
@@ -175,7 +180,7 @@ export function AppSidebar() {
                         {!collapsed && (
                           <span className="flex items-center gap-2 flex-1">
                             {item.label}
-                            {item.badge && item.badge > 0 && (
+                            {item.badge != null && item.badge > 0 && (
                               <Badge variant="secondary" className="ml-auto h-5 px-1.5 text-xs">
                                 {item.badge}
                               </Badge>
@@ -185,7 +190,8 @@ export function AppSidebar() {
                       </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
-                ))}
+                );
+                })}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
@@ -254,8 +260,8 @@ export function AppSidebar() {
           )}
         </SidebarContent>
 
-        <SidebarFooter className="p-4 border-t border-sidebar-border">
-          <div className="space-y-2">
+        <SidebarFooter className={cn("p-4 border-t border-sidebar-border", collapsed && "items-center justify-center")}>
+          <div className={cn("space-y-2", collapsed && "flex flex-col items-center")}>
             <BetaFeedbackModal collapsed={collapsed} />
             <ThemeToggle collapsed={collapsed} />
             <SidebarMenu>

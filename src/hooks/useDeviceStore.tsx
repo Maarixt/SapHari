@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { DeviceStore, DeviceSnapshot } from '@/state/deviceStore';
 import { CommandTracker } from '@/state/commandTracker';
+import { useMQTT } from '@/hooks/useMQTT';
 
 export function useDevice(deviceId: string) {
   const [device, setDevice] = useState<DeviceSnapshot | undefined>(DeviceStore.get(deviceId));
@@ -30,6 +31,7 @@ export function useAllDevices() {
 
 export function useDeviceStore(deviceId: string) {
   const [device, setDevice] = useState<DeviceSnapshot | undefined>(DeviceStore.get(deviceId));
+  const { publishMessage } = useMQTT();
 
   useEffect(() => {
     const unsubscribe = DeviceStore.subscribe(() => {
@@ -42,7 +44,7 @@ export function useDeviceStore(deviceId: string) {
 
   const controlGpio = async (pin: number, value: 0 | 1) => {
     try {
-      await CommandTracker.toggleGpio(deviceId, pin, value);
+      await CommandTracker.toggleGpio(publishMessage, deviceId, pin, value);
       console.log(`GPIO control: ${deviceId} pin ${pin} = ${value}`);
     } catch (error) {
       console.error('Failed to control GPIO:', error);

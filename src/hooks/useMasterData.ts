@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -214,4 +215,39 @@ export function useMasterRealtime() {
     },
     enabled: false // Manual control
   });
+}
+
+// Unreviewed beta feedback count for master sidebar badge (real-time)
+export function useUnreviewedFeedbackCount() {
+  const queryClient = useQueryClient();
+  const query = useQuery({
+    queryKey: ['master-feedback-unreviewed-count'],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('beta_feedback')
+        .select('id', { count: 'exact', head: true })
+        .eq('reviewed', false);
+      if (error) throw error;
+      return count ?? 0;
+    },
+    staleTime: 60_000,
+  });
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('master-feedback-count')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'beta_feedback' },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['master-feedback-unreviewed-count'] });
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+
+  return { count: query.data ?? 0, isLoading: query.isLoading };
 }

@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { MasterLayout } from '@/components/master/MasterLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AlertTriangle, RefreshCw, Users, Cpu, Database, Activity, TestTube, Shield, BarChart3, Settings, TrendingUp, CheckCircle } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Users, Cpu, Database, Activity, TestTube, Shield, BarChart3, Settings, TrendingUp, CheckCircle, MessageSquare } from 'lucide-react';
 import { fetchMasterMetrics, fetchFleetKPIs, fetchDeviceHealth, fetchRecentEvents } from '@/lib/api';
 import { useMasterAccount } from '@/hooks/useMasterAccount';
-import { useMasterRealtime } from '@/hooks/useMasterData';
+import { useMasterRealtime, useUnreviewedFeedbackCount } from '@/hooks/useMasterData';
 import { OverviewTab } from '@/components/master/OverviewTab';
 import { DiagnosticsTab } from '@/components/master/DiagnosticsTab';
 import { UsersTab } from '@/components/master/UsersTab';
@@ -65,7 +66,8 @@ export default function MasterDashboard() {
   
   // Subscribe to real-time database changes
   const { refetch: subscribeRealtime } = useMasterRealtime();
-  
+  const { count: unreviewedFeedbackCount } = useUnreviewedFeedbackCount();
+
   useEffect(() => {
     subscribeRealtime();
   }, [subscribeRealtime]);
@@ -178,7 +180,7 @@ export default function MasterDashboard() {
 
         {/* Modern Tabs */}
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-9 bg-muted/30 p-1 rounded-xl">
+          <TabsList className="grid w-full grid-cols-10 bg-muted/30 p-1 rounded-xl">
             <TabsTrigger value="overview" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <Activity className="h-4 w-4" />
               Overview
@@ -215,6 +217,18 @@ export default function MasterDashboard() {
               <Database className="h-4 w-4" />
               Audit
             </TabsTrigger>
+            <Link
+              to="/master/feedback"
+              className="flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+            >
+              <MessageSquare className="h-4 w-4" />
+              Feedback
+              {unreviewedFeedbackCount > 0 && (
+                <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary px-1.5 text-xs font-medium text-primary-foreground">
+                  {unreviewedFeedbackCount}
+                </span>
+              )}
+            </Link>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-4">

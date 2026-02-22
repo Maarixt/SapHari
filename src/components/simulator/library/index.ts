@@ -1,6 +1,9 @@
 // ESP32 Components
 export { makeESP32 } from './esp32';
 
+// Junction (wire split node)
+export { makeJunction } from './junction';
+
 // Basic Parts Library (minimal pins + behavior flags)
 export {
   makeLED,
@@ -8,6 +11,7 @@ export {
   makeButton,
   makeBuzzer,
   makePotentiometer,
+  makePotentiometerDC,
   makePIRSensor,
   makeUltrasonicSensor,
   makeTemperatureSensor,

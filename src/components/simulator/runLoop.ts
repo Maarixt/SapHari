@@ -1,10 +1,23 @@
-import { buildNets, assignVoltages, simulateComponents } from './engine';
+import { buildNets, assignVoltages, simulateComponents, type Net } from './engine';
+import { solveCircuit as solveCircuitEngine2, type SolveResult } from './engine2';
 import { SimState } from './types';
 import { buzzerStart, buzzerStop } from './audio';
+import { subscribe, publish as publishSimEvent } from './events/simEvents';
+
+const USE_ENGINE2 = true;
+let engine2SolveResultRef: SolveResult | null = null;
+
+export function getEngine2SolveResult(): SolveResult | null {
+  return engine2SolveResultRef;
+}
+
+export function setEngine2SolveResultRef(result: SolveResult | null): void {
+  engine2SolveResultRef = result;
+}
 
 // Helper function to get voltage at a specific pin
-function voltageOfPin(nets: any[], compId: string, pinId: string) {
-  const net = nets.find(n => n.pins.some((p: any) => p.compId === compId && p.pinId === pinId));
+function voltageOfPin(nets: Net[], compId: string, pinId: string) {
+  const net = nets.find(n => n.pins.some((p: { compId: string; pinId: string }) => p.compId === compId && p.pinId === pinId));
   return net?.voltage ?? undefined;
 }
 
@@ -20,49 +33,172 @@ export function startLoop(
       if (!s || !s.components || !Array.isArray(s.components)) {
         return; // Skip if state is invalid
       }
-      
-      const nets = buildNets(s);
-      
-      // Apply MQTT command overrides (from toggle events)
       const overriddenState = applyMQTTOverrides(s);
-      
-      // Assign voltages with GPIO overrides
+
+      if (USE_ENGINE2) {
+        const solveResult = solveCircuitEngine2(overriddenState);
+        engine2SolveResultRef = solveResult;
+
+        const updatedComponents = overriddenState.components.map((c) => {
+          if (c.type === 'led') {
+            const out = solveResult.outputsByComponentId[c.id] as {
+              on?: boolean;
+              brightness?: number;
+              status?: string;
+              damageAccumTicks?: number;
+            } | undefined;
+            if (!out) return c;
+            const burned = out.status === 'burned';
+            return {
+              ...c,
+              props: {
+                ...c.props,
+                on: out.on,
+                brightness: out.brightness,
+                ledStatus: out.status,
+                ledDamageAccumTicks: out.damageAccumTicks ?? 0,
+                ledBurned: burned,
+              },
+            };
+          }
+          if (c.type === 'rgb_led') {
+            const out = solveResult.outputsByComponentId[c.id] as {
+              brightnessR?: number;
+              brightnessG?: number;
+              brightnessB?: number;
+              currentR?: number;
+              currentG?: number;
+              currentB?: number;
+              voltageDropR?: number;
+              voltageDropG?: number;
+              voltageDropB?: number;
+              mixedColor?: { r: number; g: number; b: number };
+            } | undefined;
+            if (!out) return c;
+            return {
+              ...c,
+              props: {
+                ...c.props,
+                brightnessR: out.brightnessR ?? 0,
+                brightnessG: out.brightnessG ?? 0,
+                brightnessB: out.brightnessB ?? 0,
+                rgbCurrentR: out.currentR,
+                rgbCurrentG: out.currentG,
+                rgbCurrentB: out.currentB,
+                rgbVoltageDropR: out.voltageDropR,
+                rgbVoltageDropG: out.voltageDropG,
+                rgbVoltageDropB: out.voltageDropB,
+                mixedColor: out.mixedColor,
+              },
+            };
+          }
+          if ((c.type as string) === 'diode') {
+            const out = solveResult.outputsByComponentId[c.id] as { state?: 'OFF' | 'ON' | 'BREAKDOWN'; vd?: number; id?: number } | undefined;
+            if (out) return { ...c, props: { ...c.props, diodeState: out.state ?? 'OFF' } };
+          }
+          if ((c.type as string) === 'motor_dc' || (c.type as string) === 'motor_ac') {
+            const out = solveResult.outputsByComponentId[c.id] as { spinning?: boolean; speed?: number; direction?: number; current?: number; voltage?: number; power?: number } | undefined;
+            if (out) return { ...c, props: { ...c.props, spinning: out.spinning, speed: out.speed, direction: out.direction, motorCurrent: out.current, motorVoltage: out.voltage, motorPower: out.power } };
+          }
+          if (c.type === 'buzzer') {
+            const out = solveResult.outputsByComponentId[c.id] as { audible?: boolean } | undefined;
+            const on = !!out?.audible;
+            const freq = Math.max(100, Math.min(10000, (c.props?.frequency as number) ?? 2000));
+            const volume = Math.max(0, Math.min(1, (c.props?.volume as number) ?? 0.5));
+            if (on) buzzerStart(c.id, freq, volume);
+            if (!on && c.props?.active) buzzerStop(c.id);
+            if (c.props?.active !== on) return { ...c, props: { ...c.props, active: on } };
+          }
+          if (c.type === 'voltmeter') {
+            const out = solveResult.outputsByComponentId[c.id] as {
+              type: 'Voltmeter';
+              volts: number | null;
+              connected: boolean;
+              floating: boolean;
+              netPlus: string | null;
+              netMinus: string | null;
+              vPlus: number | null;
+              vMinus: number | null;
+            } | undefined;
+            if (out?.type === 'Voltmeter') {
+              return {
+                ...c,
+                props: {
+                  ...c.props,
+                  voltmeterVolts: out.volts,
+                  voltmeterConnected: out.connected,
+                  voltmeterFloating: out.floating,
+                  voltmeterNetPlus: out.netPlus,
+                  voltmeterNetMinus: out.netMinus,
+                  voltmeterVPlus: out.vPlus,
+                  voltmeterVMinus: out.vMinus,
+                },
+              };
+            }
+          }
+          if ((c.type as string) === 'transistor') {
+            const out = solveResult.outputsByComponentId[c.id] as {
+              region: 'cutoff' | 'active' | 'saturation' | 'floating';
+              vb: number | null;
+              vc: number | null;
+              ve: number | null;
+              vbe: number | null;
+              vce: number | null;
+              ib: number;
+              ic: number;
+            } | undefined;
+            if (out) {
+              const on = out.region === 'active' || out.region === 'saturation';
+              return {
+                ...c,
+                props: {
+                  ...c.props,
+                  transistorRegion: out.region,
+                  transistorOn: on,
+                  vb: out.vb,
+                  vc: out.vc,
+                  ve: out.ve,
+                  vbe: out.vbe,
+                  vce: out.vce,
+                  ib: out.ib,
+                  ic: out.ic,
+                },
+              };
+            }
+          }
+          return c;
+        });
+
+        const updatedState = simulateComponents({ ...overriddenState, components: updatedComponents }, []);
+        publishSensorReadings(updatedState, publish, simId);
+        setState(updatedState);
+        return;
+      }
+
+      const nets = buildNets(s);
       assignVoltages(nets, overriddenState.components, mqttOverrides);
 
-      // Update LED and Buzzer states based on voltage differences
+      // Legacy path: LED on must not be set from voltage alone (spec: branch current only).
+      // Legacy engine does not expose branch current, so keep LEDs OFF here; use engine2 for correct behavior.
       let dirty = false;
       const updatedComponents = overriddenState.components.map(c => {
         if (c.type === 'led') {
-          const anodeVoltage = voltageOfPin(nets, c.id, 'anode') ?? 0;
-          const cathodeVoltage = voltageOfPin(nets, c.id, 'cathode') ?? 0;
-          const forward = anodeVoltage - cathodeVoltage; // crude model
-          const on = forward > 1.8; // ~2V threshold
-          
+          const on = false;
           if (c.props?.on !== on) {
             dirty = true;
-            return { ...c, props: { ...c.props, on } };
+            return { ...c, props: { ...c.props, on, brightness: 0 } };
           }
         }
         
         if (c.type === 'buzzer') {
-          const posVoltage = voltageOfPin(nets, c.id, '+') ?? 0;
-          const negVoltage = voltageOfPin(nets, c.id, '-') ?? 0;
-          const on = (posVoltage - negVoltage) > 2.0; // ~2V threshold
-          
-          // Control buzzer audio
-          if (on && !c.props?.active) {
-            buzzerStart(c.id, 1500); // Start buzzer sound
-          }
-          if (!on && c.props?.active) {
-            buzzerStop(c.id); // Stop buzzer sound
-          }
-          
-          if (c.props?.active !== on) {
+          // Legacy path: no solver → no branch current. Do not drive buzzer from voltage alone.
+          if (c.props?.active) {
+            buzzerStop(c.id);
             dirty = true;
-            return { ...c, props: { ...c.props, active: on } };
+            return { ...c, props: { ...c.props, active: false } };
           }
         }
-        
+
         return c;
       });
 
@@ -92,18 +228,15 @@ export function cleanupBuzzerAudio(componentIds: string[]) {
   });
 }
 
-// Listen for MQTT command events
-if (typeof window !== 'undefined') {
-  window.addEventListener('sim:setOutput', (event: any) => {
-    const { pin, state } = event.detail;
-    mqttOverrides.set(`gpio${pin}`, state ? 3.3 : 0);
-  });
-
-  window.addEventListener('sim:setServo', (event: any) => {
-    const { addr, angle } = event.detail;
-    mqttOverrides.set(`servo_${addr}`, angle);
-  });
-}
+// Subscribe to MQTT command events via internal event bus
+subscribe('SET_OUTPUT', (payload) => {
+  const { pin, state } = payload as { pin: number; state: boolean };
+  mqttOverrides.set(`gpio${pin}`, state ? 3.3 : 0);
+});
+subscribe('SET_SERVO', (payload) => {
+  const { addr, angle } = payload as { addr: string | number; angle: number };
+  mqttOverrides.set(`servo_${addr}`, angle);
+});
 
 // Apply MQTT command overrides to component states
 function applyMQTTOverrides(state: SimState): SimState {

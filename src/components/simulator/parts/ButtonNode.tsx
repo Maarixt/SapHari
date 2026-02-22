@@ -14,6 +14,7 @@ export function ButtonNode({ comp }: { comp: SimComponent }) {
         fill="#374151" 
         stroke="#6b7280" 
         strokeWidth={1} 
+        strokeScaleEnabled={false}
       />
       {/* Button top */}
       <Rect 
@@ -25,6 +26,7 @@ export function ButtonNode({ comp }: { comp: SimComponent }) {
         fill={pressed ? "#1f2937" : "#4b5563"} 
         stroke="#9ca3af" 
         strokeWidth={0.5} 
+        strokeScaleEnabled={false}
       />
     </Group>
   );

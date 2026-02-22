@@ -10,6 +10,7 @@ interface PendingCommand {
   expectedState: 0 | 1;
   resolve: (confirmed: boolean) => void;
   timeoutId: NodeJS.Timeout;
+  reqId?: string;
 }
 
 const pendingCommands = new Map<string, PendingCommand>();
@@ -20,10 +21,11 @@ function getCommandKey(deviceId: string, pin: number): string {
 }
 
 /**
- * Publish a toggle command and wait for GPIO confirmation
+ * Publish a toggle command and wait for GPIO confirmation.
+ * publishFn may return Promise<{ reqId?: string }> when using bridge; reqId is stored for traceability.
  */
 export async function sendToggleCommand(
-  publishFn: (topic: string, payload: string, retain?: boolean) => void,
+  publishFn: (topic: string, payload: string, retain?: boolean) => void | Promise<{ reqId?: string }>,
   deviceId: string,
   addr: string,
   pin: number,
@@ -50,23 +52,8 @@ export async function sendToggleCommand(
 
   const topic = `saphari/${deviceId}/cmd/toggle`;
 
-  // Log outgoing command
-  const debugStore = useMQTTDebugStore.getState();
-  if (debugStore.enabled) {
-    debugStore.addLog({
-      direction: 'outgoing',
-      topic,
-      payload,
-    });
-  }
-
-  // Publish command (not retained - commands are ephemeral)
-  publishFn(topic, payload, false);
-
-  console.log(`📤 Command sent: ${topic}`, JSON.parse(payload));
-
   // Wait for GPIO confirmation
-  return new Promise<boolean>((resolve) => {
+  const result = new Promise<boolean>((resolve) => {
     const timeoutId = setTimeout(() => {
       console.warn(`⏱️ Command timeout: ${deviceId} pin ${pin}`);
       pendingCommands.delete(key);
@@ -81,6 +68,38 @@ export async function sendToggleCommand(
       timeoutId,
     });
   });
+
+  // Log outgoing command
+  const debugStore = useMQTTDebugStore.getState();
+  if (debugStore.enabled) {
+    debugStore.addLog({
+      direction: 'outgoing',
+      topic,
+      payload,
+    });
+  }
+
+  // Publish command (bridge publishFn may return promise with reqId)
+  const out = publishFn(topic, payload, false);
+  if (out != null && typeof (out as Promise<{ reqId?: string }>).then === 'function') {
+    (out as Promise<{ reqId?: string }>).then((r) => {
+      const pending = pendingCommands.get(key);
+      if (pending && r?.reqId) {
+        pending.reqId = r.reqId;
+        if (debugStore.enabled) {
+          debugStore.addLog({
+            direction: 'outgoing',
+            topic: `reqId: ${r.reqId}`,
+            payload: '',
+          });
+        }
+      }
+    });
+  }
+
+  console.log(`📤 Command sent: ${topic}`, JSON.parse(payload));
+
+  return result;
 }
 
 /**
@@ -110,7 +129,8 @@ export function handleGpioConfirmation(
     pendingCommands.delete(key);
     
     const confirmed = value === pending.expectedState;
-    console.log(`📥 GPIO confirmation: ${deviceId} pin ${pin} = ${value} (expected: ${pending.expectedState}, confirmed: ${confirmed})`);
+    const reqIdLog = pending.reqId ? ` reqId=${pending.reqId}` : '';
+    console.log(`📥 GPIO confirmation: ${deviceId} pin ${pin} = ${value} (expected: ${pending.expectedState}, confirmed: ${confirmed})${reqIdLog}`);
     pending.resolve(confirmed);
   } else {
     console.log(`📥 GPIO update (no pending command): ${deviceId} pin ${pin} = ${value}`);

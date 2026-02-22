@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useMQTT } from '@/hooks/useMQTT';
 import { SimState } from './types';
+import { publish } from './events/simEvents';
 
 export function useSimulatorMQTT(state: SimState, setState: (f: any) => void, simId: string) {
   const { publishMessage, onMessage } = useMQTT();
@@ -32,11 +33,11 @@ export function useSimulatorMQTT(state: SimState, setState: (f: any) => void, si
         if (cmd === 'toggle') {
           // data: { addr, pin, state, override, key }
           console.log(`MQTT Toggle: GPIO${data.pin} = ${data.state ? 'HIGH' : 'LOW'}`);
-          window.dispatchEvent(new CustomEvent('sim:setOutput', { detail: data }));
+          publish('SET_OUTPUT', { pin: data.pin, state: data.state });
         } else if (cmd === 'servo') {
           // data: { addr, angle }
           console.log(`MQTT Servo: ${data.addr} = ${data.angle}°`);
-          window.dispatchEvent(new CustomEvent('sim:setServo', { detail: data }));
+          publish('SET_SERVO', { addr: data.addr, angle: data.angle });
         } else if (cmd === 'read') {
           // data: { addr }
           const sensorValue = readSensorValue(state, data.addr);

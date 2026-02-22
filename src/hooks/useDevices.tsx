@@ -1,37 +1,31 @@
-import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
-import { DeviceWithRole, Role } from '@/lib/types';
+import { DeviceWithRole } from '@/lib/types';
 import { initializeDevicePresence } from '@/services/presenceService';
 
 export const useDevices = () => {
   const { user } = useAuth();
-  const [devices, setDevices] = useState<DeviceWithRole[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  const loadDevices = async () => {
-    if (!user) {
-      setDevices([]);
-      setLoading(false);
-      return;
-    }
+  const {
+    data: devices = [],
+    isLoading: loading,
+    error: queryError,
+    refetch,
+  } = useQuery({
+    queryKey: ['devices', user?.id],
+    queryFn: async (): Promise<DeviceWithRole[]> => {
+      if (!user) return [];
 
-    try {
-      setError(null);
-      
-      // Use devices_safe view to exclude device_key from client queries
       const { data: deviceData, error: deviceError } = await supabase
         .from('devices_safe')
         .select('*')
         .eq('user_id', user.id);
-        
+
       if (deviceError) throw deviceError;
 
-      // Load widget counts for each device
       const devicesWithCounts = await Promise.all(
         (deviceData || []).map(async (device) => {
-          // Get widget counts for this device
           const { data: widgets, error: widgetError } = await supabase
             .from('widgets')
             .select('type, state')
@@ -43,28 +37,26 @@ export const useDevices = () => {
               ...device,
               location: device.location as { lat: number; lng: number } | null,
               owner_id: device.user_id || user.id,
-              userRole: 'owner' as any,
+              role: 'owner',
               collaborators: [],
               widget_counts: {
                 switches: 0,
                 gauges: 0,
                 servos: 0,
-                alerts: 0
-              }
+                alerts: 0,
+              },
             };
           }
 
-          // Calculate widget counts
           const counts = {
             switches: 0,
             gauges: 0,
             servos: 0,
-            alerts: 0
+            alerts: 0,
           };
 
-          (widgets || []).forEach(widget => {
-            // Check if this is an alert widget stored as 'switch' type with isAlert flag
-            const state = widget.state as any;
+          (widgets || []).forEach((widget) => {
+            const state = widget.state as { isAlert?: boolean } | null;
             if (widget.type === 'switch' && state?.isAlert === true) {
               counts.alerts++;
             } else if (widget.type === 'switch') {
@@ -82,42 +74,30 @@ export const useDevices = () => {
             ...device,
             location: device.location as { lat: number; lng: number } | null,
             owner_id: device.user_id || user.id,
-            userRole: 'owner' as any,
+            role: 'owner',
             collaborators: [],
-            widget_counts: counts
+            widget_counts: counts,
           };
         })
       );
 
-      // Initialize presence tracking for all devices
-      initializeDevicePresence(devicesWithCounts.map(d => ({
-        device_id: d.device_id,
-        online: d.online,
-        last_seen: d.last_seen
-      })));
+      initializeDevicePresence(
+        devicesWithCounts.map((d) => ({
+          device_id: d.device_id,
+          online: d.online,
+          last_seen: d.last_seen,
+        }))
+      );
 
-      setDevices(devicesWithCounts);
-    } catch (err: any) {
-      console.error('Error loading devices:', err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadDevices();
-  }, [user]);
-
-  const refetch = () => {
-    setLoading(true);
-    loadDevices();
-  };
+      return devicesWithCounts;
+    },
+    enabled: !!user,
+  });
 
   return {
     devices,
     loading,
-    error,
-    refetch
+    error: queryError ? (queryError as Error).message : null,
+    refetch,
   };
 };

@@ -1,12 +1,24 @@
-import { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, Code } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Plus, Code } from 'lucide-react';
+import { BackButton } from '@/components/nav/BackButton';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useMQTT } from '@/hooks/useMQTT';
 import { useDeviceStore } from '@/hooks/useDeviceStore';
 import { useDevicePresence } from '@/hooks/useDevicePresence';
+import { useWidgetMutations } from '@/hooks/useWidgetMutations';
 import { SwitchWidget } from '../widgets/SwitchWidget';
 import { GaugeWidget } from '../widgets/GaugeWidget';
 import { ServoWidget } from '../widgets/ServoWidget';
@@ -42,6 +54,9 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
   const [showAddWidget, setShowAddWidget] = useState(false);
   const [addWidgetType, setAddWidgetType] = useState<'switch' | 'gauge' | 'servo'>('switch');
   const [showCodeSnippet, setShowCodeSnippet] = useState(false);
+  const [deleteConfirmWidgetId, setDeleteConfirmWidgetId] = useState<string | null>(null);
+  const removedWidgetRef = useRef<Widget | null>(null);
+  const { deleteWidget, isDeleting } = useWidgetMutations(device.id);
 
   // For now, assume owner role - this will be properly implemented when DeviceView gets role info
   const userRole = 'owner';
@@ -142,8 +157,42 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
     setShowAddWidget(false);
   };
 
-  const handleWidgetDeleted = (widgetId: string) => {
-    setWidgets(prev => prev.filter(w => w.id !== widgetId));
+  const handleDeleteRequest = (widgetId: string) => {
+    setDeleteConfirmWidgetId(widgetId);
+  };
+
+  const handleDeleteConfirm = async () => {
+    const widgetId = deleteConfirmWidgetId;
+    if (!widgetId) return;
+    const widget = widgets.find((w) => w.id === widgetId);
+    if (!widget) return;
+    removedWidgetRef.current = widget;
+    setWidgets((prev) => prev.filter((w) => w.id !== widgetId));
+    setDeleteConfirmWidgetId(null);
+    try {
+      await deleteWidget(widgetId);
+      toast({
+        title: 'Widget deleted',
+        description: 'Widget has been removed from the dashboard.',
+      });
+    } catch (error) {
+      setWidgets((prev) => {
+        const restored = removedWidgetRef.current;
+        if (restored) return [...prev, restored].sort((a, b) => (a.created_at || '').localeCompare(b.created_at || ''));
+        return prev;
+      });
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to delete widget',
+        variant: 'destructive',
+      });
+    } finally {
+      removedWidgetRef.current = null;
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteConfirmWidgetId(null);
   };
 
   const handleWidgetUpdated = (widgetId: string, updates: Partial<Widget>) => {
@@ -159,39 +208,37 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
   }
 
   return (
-    <div className="py-8">
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center gap-4">
-          <Button 
-            variant="outline" 
-            onClick={onBack} 
-            className="shadow-sm hover:shadow-md transition-all duration-200"
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back
-          </Button>
-          <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-xl ${isOnline ? 'bg-success/20' : 'bg-muted/20'}`}>
+    <div className="py-4 sm:py-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          <BackButton
+            fallback="/app/devices"
+            onBack={onBack}
+            variant="outline"
+            className="shadow-sm hover:shadow-md transition-all duration-200 shrink-0"
+          />
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className={`p-2 rounded-xl shrink-0 ${isOnline ? 'bg-success/20' : 'bg-muted/20'}`}>
               <Code className={`h-6 w-6 ${isOnline ? 'text-success' : 'text-muted-foreground'}`} />
             </div>
-            <div>
-              <h2 className="text-3xl font-bold tracking-tight">{device.name}</h2>
-              <p className="text-sm text-muted-foreground font-mono">{device.device_id}</p>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight truncate">{device.name}</h2>
+              <p className="text-sm text-muted-foreground font-mono truncate">{device.device_id}</p>
             </div>
           </div>
           <Badge 
             variant="outline"
-            className={isOnline 
+            className={`shrink-0 ${isOnline 
               ? "bg-success/10 text-success border-success/20" 
               : "bg-muted/10 text-muted-foreground border-muted/20"
-            }
+            }`}
           >
             <div className={`h-2 w-2 rounded-full mr-2 ${isOnline ? 'bg-success animate-pulse' : 'bg-muted-foreground'}`}></div>
             {isOnline ? 'Online' : 'Offline'}
           </Badge>
         </div>
         
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-2">
           <Button 
             variant="outline" 
             className="shadow-sm hover:shadow-md transition-all duration-200" 
@@ -273,7 +320,8 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
                   device={device}
                   allWidgets={widgets}
                   onUpdate={(updates) => handleWidgetUpdated(widget.id, updates)}
-                  onDelete={() => handleWidgetDeleted(widget.id)}
+                  onDeleteRequest={handleDeleteRequest}
+                  isDeleting={isDeleting(widget.id)}
                 />
               );
             } else if (widget.type === 'gauge') {
@@ -284,7 +332,8 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
                   device={device}
                   allWidgets={widgets}
                   onUpdate={(updates) => handleWidgetUpdated(widget.id, updates)}
-                  onDelete={() => handleWidgetDeleted(widget.id)}
+                  onDeleteRequest={handleDeleteRequest}
+                  isDeleting={isDeleting(widget.id)}
                 />
               );
             } else if (widget.type === 'servo') {
@@ -295,7 +344,8 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
                   device={device}
                   allWidgets={widgets}
                   onUpdate={(updates) => handleWidgetUpdated(widget.id, updates)}
-                  onDelete={() => handleWidgetDeleted(widget.id)}
+                  onDeleteRequest={handleDeleteRequest}
+                  isDeleting={isDeleting(widget.id)}
                 />
               );
             }
@@ -319,6 +369,23 @@ export const DeviceView = ({ device, onBack }: DeviceViewProps) => {
         device={device}
         widgets={widgets}
       />
+
+      <AlertDialog open={!!deleteConfirmWidgetId} onOpenChange={(open) => !open && handleDeleteCancel()}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete widget?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove the widget from the dashboard. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleDeleteCancel}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

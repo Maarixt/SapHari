@@ -131,8 +131,12 @@
   }
 
   body {
-    @apply bg-background text-foreground font-sans;
+    @apply bg-background text-foreground font-sans overflow-x-hidden;
     font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  #root {
+    @apply min-w-0;
   }
 
   /* Typography Scale */

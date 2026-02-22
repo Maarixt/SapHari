@@ -11,8 +11,13 @@ import TactSwitch4View from '../../sim/ui/parts/TactSwitch4View';
 
 interface InteractiveComponentNodeProps {
   comp: SimComponent;
-  onPinClick?: (compId: string, pinId: string) => void;
-  onSelect?: (compId: string) => void;
+  /** When provided, overrides comp.selected for stable props. */
+  selected?: boolean;
+  tool?: 'select' | 'wire' | 'pan';
+  onPinClick?: (compId: string, pinId: string, shift?: boolean) => void;
+  onPinPointerDown?: (compId: string, pinId: string) => void;
+  onPinPointerUp?: (compId: string, pinId: string) => void;
+  onSelect?: (compId: string, shift?: boolean) => void;
   onDelete?: (compId: string) => void;
   onDragEnd?: (compId: string, x: number, y: number) => void;
   onPressChange?: (compId: string, pressed: boolean) => void;
@@ -20,12 +25,17 @@ interface InteractiveComponentNodeProps {
 
 export const InteractiveComponentNode: React.FC<InteractiveComponentNodeProps> = ({
   comp,
+  selected: selectedProp,
+  tool,
   onPinClick,
+  onPinPointerDown,
+  onPinPointerUp,
   onSelect,
   onDelete,
   onDragEnd,
   onPressChange
 }) => {
+  const isSelected = selectedProp !== undefined ? selectedProp : comp.selected;
   const [isPressed, setIsPressed] = useState(false);
   const [isBouncing, setIsBouncing] = useState(false);
 
@@ -46,13 +56,14 @@ export const InteractiveComponentNode: React.FC<InteractiveComponentNodeProps> =
               width={80}
               height={40}
               fill={isPressed ? '#10b981' : '#374151'}
-              stroke={comp.selected ? '#3b82f6' : '#6b7280'}
-              strokeWidth={comp.selected ? 2 : 1}
+              stroke={isSelected ? '#3b82f6' : '#6b7280'}
+              strokeWidth={isSelected ? 2 : 1}
               cornerRadius={8}
               shadowColor="black"
               shadowBlur={4}
               shadowOffset={{ x: 2, y: 2 }}
               shadowOpacity={0.3}
+              strokeScaleEnabled={false}
             />
             
             {/* Button text */}
@@ -88,8 +99,21 @@ export const InteractiveComponentNode: React.FC<InteractiveComponentNodeProps> =
                 fill={getPinColor(pin.kind)}
                 stroke="white"
                 strokeWidth={1}
-                onClick={() => onPinClick?.(comp.id, pin.id)}
-                onTap={() => onPinClick?.(comp.id, pin.id)}
+                strokeScaleEnabled={false}
+                onClick={(e) => onPinClick?.(comp.id, pin.id, e.evt.shiftKey)}
+                onTap={(e) => onPinClick?.(comp.id, pin.id, e.evt.shiftKey)}
+                onPointerDown={(e) => {
+                  if (tool === 'wire' && onPinPointerDown) {
+                    e.cancelBubble = true;
+                    onPinPointerDown(comp.id, pin.id);
+                  }
+                }}
+                onPointerUp={(e) => {
+                  if (tool === 'wire' && onPinPointerUp) {
+                    e.cancelBubble = true;
+                    onPinPointerUp(comp.id, pin.id);
+                  }
+                }}
               />
             ))}
             
@@ -128,9 +152,10 @@ export const InteractiveComponentNode: React.FC<InteractiveComponentNodeProps> =
               width={60}
               height={30}
               fill="#374151"
-              stroke={comp.selected ? '#3b82f6' : '#6b7280'}
-              strokeWidth={comp.selected ? 2 : 1}
+              stroke={isSelected ? '#3b82f6' : '#6b7280'}
+              strokeWidth={isSelected ? 2 : 1}
               cornerRadius={4}
+              strokeScaleEnabled={false}
             />
             <Text
               x={5}
@@ -163,14 +188,17 @@ export const InteractiveComponentNode: React.FC<InteractiveComponentNodeProps> =
       x={comp.x}
       y={comp.y}
       draggable
-      onClick={() => onSelect?.(comp.id)}
-      onTap={() => onSelect?.(comp.id)}
+      onClick={(e) => onSelect?.(comp.id, e.evt.shiftKey)}
+      onTap={(e) => onSelect?.(comp.id, e.evt.shiftKey)}
       onDragEnd={(e) => {
-        const newX = Math.round(e.target.x() / 10) * 10;
-        const newY = Math.round(e.target.y() / 10) * 10;
-        e.target.x(newX);
-        e.target.y(newY);
-        onDragEnd?.(comp.id, newX, newY);
+        const alt = (e.evt as MouseEvent).altKey;
+        const x = alt ? e.target.x() : Math.round(e.target.x() / 10) * 10;
+        const y = alt ? e.target.y() : Math.round(e.target.y() / 10) * 10;
+        if (!alt) {
+          e.target.x(x);
+          e.target.y(y);
+        }
+        onDragEnd?.(comp.id, x, y, e.evt as MouseEvent);
       }}
     >
       {renderInteractiveComponent()}

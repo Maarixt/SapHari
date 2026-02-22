@@ -21,11 +21,149 @@ export interface PinDefinition {
   id: string;
   label: string;
   kind: 'power' | 'ground' | 'digital' | 'analog' | 'pwm' | 'i2c' | 'spi' | 'uart';
+  role?: string; // VCC, GND, OUT, WIPER, TRIG, ECHO, DQ, Anode, Cathode, A, B, etc.
   x: number;
   y: number;
 }
 
 export const COMPONENT_CATEGORIES: ComponentCategory[] = [
+  {
+    id: 'wiring',
+    name: 'Wiring',
+    description: 'Junction points and power rails',
+    icon: '⚡',
+    components: [
+      {
+        id: 'junction',
+        name: 'Junction',
+        description: 'Wire connection point (dot); connect multiple wires',
+        icon: '•',
+        behavior: 'power',
+        pins: [{ id: 'J', label: '', kind: 'digital', x: 0, y: 0 }],
+      },
+      {
+        id: 'power-3v3',
+        name: '3V3 Rail',
+        description: '3.3V power rail',
+        icon: '🔋',
+        behavior: 'power',
+        pins: [{ id: 'out', label: '3V3', kind: 'power', x: 0, y: 0 }],
+      },
+      {
+        id: 'power-vin',
+        name: 'VIN Rail',
+        description: '5V (VIN) power rail',
+        icon: '🔌',
+        behavior: 'power',
+        pins: [{ id: 'out', label: 'VIN', kind: 'power', x: 0, y: 0 }],
+      },
+      {
+        id: 'power-gnd',
+        name: 'GND Rail',
+        description: 'Ground rail',
+        icon: '⏚',
+        behavior: 'power',
+        pins: [{ id: 'out', label: 'GND', kind: 'ground', x: 0, y: 0 }],
+      },
+      {
+        id: 'dc-supply',
+        name: 'DC Supply',
+        description: 'Battery / DC voltage source with + and − terminals',
+        icon: '🔋',
+        behavior: 'power',
+        props: { voltage: 5, rInternal: 50 },
+        pins: [
+          { id: 'pos', label: '+', kind: 'power', role: 'VCC', x: 10, y: 25 },
+          { id: 'neg', label: '−', kind: 'ground', role: 'GND', x: 80, y: 25 },
+        ],
+      },
+      {
+        id: 'resistor',
+        name: 'Resistor',
+        description: 'Limits current; use in series with LEDs',
+        icon: '〓',
+        behavior: 'power',
+        props: { resistanceOhms: 1000, ohms: 1000, tolerance: 5, powerW: 0.25 },
+        pins: [
+          { id: 'a', label: 'A', kind: 'digital', role: 'A', x: 10, y: 25 },
+          { id: 'b', label: 'B', kind: 'digital', role: 'B', x: 80, y: 25 },
+        ],
+      },
+      {
+        id: 'capacitor',
+        name: 'Capacitor',
+        description: 'Stores charge; open circuit in DC. Two equal plates, no polarity.',
+        icon: '⊏⊐',
+        behavior: 'power',
+        props: { capacitance: 1e-5, rLeak: 1e8 },
+        pins: [
+          { id: 'a', label: 'A', kind: 'digital', role: 'A', x: 10, y: 25 },
+          { id: 'b', label: 'B', kind: 'digital', role: 'B', x: 80, y: 25 },
+        ],
+      },
+      {
+        id: 'diode',
+        name: 'Diode',
+        description: 'Two-terminal; current flows A → K when forward biased. Silicon Vf ≈ 0.7V.',
+        icon: '▷|',
+        behavior: 'power',
+        props: { vf: 0.7, rOn: 1, vbr: 50, rbr: 10 },
+        pins: [
+          { id: 'A', label: 'A', kind: 'digital', role: 'Anode', x: 10, y: 25 },
+          { id: 'K', label: 'K', kind: 'digital', role: 'Cathode', x: 80, y: 25 },
+        ],
+      },
+      {
+        id: 'inductor',
+        name: 'Inductor',
+        description: 'Stores energy in magnetic field; L (H). Use with flyback diode when switching.',
+        icon: '⌒⌒',
+        behavior: 'power',
+        props: { inductance: 0.001 },
+        pins: [
+          { id: 'a', label: 'A', kind: 'digital', role: 'A', x: 10, y: 25 },
+          { id: 'b', label: 'B', kind: 'digital', role: 'B', x: 80, y: 25 },
+        ],
+      },
+      {
+        id: 'capacitor-polarized',
+        name: 'Electrolytic Capacitor',
+        description: 'Polarized; + must be at higher potential. Reverse voltage damages.',
+        icon: '⊏+⊐',
+        behavior: 'power',
+        props: { capacitance: 1e-5, ratedVoltage: 16, rLeak: 1e8 },
+        pins: [
+          { id: 'P', label: '+', kind: 'digital', role: 'V+', x: 10, y: 25 },
+          { id: 'N', label: '−', kind: 'digital', role: 'V-', x: 80, y: 25 },
+        ],
+      },
+      {
+        id: 'transistor',
+        name: 'Transistor (BJT)',
+        description: 'NPN/PNP transistor with B, C, E pins',
+        icon: '⎍',
+        behavior: 'power',
+        props: { polarity: 'NPN', beta: 100, vbeOn: 0.7, vceSat: 0.2, rBeOn: 1000, rOff: 1e9 },
+        pins: [
+          { id: 'C', label: 'C', kind: 'digital', role: 'C', x: 10, y: 8 },
+          { id: 'B', label: 'B', kind: 'digital', role: 'B', x: 45, y: 42 },
+          { id: 'E', label: 'E', kind: 'digital', role: 'E', x: 80, y: 8 },
+        ],
+      },
+      {
+        id: 'voltmeter',
+        name: 'Voltmeter',
+        description: 'Measures voltage between + and − (high impedance, no circuit loading)',
+        icon: 'V',
+        behavior: 'power',
+        props: { range: 'auto' },
+        pins: [
+          { id: 'pos', label: '+', kind: 'digital', role: 'V+', x: 10, y: 25 },
+          { id: 'neg', label: '−', kind: 'digital', role: 'V-', x: 80, y: 25 },
+        ],
+      },
+    ],
+  },
   {
     id: 'input',
     name: 'Input Devices',
@@ -35,12 +173,13 @@ export const COMPONENT_CATEGORIES: ComponentCategory[] = [
       {
         id: 'push-button',
         name: 'Push Button',
-        description: 'Sends digital HIGH/LOW when pressed or released',
+        description: 'Configurable NO/NC pushbutton: momentary or latch',
         icon: 'push-button',
         behavior: 'input',
+        props: { contact: 'NO', mechanism: 'momentary', latched: false, pressed: false, isClosed: false, rOnOhms: 0.01 },
         pins: [
-          { id: 'pin1', label: '1', kind: 'digital', x: 10, y: 25 },
-          { id: 'pin2', label: '2', kind: 'digital', x: 30, y: 25 }
+          { id: 'P1', label: 'P1', kind: 'digital', role: 'A', x: 10, y: 25 },
+          { id: 'P2', label: 'P2', kind: 'digital', role: 'B', x: 80, y: 25 }
         ]
       },
       {
@@ -50,20 +189,21 @@ export const COMPONENT_CATEGORIES: ComponentCategory[] = [
         icon: '🔀',
         behavior: 'input',
         pins: [
-          { id: 'pin1', label: '1', kind: 'digital', x: 10, y: 25 },
-          { id: 'pin2', label: '2', kind: 'digital', x: 30, y: 25 }
+          { id: 'pin1', label: '1', kind: 'digital', role: 'A', x: 10, y: 25 },
+          { id: 'pin2', label: '2', kind: 'digital', role: 'B', x: 30, y: 25 }
         ]
       },
       {
         id: 'potentiometer',
         name: 'Potentiometer',
-        description: 'Provides analog values (0-4095) via ADC pins',
+        description: '3-terminal voltage divider; IN (CW), OUT (wiper), GND (CCW). Drag knob or use [ ] keys.',
         icon: '🎚️',
         behavior: 'analog',
+        props: { rTotalOhms: 10000, alpha: 0.5, taper: 'linear' },
         pins: [
-          { id: 'vcc', label: 'VCC', kind: 'power', x: 10, y: 10 },
-          { id: 'gnd', label: 'GND', kind: 'ground', x: 10, y: 40 },
-          { id: 'out', label: 'OUT', kind: 'analog', x: 30, y: 25 }
+          { id: 'IN', label: 'IN', kind: 'power', role: 'IN', x: 10, y: 25 },
+          { id: 'OUT', label: 'OUT', kind: 'analog', role: 'OUT', x: 45, y: 8 },
+          { id: 'GND', label: 'GND', kind: 'ground', role: 'GND', x: 80, y: 25 }
         ]
       },
       {
@@ -85,9 +225,9 @@ export const COMPONENT_CATEGORIES: ComponentCategory[] = [
         icon: '👁️',
         behavior: 'digital',
         pins: [
-          { id: 'vcc', label: 'VCC', kind: 'power', x: 10, y: 10 },
-          { id: 'gnd', label: 'GND', kind: 'ground', x: 10, y: 40 },
-          { id: 'out', label: 'OUT', kind: 'digital', x: 30, y: 25 }
+          { id: 'vcc', label: 'VCC', kind: 'power', role: 'VCC', x: 10, y: 10 },
+          { id: 'gnd', label: 'GND', kind: 'ground', role: 'GND', x: 10, y: 40 },
+          { id: 'out', label: 'OUT', kind: 'digital', role: 'OUT', x: 30, y: 25 }
         ]
       },
       {
@@ -97,10 +237,10 @@ export const COMPONENT_CATEGORIES: ComponentCategory[] = [
         icon: '📡',
         behavior: 'digital',
         pins: [
-          { id: 'vcc', label: 'VCC', kind: 'power', x: 10, y: 10 },
-          { id: 'gnd', label: 'GND', kind: 'ground', x: 10, y: 40 },
-          { id: 'trig', label: 'TRIG', kind: 'digital', x: 30, y: 15 },
-          { id: 'echo', label: 'ECHO', kind: 'digital', x: 30, y: 35 }
+          { id: 'vcc', label: 'VCC', kind: 'power', role: 'VCC', x: 10, y: 10 },
+          { id: 'gnd', label: 'GND', kind: 'ground', role: 'GND', x: 10, y: 40 },
+          { id: 'trig', label: 'TRIG', kind: 'digital', role: 'TRIG', x: 30, y: 15 },
+          { id: 'echo', label: 'ECHO', kind: 'digital', role: 'ECHO', x: 30, y: 35 }
         ]
       },
       {
@@ -168,22 +308,23 @@ export const COMPONENT_CATEGORIES: ComponentCategory[] = [
         icon: '💡',
         behavior: 'output',
         pins: [
-          { id: 'anode', label: '+', kind: 'digital', x: 10, y: 20 },
-          { id: 'cathode', label: '-', kind: 'ground', x: 30, y: 20 }
+          { id: 'anode', label: '+', kind: 'digital', role: 'Anode', x: 10, y: 20 },
+          { id: 'cathode', label: '-', kind: 'ground', role: 'Cathode', x: 30, y: 20 }
         ]
       },
       {
         id: 'rgb-led',
         name: 'RGB LED',
-        description: 'Combines red, green, blue to create any color',
+        description: 'Common Cathode or Anode; R, G, B channels with series resistor per channel',
         icon: '🌈',
         behavior: 'output',
         pins: [
-          { id: 'red', label: 'R', kind: 'pwm', x: 10, y: 15 },
-          { id: 'green', label: 'G', kind: 'pwm', x: 20, y: 15 },
-          { id: 'blue', label: 'B', kind: 'pwm', x: 30, y: 15 },
-          { id: 'gnd', label: 'GND', kind: 'ground', x: 20, y: 35 }
-        ]
+          { id: 'R', label: 'R', kind: 'digital', role: 'A', x: 10, y: 15 },
+          { id: 'G', label: 'G', kind: 'digital', role: 'A', x: 20, y: 15 },
+          { id: 'B', label: 'B', kind: 'digital', role: 'A', x: 30, y: 15 },
+          { id: 'COM', label: '−', kind: 'ground', role: 'Cathode', x: 20, y: 35 }
+        ],
+        props: { variantId: 'CC', vfR: 2, vfG: 3, vfB: 3, rdynR: 20, rdynG: 20, rdynB: 20, iref: 0.02 }
       },
       {
         id: 'buzzer',
@@ -192,8 +333,8 @@ export const COMPONENT_CATEGORIES: ComponentCategory[] = [
         icon: '🔊',
         behavior: 'output',
         pins: [
-          { id: 'pos', label: '+', kind: 'digital', x: 10, y: 20 },
-          { id: 'neg', label: '-', kind: 'ground', x: 30, y: 20 }
+          { id: 'pos', label: '+', kind: 'digital', role: 'SIGNAL', x: 10, y: 20 },
+          { id: 'neg', label: '-', kind: 'ground', role: 'GND', x: 30, y: 20 }
         ]
       },
       {
@@ -213,12 +354,23 @@ export const COMPONENT_CATEGORIES: ComponentCategory[] = [
       {
         id: 'dc-motor',
         name: 'DC Motor',
-        description: 'Rotates based on PWM signal',
+        description: 'Current-driven; spins only in closed loop. M+ / M− polarity sets direction.',
         icon: '⚙️',
         behavior: 'output',
         pins: [
-          { id: 'pos', label: '+', kind: 'pwm', x: 10, y: 20 },
-          { id: 'neg', label: '-', kind: 'ground', x: 30, y: 20 }
+          { id: 'a', label: 'M+', kind: 'digital', x: 10, y: 25 },
+          { id: 'b', label: 'M−', kind: 'digital', x: 80, y: 25 }
+        ]
+      },
+      {
+        id: 'ac-motor',
+        name: 'AC Motor',
+        description: 'DC placeholder until AC solver. Spins when current flows.',
+        icon: '🔄',
+        behavior: 'output',
+        pins: [
+          { id: 'a', label: 'L', kind: 'digital', x: 10, y: 25 },
+          { id: 'b', label: 'N', kind: 'digital', x: 80, y: 25 }
         ]
       },
       {
@@ -228,9 +380,9 @@ export const COMPONENT_CATEGORIES: ComponentCategory[] = [
         icon: '🎯',
         behavior: 'output',
         pins: [
-          { id: 'vcc', label: 'VCC', kind: 'power', x: 10, y: 10 },
-          { id: 'gnd', label: 'GND', kind: 'ground', x: 10, y: 40 },
-          { id: 'signal', label: 'SIG', kind: 'pwm', x: 30, y: 25 }
+          { id: 'vcc', label: 'VCC', kind: 'power', role: 'VCC', x: 10, y: 10 },
+          { id: 'gnd', label: 'GND', kind: 'ground', role: 'GND', x: 10, y: 40 },
+          { id: 'signal', label: 'SIG', kind: 'pwm', role: 'PWM', x: 30, y: 25 }
         ]
       },
       {

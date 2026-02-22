@@ -19,6 +19,7 @@ export function ESP32Node({ comp }: { comp: SimComponent }) {
         shadowColor="#000"
         shadowBlur={8}
         shadowOpacity={0.3}
+        strokeScaleEnabled={false}
       />
       
       {/* Title */}
@@ -40,6 +41,7 @@ export function ESP32Node({ comp }: { comp: SimComponent }) {
               fill={pinFill(pin.kind)} 
               stroke="#64748b" 
               strokeWidth={1}
+              strokeScaleEnabled={false}
             />
             <Text 
               text={pin.label} 
@@ -62,6 +64,7 @@ export function ESP32Node({ comp }: { comp: SimComponent }) {
               fill={pinFill(pin.kind)} 
               stroke="#64748b" 
               strokeWidth={1}
+              strokeScaleEnabled={false}
             />
             <Text 
               text={pin.label} 

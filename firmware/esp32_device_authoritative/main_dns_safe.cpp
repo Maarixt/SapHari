@@ -183,6 +183,10 @@ String topic(const char* channel) {
   return "saphari/" + String(DEVICE_ID) + "/" + channel;
 }
 
+String statusOnlineTopic() {
+  return topic("status/online");  // saphari/ID/status/online (dashboard expects this)
+}
+
 // ============= MQTT CALLBACKS =============
 
 void onMqttMessage(char* topic, byte* payload, unsigned int length) {
@@ -251,7 +255,7 @@ void publishState() {
 }
 
 void publishOnline() {
-  mqtt.publish(topic("status").c_str(), "online", true);  // retained
+  mqtt.publish(statusOnlineTopic().c_str(), "online", true);  // retained
   Serial.println("📤 Published: online");
 }
 
@@ -291,12 +295,12 @@ bool connectMQTT() {
   Serial.print(") as ");
   Serial.println(clientId);
   
-  // Connect with LWT (Last Will and Testament)
+  // Connect with LWT (Last Will and Testament) - dashboard expects status/online
   bool connected = mqtt.connect(
     clientId.c_str(),
     NULL,  // username (null for public broker)
     NULL,  // password
-    topic("status").c_str(),  // LWT topic
+    statusOnlineTopic().c_str(),  // LWT topic: saphari/ID/status/online
     1,     // LWT QoS
     true,  // LWT retain
     "offline"  // LWT message

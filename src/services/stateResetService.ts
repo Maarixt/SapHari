@@ -9,6 +9,7 @@
 
 import { clearMQTTCredentials, cancelCredentialRefresh } from './mqttCredentialsManager';
 import { disconnect as disconnectMQTT } from './mqttConnectionService';
+import { getDefaultBridgeClient } from './realtimeBridgeClient';
 import { clearAuthorizedDevices } from './mqttGate';
 
 /**
@@ -108,11 +109,17 @@ export async function resetAllState(): Promise<void> {
   console.log('🧹 Starting complete state reset...');
   
   try {
-    // 1. Disconnect MQTT and clear credentials
-    console.log('🧹 Disconnecting MQTT...');
-    disconnectMQTT();
-    clearMQTTCredentials();
-    cancelCredentialRefresh();
+    const useBridge = import.meta.env.VITE_USE_MQTT_BRIDGE === 'true';
+    if (useBridge) {
+      console.log('🧹 Disconnecting bridge...');
+      getDefaultBridgeClient().disconnect();
+    } else {
+      // 1. Disconnect MQTT and clear credentials
+      console.log('🧹 Disconnecting MQTT...');
+      disconnectMQTT();
+      clearMQTTCredentials();
+      cancelCredentialRefresh();
+    }
     clearAuthorizedDevices(); // Clear authorized devices gate
     
     // 2. Clear in-memory stores

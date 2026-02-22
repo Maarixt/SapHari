@@ -1,10 +1,11 @@
 import { Outlet } from 'react-router-dom';
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from './AppSidebar';
+import { AppBootGate } from '@/components/app/AppBootGate';
 import { OrganizationsProvider, useOrganizations } from '@/hooks/useOrganizations';
 import { OrgOnboarding } from '@/components/organizations/OrgOnboarding';
-import { Skeleton } from '@/components/ui/skeleton';
 import { MQTTProvider } from '@/hooks/useMQTT';
+import { RealtimeProvider } from '@/hooks/useRealtime';
 import { MQTTDebugPanel } from '@/components/debug/MQTTDebugPanel';
 import { Toaster } from 'sonner';
 import { BetaNoticeBanner } from '@/components/beta/BetaNoticeBanner';
@@ -12,29 +13,18 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useMasterAccount } from '@/hooks/useMasterAccount';
 
 function AppLayoutContent() {
-  const { organizations, currentOrg, isLoading, error, refetch } = useOrganizations();
+  const { organizations, currentOrg, error, refetch } = useOrganizations();
   const { signOut } = useAuth();
-
-  // Loading state
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="space-y-4 w-full max-w-md p-8">
-          <Skeleton className="h-12 w-full bg-muted/50" />
-          <Skeleton className="h-32 w-full bg-muted/50" />
-          <Skeleton className="h-32 w-full bg-muted/50" />
-        </div>
-      </div>
-    );
-  }
+  const { isMaster } = useMasterAccount();
 
   // Show error state when organizations query failed (don't confuse with "no orgs")
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
+        <Card className="w-full max-w-md mx-auto">
           <CardHeader className="text-center">
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
               <AlertTriangle className="h-6 w-6 text-destructive" />
@@ -68,30 +58,53 @@ function AppLayoutContent() {
       <BetaNoticeBanner />
       <div className="min-h-screen flex w-full">
         <AppSidebar />
-        <SidebarInset className="flex-1 bg-transparent">
+        <SidebarInset className="flex-1 min-w-0 bg-transparent">
           <header className="h-14 flex items-center gap-4 border-b border-border/50 px-4 lg:px-6 bg-background/60 backdrop-blur-md sticky top-0 z-20">
             <SidebarTrigger />
-            <div className="flex items-center gap-2">
-              <h1 className="font-semibold text-lg">{currentOrg?.name || 'Dashboard'}</h1>
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <h1 className="font-semibold text-lg truncate">{currentOrg?.name || 'Dashboard'}</h1>
             </div>
           </header>
-          <main className="flex-1 p-4 lg:p-6">
+          <main className="flex-1 min-w-0 p-4 lg:p-6">
             <Outlet />
           </main>
         </SidebarInset>
       </div>
-      <MQTTDebugPanel />
+      {isMaster && <MQTTDebugPanel />}
       <Toaster position="top-right" expand richColors closeButton />
     </SidebarProvider>
   );
 }
 
-export function AppLayout() {
+const useBridge = import.meta.env.VITE_USE_MQTT_BRIDGE === 'true';
+
+/** Only mount MQTT when user has at least one org to avoid 401s from mqtt-credentials during onboarding. */
+function AppLayoutWithMQTTGate() {
+  const { organizations } = useOrganizations();
+  if (organizations.length === 0) {
+    return <AppLayoutContent />;
+  }
   return (
     <MQTTProvider>
-      <OrganizationsProvider>
-        <AppLayoutContent />
-      </OrganizationsProvider>
+      <AppLayoutContent />
     </MQTTProvider>
+  );
+}
+
+export function AppLayout() {
+  return useBridge ? (
+    <RealtimeProvider>
+      <OrganizationsProvider>
+        <AppBootGate>
+          <AppLayoutContent />
+        </AppBootGate>
+      </OrganizationsProvider>
+    </RealtimeProvider>
+  ) : (
+    <OrganizationsProvider>
+      <AppBootGate>
+        <AppLayoutWithMQTTGate />
+      </AppBootGate>
+    </OrganizationsProvider>
   );
 }

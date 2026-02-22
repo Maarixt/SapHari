@@ -8,6 +8,7 @@ import Signup from "./pages/Signup";
 import AuthCallback from "./pages/AuthCallback";
 import MasterLogin from "./pages/MasterLogin";
 import MasterDashboard from "./pages/master/MasterDashboard";
+import MasterFeedback from "./pages/master/MasterFeedback";
 import QADiagnostics from "./pages/master/QADiagnostics";
 import MQTTSetup from "./pages/docs/MQTTSetup";
 import NotFound from "./pages/NotFound";
@@ -16,7 +17,6 @@ import { MasterAccountProvider } from "@/hooks/useMasterAccount";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { RequireMaster } from "@/components/auth/RequireRole";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { connectMqtt } from "@/services/mqtt";
 import { NotificationPermissionBanner } from "@/components/alerts/NotificationPermissionBanner";
 import AlertRulesModal from "@/components/alerts/AlertRulesModal";
 import { ThemeProvider } from "@/hooks/useTheme";
@@ -33,9 +33,6 @@ import InvitesPage from "@/pages/app/InvitesPage";
 import SettingsPage from "@/pages/app/SettingsPage";
 
 const queryClient = new QueryClient();
-
-// Initialize MQTT connection
-connectMqtt();
 
 const App = () => (
   <ErrorBoundary>
@@ -83,6 +80,16 @@ const App = () => (
                         <AuthGuard>
                           <RequireMaster>
                             <MasterDashboard />
+                          </RequireMaster>
+                        </AuthGuard>
+                      }
+                    />
+                    <Route
+                      path="/master/feedback"
+                      element={
+                        <AuthGuard>
+                          <RequireMaster>
+                            <MasterFeedback />
                           </RequireMaster>
                         </AuthGuard>
                       }

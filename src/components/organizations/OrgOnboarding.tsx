@@ -44,7 +44,7 @@ export function OrgOnboarding() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex items-center justify-center px-3 py-4 sm:px-4">
       <div className="w-full max-w-2xl space-y-6">
         {/* Pending invites */}
         {pendingInvites.length > 0 && <PendingInvites />}
@@ -63,14 +63,14 @@ export function OrgOnboarding() {
 
           <CardContent>
             {step === 'type' ? (
-              <div className="grid grid-cols-2 gap-4 mt-4">
+              <div className="grid grid-cols-2 gap-3 sm:gap-4 mt-4">
                 {orgTypes.map((type) => (
                   <button
                     key={type.value}
                     onClick={() => handleTypeSelect(type.value)}
                     className={cn(
-                      "p-6 rounded-xl border-2 transition-all hover:border-primary hover:bg-primary/5",
-                      "flex flex-col items-center gap-3 text-center"
+                      "p-4 sm:p-6 rounded-xl border-2 transition-all hover:border-primary hover:bg-primary/5",
+                      "flex flex-col items-center gap-3 text-center min-h-[7rem] sm:min-h-0"
                     )}
                   >
                     <div className="w-16 h-16 rounded-xl bg-muted flex items-center justify-center">

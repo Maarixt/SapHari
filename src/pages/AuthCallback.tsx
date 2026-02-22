@@ -52,7 +52,12 @@ export default function AuthCallback() {
 
         if (data?.session) {
           toast.success('Welcome! You’re signed in.');
-          navigate('/app/devices', { replace: true });
+          const returnTo = sessionStorage.getItem('saphari.returnTo');
+          sessionStorage.removeItem('saphari.returnTo');
+          const allowed =
+            returnTo &&
+            (returnTo.startsWith('/app') || returnTo === '/master' || returnTo.startsWith('/master/'));
+          navigate(allowed ? returnTo : '/app/devices', { replace: true });
         } else {
           navigate('/login', { replace: true });
         }
