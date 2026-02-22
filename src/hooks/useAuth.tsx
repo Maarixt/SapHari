@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useRef } from 'react';
+import { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { initializeSessionManager } from '@/services/sessionManager';
@@ -16,6 +16,10 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  /** True when Supabase fired PASSWORD_RECOVERY (user landed from reset-email link). */
+  isPasswordRecovery: boolean;
+  /** Call after user has set a new password so recovery UI can be cleared. */
+  setRecoveryHandled: () => void;
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string, profile?: SignupProfile) => Promise<{ session: Session | null }>;
   signOut: () => Promise<void>;
@@ -25,6 +29,8 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   session: null,
   loading: true,
+  isPasswordRecovery: false,
+  setRecoveryHandled: () => {},
   login: async () => {},
   signup: async () => ({ session: null }),
   signOut: async () => {},
@@ -36,7 +42,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
   const previousUserIdRef = useRef<string | null>(null);
+
+  const setRecoveryHandled = useCallback(() => setIsPasswordRecovery(false), []);
 
   useEffect(() => {
     // Initialize session manager first
@@ -46,6 +55,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log(`🔐 Auth event: ${event}, user: ${session?.user?.id?.substring(0, 8) || 'none'}`);
+        
+        if (event === 'PASSWORD_RECOVERY') {
+          setIsPasswordRecovery(true);
+        }
         
         const newUserId = session?.user?.id || null;
         const previousUserId = previousUserIdRef.current;
@@ -60,6 +73,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (event === 'SIGNED_OUT' || !session) {
           console.log('🔐 SIGNED_OUT - resetting all state');
           await resetAllState();
+          setIsPasswordRecovery(false);
         }
         
         // Update refs and state
@@ -181,7 +195,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, login, signup, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, isPasswordRecovery, setRecoveryHandled, login, signup, signOut }}>
       {children}
     </AuthContext.Provider>
   );

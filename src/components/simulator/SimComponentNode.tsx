@@ -282,7 +282,7 @@ const SimComponentNodeInner = ({ comp, selected: selectedProp, junctionWireCount
           onClick={onPinClick}
           onTap={onPinClick}
           onPointerDown={onPinPointerDown}
-          onPointerUp={onPointerUp}
+          onPointerUp={onPinPointerUp}
         />
       </Group>
     );

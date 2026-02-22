@@ -105,7 +105,19 @@ export const LoginForm = ({ initialMode = 'login' }: LoginFormProps) => {
               {isLoading ? 'Loading...' : (isSignUp ? 'Sign Up' : 'Sign In')}
             </Button>
           </form>
-          <div className="mt-4 space-y-2 text-center">
+            <div className="mt-4 space-y-2 text-center">
+            {!isSignUp && (
+              <div className="mb-2">
+                <Button
+                  variant="link"
+                  onClick={() => navigate('/forgot-password')}
+                  disabled={isLoading}
+                  className="text-teal-600 dark:text-teal-400 text-sm"
+                >
+                  Forgot password?
+                </Button>
+              </div>
+            )}
             <Button
               variant="link"
               onClick={() => {

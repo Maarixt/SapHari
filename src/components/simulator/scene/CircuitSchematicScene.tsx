@@ -153,7 +153,7 @@ function SchematicDCSource({
       <Line points={[-8, -6, -8, 6]} stroke="#94a3b8" strokeWidth={2} strokeScaleEnabled={false} listening={false} />
       <Line points={[4, -2, 4, 2]} stroke="#94a3b8" strokeWidth={2} strokeScaleEnabled={false} listening={false} />
       <Text x={-10} y={-14} text={label} fontSize={10} fill="#e2e8f0" listening={false} />
-      <PinNode x={lx} y={ly} pinId="out" compId={comp.id} kind={kind === 'gnd' ? 'ground' : 'power'} radius={5} onClick={onPinClick} onTap={onPinClick} onPointerDown={onPinPointerDown} onPointerUp={onPointerUp} />
+      <PinNode x={lx} y={ly} pinId="out" compId={comp.id} kind={kind === 'gnd' ? 'ground' : 'power'} radius={5} onClick={onPinClick} onTap={onPinClick} onPointerDown={onPinPointerDown} onPointerUp={onPinPointerUp} />
     </Group>
   );
 }
@@ -190,7 +190,7 @@ function SchematicGround({
       <Line points={[-8, 0, 8, 0]} stroke="#64748b" strokeWidth={2} strokeScaleEnabled={false} listening={false} />
       <Line points={[-5, 4, 5, 4]} stroke="#64748b" strokeWidth={2} strokeScaleEnabled={false} listening={false} />
       <Line points={[-2, 8, 2, 8]} stroke="#64748b" strokeWidth={2} strokeScaleEnabled={false} listening={false} />
-      <PinNode x={lx} y={ly} pinId={pinId} compId={comp.id} kind="ground" radius={5} onClick={onPinClick} onTap={onPinClick} onPointerDown={onPinPointerDown} onPointerUp={onPointerUp} />
+      <PinNode x={lx} y={ly} pinId={pinId} compId={comp.id} kind="ground" radius={5} onClick={onPinClick} onTap={onPinClick} onPointerDown={onPinPointerDown} onPointerUp={onPinPointerUp} />
     </Group>
   );
 }
@@ -230,8 +230,8 @@ function SchematicSPST({
       <Line points={[ax, ay, midX, midY]} stroke="#94a3b8" strokeWidth={2} strokeScaleEnabled={false} listening={false} />
       {!closed && <Line points={[midX, midY, bx, by]} stroke="#94a3b8" strokeWidth={2} strokeScaleEnabled={false} listening={false} dash={[4, 2]} />}
       {closed && <Line points={[midX, midY, bx, by]} stroke="#94a3b8" strokeWidth={2} strokeScaleEnabled={false} listening={false} />}
-      <PinNode x={ax} y={ay} pinId="a" compId={comp.id} radius={5} onClick={onPinClick} onTap={onPinClick} onPointerDown={onPinPointerDown} onPointerUp={onPointerUp} />
-      <PinNode x={bx} y={by} pinId="b" compId={comp.id} radius={5} onClick={onPinClick} onTap={onPinClick} onPointerDown={onPinPointerDown} onPointerUp={onPointerUp} />
+      <PinNode x={ax} y={ay} pinId="a" compId={comp.id} radius={5} onClick={onPinClick} onTap={onPinClick} onPointerDown={onPinPointerDown} onPointerUp={onPinPointerUp} />
+      <PinNode x={bx} y={by} pinId="b" compId={comp.id} radius={5} onClick={onPinClick} onTap={onPinClick} onPointerDown={onPinPointerDown} onPointerUp={onPinPointerUp} />
     </Group>
   );
 }
@@ -277,8 +277,8 @@ function SchematicResistor({
   return (
     <Group x={comp.x} y={comp.y} draggable onDragEnd={(e) => onDragEnd(comp.id, e.target.x(), e.target.y())} onClick={(e) => onSelect(comp.id, e.evt.shiftKey)}>
       <Line points={zig} stroke="#cbd5e1" strokeWidth={1.5} strokeScaleEnabled={false} listening={false} />
-      <PinNode x={ax} y={ay} pinId={comp.pins[0]?.id ?? 'a'} compId={comp.id} radius={5} onClick={onPinClick} onTap={onPinClick} onPointerDown={onPinPointerDown} onPointerUp={onPointerUp} />
-      <PinNode x={bx} y={by} pinId={comp.pins[1]?.id ?? 'b'} compId={comp.id} radius={5} onClick={onPinClick} onTap={onPinClick} onPointerDown={onPinPointerDown} onPointerUp={onPointerUp} />
+      <PinNode x={ax} y={ay} pinId={comp.pins[0]?.id ?? 'a'} compId={comp.id} radius={5} onClick={onPinClick} onTap={onPinClick} onPointerDown={onPinPointerDown} onPointerUp={onPinPointerUp} />
+      <PinNode x={bx} y={by} pinId={comp.pins[1]?.id ?? 'b'} compId={comp.id} radius={5} onClick={onPinClick} onTap={onPinClick} onPointerDown={onPinPointerDown} onPointerUp={onPinPointerUp} />
     </Group>
   );
 }
@@ -318,8 +318,8 @@ function SchematicLED({
       <Line points={[mx + 8, my, cx, cy]} stroke="#94a3b8" strokeWidth={1.5} strokeScaleEnabled={false} listening={false} />
       <Line points={[mx - 6, my - 6, mx + 6, my + 6]} stroke={on ? color : '#64748b'} strokeWidth={2} strokeScaleEnabled={false} listening={false} />
       <Line points={[mx - 6, my + 6, mx + 6, my - 6]} stroke={on ? color : '#64748b'} strokeWidth={2} strokeScaleEnabled={false} listening={false} />
-      <PinNode x={ax} y={ay} pinId="anode" compId={comp.id} radius={5} onClick={onPinClick} onTap={onPinClick} onPointerDown={onPinPointerDown} onPointerUp={onPointerUp} />
-      <PinNode x={cx} y={cy} pinId="cathode" compId={comp.id} radius={5} onClick={onPinClick} onTap={onPinClick} onPointerDown={onPinPointerDown} onPointerUp={onPointerUp} />
+      <PinNode x={ax} y={ay} pinId="anode" compId={comp.id} radius={5} onClick={onPinClick} onTap={onPinClick} onPointerDown={onPinPointerDown} onPointerUp={onPinPointerUp} />
+      <PinNode x={cx} y={cy} pinId="cathode" compId={comp.id} radius={5} onClick={onPinClick} onTap={onPinClick} onPointerDown={onPinPointerDown} onPointerUp={onPinPointerUp} />
     </Group>
   );
 }
@@ -356,7 +356,7 @@ function SchematicESP32({
         const lx = pos.x - comp.x, ly = pos.y - comp.y;
         return (
           <React.Fragment key={pin.id}>
-            <PinNode x={lx} y={ly} pinId={pin.id} compId={comp.id} radius={5} onClick={onPinClick} onTap={onPinClick} onPointerDown={onPinPointerDown} onPointerUp={onPointerUp} />
+            <PinNode x={lx} y={ly} pinId={pin.id} compId={comp.id} radius={5} onClick={onPinClick} onTap={onPinClick} onPointerDown={onPinPointerDown} onPointerUp={onPinPointerUp} />
             <Text x={lx + 6} y={ly - 5} text={pin.label} fontSize={8} fill="#94a3b8" listening={false} />
           </React.Fragment>
         );
@@ -385,7 +385,7 @@ function SchematicJunction({ comp, simState, isSelected, onSelect, onDelete, onD
   return (
     <Group x={comp.x} y={comp.y} draggable onDragEnd={(e) => onDragEnd(comp.id, e.target.x(), e.target.y())} onClick={(e) => onSelect(comp.id, e.evt.shiftKey)}>
       {hasMultipleBranches && <Circle x={lx} y={ly} radius={8} fill="transparent" stroke="#94a3b8" strokeWidth={1.5} strokeScaleEnabled={false} listening={false} />}
-      <PinNode x={lx} y={ly} pinId="J" compId={comp.id} kind="ground" radius={radius} onClick={onPinClick} onTap={onPinClick} onPointerDown={onPinPointerDown} onPointerUp={onPointerUp} />
+      <PinNode x={lx} y={ly} pinId="J" compId={comp.id} kind="ground" radius={radius} onClick={onPinClick} onTap={onPinClick} onPointerDown={onPinPointerDown} onPointerUp={onPinPointerUp} />
     </Group>
   );
 }
@@ -495,7 +495,7 @@ function SchematicFallback({
         if (!pos) return null;
         const lx = pos.x - comp.x, ly = pos.y - comp.y;
         return (
-          <PinNode key={pin.id} x={lx} y={ly} pinId={pin.id} compId={comp.id} radius={5} onClick={onPinClick} onTap={onPinClick} onPointerDown={onPinPointerDown} onPointerUp={onPointerUp} />
+          <PinNode key={pin.id} x={lx} y={ly} pinId={pin.id} compId={comp.id} radius={5} onClick={onPinClick} onTap={onPinClick} onPointerDown={onPinPointerDown} onPointerUp={onPinPointerUp} />
         );
       })}
     </Group>

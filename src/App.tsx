@@ -6,6 +6,8 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import AuthCallback from "./pages/AuthCallback";
+import ForgotPassword from "./pages/ForgotPassword";
+import UpdatePassword from "./pages/UpdatePassword";
 import MasterLogin from "./pages/MasterLogin";
 import MasterDashboard from "./pages/master/MasterDashboard";
 import MasterFeedback from "./pages/master/MasterFeedback";
@@ -50,6 +52,8 @@ const App = () => (
                   <Routes>
                     <Route path="/login" element={<Login />} />
                     <Route path="/signup" element={<Signup />} />
+                    <Route path="/forgot-password" element={<ForgotPassword />} />
+                    <Route path="/update-password" element={<UpdatePassword />} />
                     <Route path="/auth/callback" element={<AuthCallback />} />
                     <Route path="/master-login" element={<MasterLogin />} />
                     
