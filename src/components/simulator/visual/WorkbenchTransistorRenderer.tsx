@@ -58,7 +58,7 @@ export function WorkbenchTransistorRenderer({
       onClick={(e) => onSelect(comp.id, (e.evt as MouseEvent).shiftKey)}
       onTap={(e) => onSelect(comp.id, (e.evt as MouseEvent).shiftKey)}
     >
-      <Rect x={0} y={0} width={FP.w} height={FP.h} fill="transparent" listening={false} />
+      <Rect x={0} y={0} width={FP.w} height={FP.h} fill="transparent" listening={true} />
       <Rect
         x={bodyX}
         y={bodyY}

@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 
 interface AppBackgroundProps {
@@ -93,6 +93,25 @@ export function AppBackground({ children, className }: AppBackgroundProps) {
 }
 
 function CircuitOverlay() {
+  const [size, setSize] = useState({ w: 0, h: 0 });
+
+  useEffect(() => {
+    const update = () => setSize({ w: window.innerWidth, h: window.innerHeight });
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
+
+  const { w, h } = size;
+  const p30x = 0.3 * w;
+  const p40x = 0.4 * w;
+  const p60x = 0.6 * w;
+  const p70x = 0.7 * w;
+  const p30y = 0.3 * h;
+  const p40y = 0.4 * h;
+  const p60y = 0.6 * h;
+  const p70y = 0.7 * h;
+
   return (
     <svg 
       className="fixed inset-0 -z-30 w-full h-full pointer-events-none"
@@ -114,7 +133,7 @@ function CircuitOverlay() {
         </linearGradient>
       </defs>
 
-      {/* Static circuit trace paths */}
+      {/* Static circuit trace paths - numbers only (no calc/%) */}
       <g 
         stroke="url(#circuit-static-teal)" 
         strokeWidth="1.5" 
@@ -127,22 +146,22 @@ function CircuitOverlay() {
         <path d="M 80 160 H 220 V 70 H 320" strokeDasharray="6 3" />
         
         {/* Top-right circuit cluster */}
-        <path d="M 100% 40 H calc(100% - 180px) V 130 H calc(100% - 320px)" strokeDasharray="10 5" />
-        <path d="M calc(100% - 80px) 0 V 100 H calc(100% - 220px) V 180" strokeDasharray="8 4" />
-        <path d="M calc(100% - 60px) 200 H calc(100% - 280px) V 60" strokeDasharray="6 3" />
+        <path d={`M ${w} 40 H ${w - 180} V 130 H ${w - 320}`} strokeDasharray="10 5" />
+        <path d={`M ${w - 80} 0 V 100 H ${w - 220} V 180`} strokeDasharray="8 4" />
+        <path d={`M ${w - 60} 200 H ${w - 280} V 60`} strokeDasharray="6 3" />
         
         {/* Bottom-left circuit cluster */}
-        <path d="M 0 calc(100% - 120px) H 180 V calc(100% - 60px) H 360" strokeDasharray="12 6" />
-        <path d="M 120 100% V calc(100% - 80px) H 280" strokeDasharray="8 4" />
-        <path d="M 60 calc(100% - 200px) H 240 V calc(100% - 100px)" strokeDasharray="6 3" />
+        <path d={`M 0 ${h - 120} H 180 V ${h - 60} H 360`} strokeDasharray="12 6" />
+        <path d={`M 120 ${h} V ${h - 80} H 280`} strokeDasharray="8 4" />
+        <path d={`M 60 ${h - 200} H 240 V ${h - 100}`} strokeDasharray="6 3" />
         
         {/* Bottom-right circuit cluster */}
-        <path d="M 100% calc(100% - 80px) H calc(100% - 220px) V calc(100% - 180px)" strokeDasharray="10 5" />
-        <path d="M calc(100% - 40px) 100% V calc(100% - 130px) H calc(100% - 180px)" strokeDasharray="8 4" />
+        <path d={`M ${w} ${h - 80} H ${w - 220} V ${h - 180}`} strokeDasharray="10 5" />
+        <path d={`M ${w - 40} ${h} V ${h - 130} H ${w - 180}`} strokeDasharray="8 4" />
         
         {/* Center diagonal traces */}
-        <path d="M 30% 30% L 40% 40% H 60% L 70% 30%" strokeDasharray="15 8" />
-        <path d="M 30% 70% L 40% 60% H 60% L 70% 70%" strokeDasharray="15 8" />
+        <path d={`M ${p30x} ${p30y} L ${p40x} ${p40y} H ${p60x} L ${p70x} ${p30y}`} strokeDasharray="15 8" />
+        <path d={`M ${p30x} ${p70y} L ${p40x} ${p60y} H ${p60x} L ${p70x} ${p70y}`} strokeDasharray="15 8" />
       </g>
 
       {/* Animated pulse overlay - only visible when motion is allowed */}
@@ -166,7 +185,7 @@ function CircuitOverlay() {
           />
         </path>
         <path 
-          d="M 100% calc(100% - 80px) H calc(100% - 220px) V calc(100% - 180px)"
+          d={`M ${w} ${h - 80} H ${w - 220} V ${h - 180}`}
           stroke="hsl(199 89% 48%)"
           strokeWidth="2"
           strokeDasharray="15 150"
@@ -181,7 +200,7 @@ function CircuitOverlay() {
           />
         </path>
         <path 
-          d="M 30% 30% L 40% 40% H 60% L 70% 30%"
+          d={`M ${p30x} ${p30y} L ${p40x} ${p40y} H ${p60x} L ${p70x} ${p30y}`}
           stroke="hsl(168 76% 50%)"
           strokeWidth="2"
           strokeDasharray="10 120"
@@ -204,8 +223,8 @@ function CircuitOverlay() {
         <circle cx="180" cy="120" r="3" fill="hsl(168 76% 50%)" />
         <circle cx="160" cy="60" r="3" fill="hsl(199 89% 48%)" />
         <circle cx="220" cy="160" r="4" fill="hsl(168 76% 50%)" />
-        <circle cx="40%" cy="40%" r="5" fill="hsl(168 76% 50%)" />
-        <circle cx="60%" cy="40%" r="5" fill="hsl(199 89% 48%)" />
+        <circle cx={p40x} cy={p40y} r="5" fill="hsl(168 76% 50%)" />
+        <circle cx={p60x} cy={p40y} r="5" fill="hsl(199 89% 48%)" />
       </g>
     </svg>
   );

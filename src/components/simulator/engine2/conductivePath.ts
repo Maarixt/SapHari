@@ -222,6 +222,17 @@ export function buildTopologyAdjacency(
       }
       continue;
     }
+    if ((c.type as string) === 'solar_panel') {
+      const irradiance = (c.props?.irradiance as number) ?? 0;
+      if (irradiance > 0) {
+        const posNet = pinToNetId[pinKey(c.id, 'pos')];
+        const negNet = pinToNetId[pinKey(c.id, 'neg')];
+        if (posNet && negNet && posNet !== negNet) {
+          ensure(posNet).add(negNet);
+        }
+      }
+      continue;
+    }
     if (c.type === 'rgb_led') {
       const netR = pinToNetId[pinKey(c.id, 'R')];
       const netG = pinToNetId[pinKey(c.id, 'G')];
@@ -238,6 +249,15 @@ export function buildTopologyAdjacency(
       if (netP && netN && netP !== netN) {
         ensure(netP).add(netN);
         ensure(netN).add(netP);
+      }
+      continue;
+    }
+    if ((c.type as string) === 'solar_panel') {
+      const netPos = pinToNetId[pinKey(c.id, 'pos')];
+      const netNeg = pinToNetId[pinKey(c.id, 'neg')];
+      if (netPos && netNeg && netPos !== netNeg) {
+        ensure(netPos).add(netNeg);
+        ensure(netNeg).add(netPos);
       }
       continue;
     }

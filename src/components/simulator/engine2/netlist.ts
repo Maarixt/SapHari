@@ -24,6 +24,10 @@ import {
   R_ON_DIODE_DEFAULT,
   V_BR_DIODE,
   R_BR_DIODE,
+  VOC_PV_DEFAULT,
+  ISC_PV_DEFAULT,
+  IRRADIANCE_DEFAULT,
+  PV_CURVE_K,
 } from './models';
 
 export interface Netlist {
@@ -515,6 +519,29 @@ export function buildNetlist(
         vceSat: Math.max(0.05, (c.props?.vceSat as number) ?? 0.2),
         rBeOn: Math.max(10, (c.props?.rBeOn as number) ?? 1000),
         rOff: 1e9,
+        floating,
+      });
+      continue;
+    }
+    if ((c.type as string) === 'solar_panel') {
+      const pins = getCanonicalPinIds(c);
+      if (isComponentFloating(c, pins, nets, pinToNetId)) continue;
+      const aNode = getNode(c.id, 'pos');
+      const bNode = getNode(c.id, 'neg');
+      const floating = aNode === undefined || bNode === undefined;
+      const vocRef = Math.max(0.1, (c.props?.vocRef as number) ?? VOC_PV_DEFAULT);
+      const iscRef = Math.max(0, (c.props?.iscRef as number) ?? ISC_PV_DEFAULT);
+      const irradiance = Math.max(0, Math.min(1000, (c.props?.irradiance as number) ?? IRRADIANCE_DEFAULT));
+      const k = Math.max(1, Math.min(20, (c.props?.k as number) ?? PV_CURVE_K));
+      solverComponents.push({
+        type: 'SolarPanel',
+        id: c.id,
+        aNode: aNode ?? 0,
+        bNode: bNode ?? 0,
+        vocRef,
+        iscRef,
+        irradiance,
+        k,
         floating,
       });
       continue;

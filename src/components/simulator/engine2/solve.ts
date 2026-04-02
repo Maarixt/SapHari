@@ -7,7 +7,8 @@ import type { SimState } from '../types';
 import { buildNets } from './nets';
 import { buildNetlist, type Netlist } from './netlist';
 import { buildMNA, solveMNA, type BuildMNAOptions } from './mna';
-import type { NetlistComponent, LedOutput, RgbLedOutput, MotorOutput, VoltmeterOutput, PotOutput, TransistorOutput, BuzzerOutput, CapacitorOutput, DiodeOutput } from './models';
+import type { NetlistComponent, LedOutput, RgbLedOutput, MotorOutput, VoltmeterOutput, PotOutput, TransistorOutput, BuzzerOutput, CapacitorOutput, DiodeOutput, SolarPanelOutput } from './models';
+import { pvCurrent } from './models';
 import {
   R_ON_LED,
   R_OFF_LED,
@@ -40,7 +41,7 @@ export interface SolveResult {
   netVoltagesById: Record<string, number>;
   nodeVoltagesByNetId: Record<string, number>;
   branchCurrentsByComponentId: Record<string, number>;
-  outputsByComponentId: Record<string, LedOutput | RgbLedOutput | MotorOutput | VoltmeterOutput | PotOutput | TransistorOutput | BuzzerOutput | CapacitorOutput | DiodeOutput>;
+  outputsByComponentId: Record<string, LedOutput | RgbLedOutput | MotorOutput | VoltmeterOutput | PotOutput | TransistorOutput | BuzzerOutput | CapacitorOutput | DiodeOutput | SolarPanelOutput>;
   debugReport: import('./debug').DebugReport;
   singular: boolean;
   warnings: string[];
@@ -90,6 +91,9 @@ type TransSolveState = {
 
 type TransMeta = Extract<NetlistComponent, { type: 'Transistor' }>;
 type DiodeMeta = Extract<NetlistComponent, { type: 'Diode' }>;
+type PvMeta = Extract<NetlistComponent, { type: 'SolarPanel' }>;
+
+const PV_OP_TOL = 1e-6;
 
 function evaluateTransistor(meta: TransMeta, nodeVoltages: number[]): TransSolveState {
   const vb = nodeVoltages[meta.bNode] ?? 0;
@@ -134,13 +138,14 @@ export function solveCircuit(state: SimState): SolveResult {
   let ledStates = new Map<string, boolean>();
   let transistorStates = new Map<string, TransSolveState>();
   let diodeStates = new Map<string, DiodeState>();
+  let pvOperatingPoints = new Map<string, number>();
   let netlist = buildNetlist(netsResult, components, ledStates);
   warnings.push(...netlist.warnings);
 
   let iter = 0;
   while (iter < MAX_LED_ITER) {
     const expanded = expandForSolve(state, netlist.components, netlist.nNodes, ledStates, transistorStates, diodeStates);
-    const ctx = buildMNA(expanded.components, expanded.nNodes, { diodeStates });
+    const ctx = buildMNA(expanded.components, expanded.nNodes, { diodeStates, pvOperatingPoints });
     let sol = solveMNA(ctx);
     if (sol.singular) {
       // gmin stabilization retry
@@ -153,7 +158,7 @@ export function solveCircuit(state: SimState): SolveResult {
       return buildDebugAndOutputs(
         state,
         netsResult,
-        { ...netlist, components: expanded.components, nNodes: expanded.nNodes, _ledMeta: expanded.ledMeta, _transMeta: expanded.transMeta, _transState: transistorStates, _diodeMeta: expanded.diodeMeta, _diodeStates: diodeStates } as any,
+        { ...netlist, components: expanded.components, nNodes: expanded.nNodes, _ledMeta: expanded.ledMeta, _transMeta: expanded.transMeta, _transState: transistorStates, _diodeMeta: expanded.diodeMeta, _diodeStates: diodeStates, _pvMeta: expanded.pvMeta } as any,
         sol.nodeVoltages,
         sol.vsourceCurrents,
         sol.singular,
@@ -208,12 +213,23 @@ export function solveCircuit(state: SimState): SolveResult {
         changed = true;
       }
     }
+    for (const pv of expanded.pvMeta) {
+      const va = nodeVoltages[pv.aNode] ?? 0;
+      const vb = nodeVoltages[pv.bNode] ?? 0;
+      const vNew = va - vb;
+      const vPrev = pvOperatingPoints.get(pv.id);
+      if (vPrev === undefined || Math.abs(vNew - vPrev) >= PV_OP_TOL) {
+        if (!changed) pvOperatingPoints = new Map(pvOperatingPoints);
+        pvOperatingPoints.set(pv.id, vNew);
+        changed = true;
+      }
+    }
     if (!changed) break;
     iter++;
   }
 
   const expanded = expandForSolve(state, netlist.components, netlist.nNodes, ledStates, transistorStates, diodeStates);
-  const ctx = buildMNA(expanded.components, expanded.nNodes, { diodeStates });
+  const ctx = buildMNA(expanded.components, expanded.nNodes, { diodeStates, pvOperatingPoints });
   let sol = solveMNA(ctx);
   if (sol.singular) {
     applyGmin(ctx, GMIN);
@@ -223,7 +239,7 @@ export function solveCircuit(state: SimState): SolveResult {
   return buildDebugAndOutputs(
     state,
     netsResult,
-    { ...netlist, components: expanded.components, nNodes: expanded.nNodes, _ledMeta: expanded.ledMeta, _transMeta: expanded.transMeta, _transState: transistorStates, _diodeMeta: expanded.diodeMeta, _diodeStates: diodeStates } as any,
+    { ...netlist, components: expanded.components, nNodes: expanded.nNodes, _ledMeta: expanded.ledMeta, _transMeta: expanded.transMeta, _diodeMeta: expanded.diodeMeta, _diodeStates: diodeStates, _pvMeta: expanded.pvMeta } as any,
     sol.nodeVoltages,
     sol.vsourceCurrents,
     sol.singular ?? false,
@@ -240,6 +256,7 @@ export interface TransientState {
   ledStates: Map<string, boolean>;
   transistorStates: Map<string, TransSolveState>;
   diodeStates: Map<string, DiodeState>;
+  pvOperatingPoints: Map<string, number>;
 }
 
 /** One transient step: stamp caps with BE companion, solve, postStep update vPrev, return SolveResult with cap branch currents. */
@@ -259,12 +276,13 @@ export function stepTransient(
     inductorIPrev: transientState.inductorIPrev,
     diodeStates: transientState.diodeStates,
     transientTime,
+    pvOperatingPoints: transientState.pvOperatingPoints,
   };
   let expanded: ReturnType<typeof expandForSolve> = expandForSolve(state, netlist.components, netlist.nNodes, transientState.ledStates, transientState.transistorStates, transientState.diodeStates);
   let sol: ReturnType<typeof solveMNA> = { nodeVoltages: [], vsourceCurrents: {}, singular: true };
   let innerIter = 0;
   while (innerIter < MAX_TRANSIENT_NONLINEAR_ITER) {
-    const ctx = buildMNA(expanded.components, expanded.nNodes, mnaOptsBase);
+    const ctx = buildMNA(expanded.components, expanded.nNodes, { ...mnaOptsBase, pvOperatingPoints: transientState.pvOperatingPoints });
     sol = solveMNA(ctx);
     if (sol.singular) {
       applyGmin(ctx, GMIN);
@@ -307,6 +325,16 @@ export function stepTransient(
       } else next = vd > d.vf + DIODE_VF_HYSTERESIS ? 'ON' : 'OFF';
       if (next !== prev) {
         transientState.diodeStates.set(d.id, next);
+        changed = true;
+      }
+    }
+    for (const pv of expanded.pvMeta) {
+      const va = nodeVoltages[pv.aNode] ?? 0;
+      const vb = nodeVoltages[pv.bNode] ?? 0;
+      const vNew = va - vb;
+      const vPrev = transientState.pvOperatingPoints.get(pv.id);
+      if (vPrev === undefined || Math.abs(vNew - vPrev) >= PV_OP_TOL) {
+        transientState.pvOperatingPoints.set(pv.id, vNew);
         changed = true;
       }
     }
@@ -354,11 +382,12 @@ export function runTransient(
   let ledStates = new Map<string, boolean>();
   let transistorStates = new Map<string, TransSolveState>();
   let diodeStates = new Map<string, DiodeState>();
+  let pvOperatingPoints = new Map<string, number>();
   let netlist = buildNetlist(netsResult, state.components, ledStates);
   let iter = 0;
   while (iter < MAX_LED_ITER) {
     const expanded = expandForSolve(state, netlist.components, netlist.nNodes, ledStates, transistorStates, diodeStates);
-    const ctx = buildMNA(expanded.components, expanded.nNodes, { diodeStates });
+    const ctx = buildMNA(expanded.components, expanded.nNodes, { diodeStates, pvOperatingPoints });
     let sol = solveMNA(ctx);
     if (sol.singular) {
       applyGmin(ctx, GMIN);
@@ -406,6 +435,17 @@ export function runTransient(
         changed = true;
       }
     }
+    for (const pv of expanded.pvMeta) {
+      const va = nodeVoltages[pv.aNode] ?? 0;
+      const vb = nodeVoltages[pv.bNode] ?? 0;
+      const vNew = va - vb;
+      const vPrev = pvOperatingPoints.get(pv.id);
+      if (vPrev === undefined || Math.abs(vNew - vPrev) >= PV_OP_TOL) {
+        if (!changed) pvOperatingPoints = new Map(pvOperatingPoints);
+        pvOperatingPoints.set(pv.id, vNew);
+        changed = true;
+      }
+    }
     if (!changed) break;
     iter++;
   }
@@ -421,6 +461,7 @@ export function runTransient(
     ledStates,
     transistorStates,
     diodeStates,
+    pvOperatingPoints,
   };
   let lastResult: SolveResult = solveCircuit(state);
   const nSteps = Math.max(1, Math.floor(duration / dt));
@@ -445,15 +486,21 @@ function expandForSolve(
   ledStates: Map<string, boolean>,
   transistorStates: Map<string, TransSolveState>,
   diodeStates: Map<string, DiodeState>
-): { components: NetlistComponent[]; nNodes: number; ledMeta: LedMeta[]; transMeta: TransMeta[]; diodeMeta: DiodeMeta[] } {
+): { components: NetlistComponent[]; nNodes: number; ledMeta: LedMeta[]; transMeta: TransMeta[]; diodeMeta: DiodeMeta[]; pvMeta: PvMeta[] } {
   let nextNode = nNodesBase;
   const out: NetlistComponent[] = [];
   const ledMeta: LedMeta[] = [];
   const transMeta: TransMeta[] = [];
   const diodeMeta: DiodeMeta[] = [];
+  const pvMeta: PvMeta[] = [];
   for (const c of base) {
     if (c.type === 'Diode') {
       if (!c.floating) diodeMeta.push(c);
+      out.push(c);
+      continue;
+    }
+    if (c.type === 'SolarPanel') {
+      if (!c.floating) pvMeta.push(c);
       out.push(c);
       continue;
     }
@@ -518,13 +565,13 @@ function expandForSolve(
     out.push({ type: 'VSource', id: `led:${c.id}:vf`, pNode: mid, nNode: c.bNode, voltage: c.vf });
     ledMeta.push(meta);
   }
-  return { components: out, nNodes: nextNode, ledMeta, transMeta, diodeMeta };
+  return { components: out, nNodes: nextNode, ledMeta, transMeta, diodeMeta, pvMeta };
 }
 
 function buildDebugAndOutputs(
   state: SimState,
   netsResult: { pinToNetId: Record<string, string>; nets: Map<string, { id: string; pins: string[] }> },
-  netlist: { nodeIndexByNetId: Map<string, number>; components: NetlistComponent[]; nNodes: number; _ledMeta?: LedMeta[]; _transMeta?: TransMeta[]; _transState?: Map<string, TransSolveState>; _diodeMeta?: DiodeMeta[]; _diodeStates?: Map<string, DiodeState>; groundNetId?: string | null },
+  netlist: { nodeIndexByNetId: Map<string, number>; components: NetlistComponent[]; nNodes: number; _ledMeta?: LedMeta[]; _transMeta?: TransMeta[]; _transState?: Map<string, TransSolveState>; _diodeMeta?: DiodeMeta[]; _diodeStates?: Map<string, DiodeState>; _pvMeta?: PvMeta[]; groundNetId?: string | null },
   nodeVoltages: number[],
   vsourceCurrents: Record<string, number>,
   singular: boolean,
@@ -542,7 +589,7 @@ function buildDebugAndOutputs(
   }
 
   const branchCurrentsByComponentId: Record<string, number> = {};
-  const outputsByComponentId: Record<string, LedOutput | RgbLedOutput | MotorOutput | VoltmeterOutput | PotOutput | TransistorOutput | BuzzerOutput | CapacitorOutput | DiodeOutput> = {};
+  const outputsByComponentId: Record<string, LedOutput | RgbLedOutput | MotorOutput | VoltmeterOutput | PotOutput | TransistorOutput | BuzzerOutput | CapacitorOutput | DiodeOutput | SolarPanelOutput> = {};
 
   for (const c of netlist.components) {
     if (c.type === 'VSource') {
@@ -707,14 +754,35 @@ function buildDebugAndOutputs(
       id = (vd + vbr) / rbr;
       if (singular) reasonIfNot = 'Circuit singular or unsolved';
     } else {
-      const rOff = 1e9;
-      id = vd / rOff;
+      id = 0; // OFF: no current for display and flow (avoids leakage in UI)
       if (singular) reasonIfNot = 'Circuit singular or unsolved';
       else reasonIfNot = vd < d.vf ? 'Not forward biased' : undefined;
     }
     const power = vd * id;
     (outputsByComponentId as Record<string, DiodeOutput>)[d.id] = { vd, state, id, reasonIfNot, power };
     branchCurrentsByComponentId[d.id] = id;
+  }
+
+  // Solar panel: V, I, P, mode from _pvMeta (recompute I from I-V model).
+  for (const pv of netlist._pvMeta ?? []) {
+    const va = nodeVoltages[pv.aNode] ?? 0;
+    const vb = nodeVoltages[pv.bNode] ?? 0;
+    const v = va - vb;
+    const i = singular ? 0 : pvCurrent(pv.vocRef, pv.iscRef, pv.irradiance, pv.k, v);
+    const p = v * i;
+    const G = Math.max(0, pv.irradiance);
+    const isc = pv.iscRef * (G / 1000);
+    const voc = pv.vocRef * (0.9 + 0.1 * (G / 1000));
+    let mode: SolarPanelOutput['mode'] | undefined;
+    if (voc > 1e-9 && isc > 1e-9) {
+      const vNorm = v / voc;
+      const iNorm = i / isc;
+      if (vNorm < 0.2 && iNorm > 0.8) mode = 'nearIsc';
+      else if (vNorm > 0.8 && iNorm < 0.2) mode = 'nearVoc';
+      else if (vNorm >= 0.3 && vNorm <= 0.7 && iNorm >= 0.3 && iNorm <= 0.7) mode = 'nearMPP';
+    }
+    (outputsByComponentId as Record<string, SolarPanelOutput>)[pv.id] = { v, i, p, mode };
+    branchCurrentsByComponentId[pv.id] = i;
   }
 
   // Aggregate per-channel LedOutputs into RgbLedOutput for each rgb_led (keep :R, :G, :B entries for branch currents).
@@ -1163,6 +1231,18 @@ function buildDebugReport(
         state: out?.state,
         current: out?.id,
         reasonIfNot: out?.reasonIfNot,
+      };
+    })(),
+    solarPanel: (() => {
+      const pvComp = state.components.find((c) => (c.type as string) === 'solar_panel');
+      if (!pvComp) return null;
+      const out = outputsByComponentId[pvComp.id] as SolarPanelOutput | undefined;
+      return {
+        id: pvComp.id,
+        v: out?.v,
+        i: out?.i,
+        p: out?.p,
+        irradiance: (pvComp.props?.irradiance as number) ?? 700,
       };
     })(),
     energized: { loopClosed, reasonIfNot: singular ? reason : undefined },

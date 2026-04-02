@@ -83,6 +83,24 @@ export const EnhancedComponentPalette = ({
         props: { voltage: (def.props?.voltage as number) ?? 5, rInternal: (def.props?.rInternal as number) ?? 50 },
       };
     }
+    if (def.id === 'solar-panel') {
+      return {
+        id: nanoid(8),
+        type: 'solar_panel' as const,
+        name: def.name,
+        x, y,
+        pins: [
+          { id: 'pos', label: 'P+', kind: 'power' as const, role: 'V+' as PinRole, x: 10, y: 25 },
+          { id: 'neg', label: 'P−', kind: 'ground' as const, role: 'V-' as PinRole, x: 80, y: 25 },
+        ],
+        props: {
+          irradiance: (def.props?.irradiance as number) ?? 700,
+          vocRef: (def.props?.vocRef as number) ?? 21,
+          iscRef: (def.props?.iscRef as number) ?? 5,
+          k: (def.props?.k as number) ?? 8,
+        },
+      };
+    }
     if (def.id === 'battery-pack') {
       return {
         id: nanoid(8),
@@ -230,7 +248,7 @@ export const EnhancedComponentPalette = ({
     }
     return {
       id: nanoid(8),
-      type: def.id as 'esp32' | 'led' | 'resistor' | 'button' | 'switch' | 'buzzer' | 'pot' | 'pir' | 'ultrasonic' | 'ds18b20' | 'servo' | 'power' | 'ground' | 'power_rail' | 'wire' | 'potentiometer' | 'junction' | 'dc_supply' | 'motor_dc' | 'motor_ac' | 'voltmeter' | 'transistor' | 'push_button_momentary' | 'push_button_latch' | 'capacitor' | 'capacitor_polarized' | 'rgb_led' | 'diode',
+      type: def.id as 'esp32' | 'led' | 'resistor' | 'button' | 'switch' | 'buzzer' | 'pot' | 'pir' | 'ultrasonic' | 'ds18b20' | 'servo' | 'power' | 'ground' | 'power_rail' | 'wire' | 'potentiometer' | 'junction' | 'dc_supply' | 'motor_dc' | 'motor_ac' | 'voltmeter' | 'transistor' | 'push_button_momentary' | 'push_button_latch' | 'capacitor' | 'capacitor_polarized' | 'rgb_led' | 'diode' | 'solar_panel',
       name: def.name,
       x,
       y,

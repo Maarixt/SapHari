@@ -8,6 +8,10 @@ const PIN_C = { x: 75, y: 12 };
 const PIN_E = { x: 75, y: 48 };
 const CENTER = { x: 45, y: 30 };
 const R = 16;
+/** PNP arrow: tip toward center (arrow points IN), wings toward pin. */
+const PNP_ARROW_TIP = { x: 51, y: 38 };
+const PNP_ARROW_WING1 = { x: 71, y: 45 };
+const PNP_ARROW_WING2 = { x: 71, y: 51 };
 
 export interface SchematicTransistorRendererProps {
   comp: SimComponent;
@@ -46,17 +50,17 @@ export function SchematicTransistorRenderer({
       onClick={(e) => onSelect(comp.id, (e.evt as MouseEvent).shiftKey)}
       onTap={(e) => onSelect(comp.id, (e.evt as MouseEvent).shiftKey)}
     >
-      <Rect x={0} y={0} width={FP.w} height={FP.h} fill="transparent" listening={false} />
+      <Rect x={0} y={0} width={FP.w} height={FP.h} fill="transparent" listening={true} />
       <Circle x={CENTER.x} y={CENTER.y} radius={R} stroke={selStroke} strokeWidth={2} fill="transparent" strokeScaleEnabled={false} listening={false} />
       <Line points={[PIN_B.x, PIN_B.y, CENTER.x - 8, CENTER.y]} stroke={stroke} strokeWidth={2} strokeScaleEnabled={false} listening={false} />
       <Line points={[CENTER.x - 2, CENTER.y - 8, CENTER.x - 2, CENTER.y + 8]} stroke={stroke} strokeWidth={2} strokeScaleEnabled={false} listening={false} />
       <Line points={[CENTER.x - 2, CENTER.y - 5, PIN_C.x, PIN_C.y]} stroke={stroke} strokeWidth={2} strokeScaleEnabled={false} listening={false} />
       <Line points={[CENTER.x - 2, CENTER.y + 5, PIN_E.x, PIN_E.y]} stroke={stroke} strokeWidth={2} strokeScaleEnabled={false} listening={false} />
-      {/* Emitter arrow */}
+      {/* Emitter arrow: NPN = out (tip at pin), PNP = in (tip at center) */}
       {arrowIn ? (
         <>
-          <Line points={[PIN_E.x - 9, PIN_E.y - 2, PIN_E.x - 1, PIN_E.y]} stroke={stroke} strokeWidth={2} strokeScaleEnabled={false} listening={false} />
-          <Line points={[PIN_E.x - 6, PIN_E.y - 8, PIN_E.x - 1, PIN_E.y]} stroke={stroke} strokeWidth={2} strokeScaleEnabled={false} listening={false} />
+          <Line points={[PNP_ARROW_TIP.x, PNP_ARROW_TIP.y, PNP_ARROW_WING1.x, PNP_ARROW_WING1.y]} stroke={stroke} strokeWidth={2} strokeScaleEnabled={false} listening={false} />
+          <Line points={[PNP_ARROW_TIP.x, PNP_ARROW_TIP.y, PNP_ARROW_WING2.x, PNP_ARROW_WING2.y]} stroke={stroke} strokeWidth={2} strokeScaleEnabled={false} listening={false} />
         </>
       ) : (
         <>

@@ -31,6 +31,7 @@ import { WorkbenchBuzzerRenderer } from '../visual/WorkbenchBuzzerRenderer';
 import { WorkbenchCapacitorRenderer } from '../visual/WorkbenchCapacitorRenderer';
 import { WorkbenchCapacitorPolarizedRenderer } from '../visual/WorkbenchCapacitorPolarizedRenderer';
 import { WorkbenchInductorRenderer } from '../visual/WorkbenchInductorRenderer';
+import { WorkbenchSolarPanelRenderer } from '../visual/WorkbenchSolarPanelRenderer';
 import { EnhancedWireNode } from '../EnhancedWireNode';
 import { SelectionOverlayLayer } from './SelectionOverlayLayer';
 import type { CircuitState } from '../store/circuitStore';
@@ -309,6 +310,7 @@ export function CircuitScene({
               );
             }
             if (safeComp.type === 'led') {
+              const ledOut = outputsByComponentId?.[safeComp.id] as { on?: boolean; brightness?: number; status?: string } | undefined;
               return (
                 <WorkbenchLEDRenderer
                   key={safeComp.id}
@@ -321,6 +323,7 @@ export function CircuitScene({
                   onPinPointerUp={onPinPointerUp}
                   pinToNetId={pinToNetId}
                   netVoltageById={netVoltageById}
+                  ledOutput={ledOut}
                 />
               );
             }
@@ -369,6 +372,20 @@ export function CircuitScene({
             if (safeComp.type === 'dc_supply') {
               return (
                 <WorkbenchBatteryRenderer
+                  key={safeComp.id}
+                  comp={safeComp}
+                  isSelected={selected}
+                  onSelect={onComponentSelect}
+                  onDragEnd={onComponentDragEnd}
+                  onPinClick={onPinClick}
+                  onPinPointerDown={onPinPointerDown}
+                  onPinPointerUp={onPinPointerUp}
+                />
+              );
+            }
+            if ((safeComp.type as string) === 'solar_panel') {
+              return (
+                <WorkbenchSolarPanelRenderer
                   key={safeComp.id}
                   comp={safeComp}
                   isSelected={selected}

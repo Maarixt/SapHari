@@ -30,6 +30,7 @@ import { SchematicBuzzerRenderer } from '../visual/SchematicBuzzerRenderer';
 import { SchematicCapacitorRenderer } from '../visual/SchematicCapacitorRenderer';
 import { SchematicCapacitorPolarizedRenderer } from '../visual/SchematicCapacitorPolarizedRenderer';
 import { SchematicInductorRenderer } from '../visual/SchematicInductorRenderer';
+import { SchematicSolarPanelRenderer } from '../visual/SchematicSolarPanelRenderer';
 import { PinNode } from '../visual/PinNode';
 import { SelectionOverlayLayer } from './SelectionOverlayLayer';
 
@@ -86,6 +87,8 @@ export interface CircuitSchematicSceneProps {
   unconnectedPinKeys?: Set<string>;
   /** When in wire mode: pin key of the pin under cursor (for glow + tooltip). */
   hoveredPinKey?: string | null;
+  /** Solver outputs per component (e.g. LED on/brightness for schematic). */
+  outputsByComponentId?: Record<string, unknown>;
 }
 
 const GridLayer = React.memo(
@@ -405,7 +408,8 @@ function renderSchematicSymbol(
     onSwitchToggle?: (compId: string) => void;
   },
   pinToNetId?: Map<string, string> | Record<string, string>,
-  netVoltageById?: Record<string, number> | Map<string, number>
+  netVoltageById?: Record<string, number> | Map<string, number>,
+  outputsByComponentId?: Record<string, unknown>
 ) {
   const common = { comp, simState, isSelected, onSelect: handlers.onComponentSelect, onDelete: handlers.onComponentDelete, onDragEnd: handlers.onComponentDragEnd, onPinClick: handlers.onPinClick, onPinPointerDown: handlers.onPinPointerDown, onPinPointerUp: handlers.onPinPointerUp };
   // Explicit mapping: toggle switch (by runtime type) always uses schematic symbol, never fallback
@@ -419,6 +423,11 @@ function renderSchematicSymbol(
   }
   if (comp.type === 'ground') return <SchematicGroundRenderer {...common} />;
   if (comp.type === 'dc_supply') return <SchematicDCSupplyRenderer {...common} />;
+  if ((comp.type as string) === 'solar_panel') {
+    const pvOut = outputsByComponentId?.[comp.id] as { v?: number; i?: number; p?: number } | undefined;
+    const pvOutput = pvOut != null && typeof pvOut.v === 'number' ? { v: pvOut.v, i: pvOut.i ?? 0, p: pvOut.p ?? 0 } : undefined;
+    return <SchematicSolarPanelRenderer {...common} pvOutput={pvOutput} />;
+  }
   if (
     (comp.type as string) === 'push_button'
     || (comp.type as string) === 'push_button_momentary'
@@ -428,7 +437,10 @@ function renderSchematicSymbol(
     return <SchematicButtonRenderer {...common} onPressChange={handlers.onButtonPressChange} />;
   }
   if (comp.type === 'resistor') return <SchematicResistorRenderer {...common} />;
-  if (comp.type === 'led') return <SchematicLEDRenderer {...common} pinToNetId={pinToNetId} netVoltageById={netVoltageById} />;
+  if (comp.type === 'led') {
+    const ledOut = outputsByComponentId?.[comp.id] as { on?: boolean; brightness?: number; status?: string } | undefined;
+    return <SchematicLEDRenderer {...common} pinToNetId={pinToNetId} netVoltageById={netVoltageById} ledOutput={ledOut} />;
+  }
   if ((comp.type as string) === 'diode') return <SchematicDiodeRenderer {...common} diodeState={comp.props?.diodeState as 'OFF' | 'ON' | 'BREAKDOWN' | undefined} />;
   if (comp.type === 'rgb_led') return <SchematicRgbLedRenderer {...common} />;
   if ((comp.type as string) === 'transistor') return <SchematicTransistorRenderer {...common} />;
@@ -541,6 +553,7 @@ export function CircuitSchematicScene({
   netVoltageById,
   unconnectedPinKeys = new Set<string>(),
   hoveredPinKey = null,
+  outputsByComponentId,
 }: CircuitSchematicSceneProps) {
   const { components, wires, selectedComponentIds, selectedWireIds, viewport: vp, activeWireStart, tool } = state;
   const isWiringMode = tool === 'wire';
@@ -682,7 +695,7 @@ export function CircuitSchematicScene({
 
           {components.map((comp) => {
             const isSelected = selectedComponentIds.includes(comp.id);
-            const el = renderSchematicSymbol(comp, simState, isSelected, handlers, pinToNetId, netVoltageById);
+            const el = renderSchematicSymbol(comp, simState, isSelected, handlers, pinToNetId, netVoltageById, outputsByComponentId);
             return el ? <React.Fragment key={comp.id}>{el}</React.Fragment> : null;
           })}
 

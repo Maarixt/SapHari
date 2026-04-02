@@ -36,6 +36,7 @@ const WIRING_HINTS: Record<string, string[]> = {
   rgb_led: ['CC: R, G, B = anodes, COM = cathode (to GND). CA: COM = anode (to +), R, G, B = cathodes. Use series resistor per channel.'],
   diode: ['Anode (A) to higher potential, cathode (K) to lower. Current flows A → K when forward biased.'],
   inductor: ['Two terminals (A, B). Use with flyback diode when switching inductive loads (e.g. relay, motor).'],
+  solar_panel: ['P+ to load or battery +, P− to common. Current flows P+ to P− when illuminated.'],
 };
 
 function getWiringHints(componentType: string): string[] {
@@ -339,7 +340,15 @@ export const Inspector = ({
         );
       }
 
-      case 'led':
+      case 'led': {
+        const ledOut = solveResult?.outputsByComponentId?.[selectedComponent.id] as {
+          on?: boolean;
+          current?: number;
+          voltageDrop?: number;
+          brightness?: number;
+          reason?: string;
+          status?: string;
+        } | undefined;
         return (
           <div className="space-y-3">
             <div>
@@ -372,8 +381,27 @@ export const Inspector = ({
                 onChange={(e) => handlePropUpdate('forwardVoltage', parseFloat(e.target.value) || 0)}
               />
             </div>
+            {ledOut != null && (
+              <div className="pt-2 border-t text-xs space-y-1">
+                <div><span className="text-muted-foreground">State:</span> {ledOut.on ? 'On' : 'Off'}</div>
+                {ledOut.on && (
+                  <>
+                    <div><span className="text-muted-foreground">Current:</span> {((ledOut.current ?? 0) * 1000).toFixed(2)} mA</div>
+                    <div><span className="text-muted-foreground">Voltage drop:</span> {(ledOut.voltageDrop ?? 0).toFixed(2)} V</div>
+                    <div><span className="text-muted-foreground">Brightness:</span> {((ledOut.brightness ?? 0) * 100).toFixed(0)}%</div>
+                  </>
+                )}
+                {!ledOut.on && ledOut.reason && (
+                  <p className="text-amber-600 dark:text-amber-400 mt-1">{ledOut.reason}</p>
+                )}
+                {!ledOut.on && (
+                  <p className="text-muted-foreground mt-1">Tip: Connect battery + to LED anode (A+), LED cathode (K−) to battery −.</p>
+                )}
+              </div>
+            )}
           </div>
         );
+      }
 
       case 'diode': {
         const out = solveResult?.outputsByComponentId?.[selectedComponent.id] as { vd?: number; state?: string; id?: number; power?: number; reasonIfNot?: string } | undefined;
@@ -406,6 +434,84 @@ export const Inspector = ({
                 <div><span className="text-muted-foreground">Id:</span> {out.id != null ? `${(out.id * 1000).toFixed(2)} mA` : '—'}</div>
                 {out.power != null && <div><span className="text-muted-foreground">Power:</span> {(out.power * 1000).toFixed(2)} mW</div>}
                 {out.reasonIfNot && <p className="text-amber-600 dark:text-amber-400">{out.reasonIfNot}</p>}
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      case 'solar_panel': {
+        const irradiance = (selectedComponent.props?.irradiance as number) ?? 700;
+        const vocRef = (selectedComponent.props?.vocRef as number) ?? 21;
+        const iscRef = (selectedComponent.props?.iscRef as number) ?? 5;
+        const k = (selectedComponent.props?.k as number) ?? 8;
+        const pvOut = solveResult?.outputsByComponentId?.[selectedComponent.id] as { v?: number; i?: number; p?: number; mode?: string } | undefined;
+        const typePresets: { label: string; vocRef: number; iscRef: number }[] = [
+          { label: '6V small', vocRef: 6, iscRef: 0.5 },
+          { label: '12V panel', vocRef: 21, iscRef: 5 },
+          { label: '24V panel', vocRef: 43, iscRef: 5 },
+          { label: 'Custom', vocRef: vocRef, iscRef: iscRef },
+        ];
+        return (
+          <div className="space-y-3">
+            <div>
+              <Label htmlFor="pv-irradiance">Irradiance G (W/m²)</Label>
+              <div className="flex items-center gap-2">
+                <Slider
+                  id="pv-irradiance"
+                  min={0}
+                  max={1000}
+                  step={50}
+                  value={[irradiance]}
+                  onValueChange={([v]) => handlePropUpdate('irradiance', v)}
+                />
+                <Input type="number" min={0} max={1000} className="w-20" value={irradiance} onChange={(e) => handlePropUpdate('irradiance', Math.max(0, Math.min(1000, parseFloat(e.target.value) || 0)))} />
+              </div>
+              <div className="flex flex-wrap gap-1 mt-1">
+                <Button size="sm" variant="outline" onClick={() => handlePropUpdate('irradiance', 200)}>Cloudy (200)</Button>
+                <Button size="sm" variant="outline" onClick={() => handlePropUpdate('irradiance', 700)}>Normal (700)</Button>
+                <Button size="sm" variant="outline" onClick={() => handlePropUpdate('irradiance', 1000)}>Full Sun (1000)</Button>
+              </div>
+            </div>
+            <div>
+              <Label>Type preset</Label>
+              <Select
+                value={typePresets.find((p) => p.vocRef === vocRef && p.iscRef === iscRef)?.label ?? 'Custom'}
+                onValueChange={(v) => {
+                  const p = typePresets.find((x) => x.label === v);
+                  if (p && p.label !== 'Custom') {
+                    handlePropUpdate('vocRef', p.vocRef);
+                    handlePropUpdate('iscRef', p.iscRef);
+                  }
+                }}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {typePresets.map((p) => <SelectItem key={p.label} value={p.label}>{p.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label htmlFor="pv-voc">Voc ref (V)</Label>
+                <Input id="pv-voc" type="number" step={0.5} min={0.1} value={vocRef} onChange={(e) => handlePropUpdate('vocRef', parseFloat(e.target.value) || 21)} />
+              </div>
+              <div>
+                <Label htmlFor="pv-isc">Isc ref (A)</Label>
+                <Input id="pv-isc" type="number" step={0.1} min={0} value={iscRef} onChange={(e) => handlePropUpdate('iscRef', parseFloat(e.target.value) || 5)} />
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="pv-k">Curve sharpness k</Label>
+              <Input id="pv-k" type="number" step={1} min={1} max={20} value={k} onChange={(e) => handlePropUpdate('k', Math.max(1, Math.min(20, parseInt(e.target.value, 10) || 8)))} />
+            </div>
+            {pvOut != null && (
+              <div className="pt-2 border-t text-xs space-y-1">
+                <div className="font-medium">Live</div>
+                <div><span className="text-muted-foreground">V:</span> {pvOut.v != null ? `${pvOut.v.toFixed(3)} V` : '—'}</div>
+                <div><span className="text-muted-foreground">I:</span> {pvOut.i != null ? `${(pvOut.i * 1000).toFixed(2)} mA` : '—'}</div>
+                <div><span className="text-muted-foreground">P:</span> {pvOut.p != null ? `${pvOut.p.toFixed(2)} W` : '—'}</div>
+                {pvOut.mode && <div><span className="text-muted-foreground">Mode:</span> {pvOut.mode}</div>}
               </div>
             )}
           </div>
@@ -1271,7 +1377,7 @@ export const Inspector = ({
     }
   };
 
-  const canTransform = ['dc_supply', 'led', 'rgb_led', 'diode', 'switch', 'toggle_switch', 'ground', 'voltmeter', 'push_button', 'push_button_momentary', 'push_button_latch'].includes(selectedTypeNormalized);
+  const canTransform = ['dc_supply', 'led', 'rgb_led', 'diode', 'switch', 'toggle_switch', 'ground', 'voltmeter', 'push_button', 'push_button_momentary', 'push_button_latch', 'solar_panel'].includes(selectedTypeNormalized);
 
   const isSwitchLike = selectedTypeNormalized === 'switch' || selectedTypeNormalized === 'toggle_switch';
   const switchVariantLabel = isSwitchLike && selectedComponent.variantId ? ` (${selectedComponent.variantId})` : '';

@@ -17,7 +17,7 @@ export type RotationDeg = 0 | 90 | 180 | 270;
 
 export interface SimComponent {
   id: string;
-  type: 'esp32' | 'led' | 'resistor' | 'button' | 'switch' | 'buzzer' | 'pot' | 'pir' | 'ultrasonic' | 'ds18b20' | 'servo' | 'power' | 'ground' | 'power_rail' | 'wire' | 'potentiometer' | 'junction' | 'dc_supply' | 'motor_dc' | 'motor_ac' | 'voltmeter' | 'transistor' | 'push_button' | 'push_button_momentary' | 'push_button_latch' | 'capacitor' | 'capacitor_polarized' | 'rgb_led' | 'diode' | 'inductor';
+  type: 'esp32' | 'led' | 'resistor' | 'button' | 'switch' | 'buzzer' | 'pot' | 'pir' | 'ultrasonic' | 'ds18b20' | 'servo' | 'power' | 'ground' | 'power_rail' | 'wire' | 'potentiometer' | 'junction' | 'dc_supply' | 'motor_dc' | 'motor_ac' | 'voltmeter' | 'transistor' | 'push_button' | 'push_button_momentary' | 'push_button_latch' | 'capacitor' | 'capacitor_polarized' | 'rgb_led' | 'diode' | 'inductor' | 'solar_panel';
   x: number; y: number;
   /** Rotation in degrees (0, 90, 180, 270). Default 0. */
   rotation?: RotationDeg | number;
@@ -210,6 +210,15 @@ export const COMPONENT_DEFINITIONS: Record<string, Omit<SimComponent, 'id' | 'x'
     pins: [
       { id: 'pos', label: '+', kind: 'power', role: 'VCC', x: 10, y: 25 },
       { id: 'neg', label: '−', kind: 'ground', role: 'GND', x: 80, y: 25 },
+    ]
+  },
+  solar_panel: {
+    type: 'solar_panel',
+    rotation: 0,
+    props: { irradiance: 700, vocRef: 21, iscRef: 5, k: 8 },
+    pins: [
+      { id: 'pos', label: 'P+', kind: 'power', role: 'V+', x: 10, y: 25 },
+      { id: 'neg', label: 'P−', kind: 'ground', role: 'V-', x: 80, y: 25 },
     ]
   },
   capacitor: {

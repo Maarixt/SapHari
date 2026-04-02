@@ -488,7 +488,7 @@ export interface NetStateResult {
   energizedNetIds?: Set<NetId>;
 }
 
-/** Debug report: why a circuit might not be working (battery/switch/LED/loop). */
+/** Debug report: why a circuit might not be working (battery/switch/LED/loop). Engine2 may add optional fields. */
 export interface DebugReport {
   battery: {
     id: string;
@@ -498,13 +498,17 @@ export interface DebugReport {
     vP: number | undefined;
     vN: number | undefined;
     reasonIfNot?: string;
+    sourceCurrent?: number;
   } | null;
   switch: {
     id: string;
     on: boolean;
-    pin1Net: string | undefined;
-    pin2Net: string | undefined;
-    conducts: boolean;
+    pin1Net?: string | undefined;
+    pin2Net?: string | undefined;
+    conducts?: boolean;
+    va?: number;
+    vb?: number;
+    current?: number;
     reasonIfNot?: string;
   } | null;
   led: {
@@ -514,6 +518,32 @@ export interface DebugReport {
     vA: number | undefined;
     vK: number | undefined;
     forwardBiased: boolean;
+    hasReturnPath?: boolean;
+    hasFeedPath?: boolean;
+    current?: number;
+    brightness?: number;
+    voltageDrop?: number;
+    power?: number;
+    reasonIfNot?: string;
+  } | null;
+  motor?: {
+    id: string;
+    v?: number;
+    current?: number;
+    spinning?: boolean;
+    speed?: number;
+    direction?: 1 | -1 | 0;
+    reasonIfNot?: string;
+  } | null;
+  diode?: {
+    id: string;
+    netA?: string;
+    netK?: string;
+    vA?: number;
+    vK?: number;
+    vd?: number;
+    state?: string;
+    current?: number;
     reasonIfNot?: string;
   } | null;
   gnd: { netIds: string[] };
@@ -522,6 +552,8 @@ export interface DebugReport {
     loopClosed: boolean;
     reasonIfNot?: string;
   };
+  singular?: boolean;
+  reason?: string;
   warnings: string[];
 }
 

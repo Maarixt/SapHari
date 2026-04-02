@@ -78,6 +78,18 @@ export const COMPONENT_CATEGORIES: ComponentCategory[] = [
         ],
       },
       {
+        id: 'solar-panel',
+        name: 'Solar Panel',
+        description: 'PV panel; current source scaled by irradiance',
+        icon: '☀',
+        behavior: 'power',
+        pins: [
+          { id: 'pos', label: 'P+', kind: 'power', x: 10, y: 25 },
+          { id: 'neg', label: 'P−', kind: 'ground', x: 80, y: 25 },
+        ],
+        props: { irradiance: 700, vocRef: 21, iscRef: 5, k: 8 },
+      },
+      {
         id: 'resistor',
         name: 'Resistor',
         description: 'Limits current; use in series with LEDs',
@@ -462,6 +474,18 @@ export const COMPONENT_CATEGORIES: ComponentCategory[] = [
     description: 'Provides simulated voltage and current',
     icon: '🔋',
     components: [
+      {
+        id: 'solar-panel',
+        name: 'Solar Panel',
+        description: 'PV panel; current source scaled by irradiance',
+        icon: '☀',
+        behavior: 'power',
+        pins: [
+          { id: 'pos', label: 'P+', kind: 'power', x: 10, y: 25 },
+          { id: 'neg', label: 'P−', kind: 'ground', x: 80, y: 25 },
+        ],
+        props: { irradiance: 700, vocRef: 21, iscRef: 5, k: 8 },
+      },
       {
         id: 'battery-pack',
         name: 'Battery Pack',

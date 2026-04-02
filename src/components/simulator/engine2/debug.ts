@@ -56,6 +56,13 @@ export interface DebugReport {
     current?: number;
     reasonIfNot?: string;
   } | null;
+  solarPanel?: {
+    id: string;
+    v?: number;
+    i?: number;
+    p?: number;
+    irradiance?: number;
+  } | null;
   gnd?: { netIds: string[] };
   energized: {
     loopClosed: boolean;

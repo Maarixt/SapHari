@@ -41,6 +41,21 @@ export function makeInductor(inductanceH = 0.001, x = 380, y = 200): SimComponen
   };
 }
 
+export function makeSolarPanel(irradiance = 700, x = 380, y = 240): SimComponent {
+  const pins: PinDef[] = [
+    { id: 'pos', label: 'P+', kind: 'power', role: 'V+', x: -30, y: 0 },
+    { id: 'neg', label: 'P−', kind: 'ground', role: 'V-', x: 30, y: 0 },
+  ];
+  return {
+    id: 'pv-' + nanoid(6),
+    type: 'solar_panel',
+    x,
+    y,
+    pins,
+    props: { irradiance, vocRef: 21, iscRef: 5, k: 8 },
+  };
+}
+
 export type ResistorMode = 'series' | 'pullup' | 'pulldown';
 
 export function makeResistor(

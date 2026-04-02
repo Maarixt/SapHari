@@ -68,6 +68,7 @@ export const CANONICAL_PINS: Record<string, string[]> = {
   capacitor: ['a', 'b'],
   capacitor_polarized: ['P', 'N'],
   rgb_led: ['R', 'G', 'B', 'COM'],
+  solar_panel: ['pos', 'neg'],
 };
 
 /** Resolve component's pin to canonical; switch SPDT uses P1,P2,P3; SPST uses a,b. */

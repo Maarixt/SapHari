@@ -46,6 +46,26 @@ const LED_COLOR_MAP: Record<string, string> = {
   white: '#f8fafc',
 };
 
+function getPinNetId(
+  pinToNetId: Map<string, string> | Record<string, string> | undefined,
+  compId: string,
+  pinId: string
+): string | undefined {
+  if (!pinToNetId) return undefined;
+  const key = `${compId}:${pinId}`;
+  if (pinToNetId instanceof Map) return pinToNetId.get(key);
+  return (pinToNetId as Record<string, string>)[key];
+}
+
+function getNetVoltage(
+  netVoltageById: Record<string, number> | Map<string, number> | undefined,
+  netId: string | undefined
+): number | undefined {
+  if (!netVoltageById || netId == null) return undefined;
+  if (netVoltageById instanceof Map) return netVoltageById.get(netId);
+  return (netVoltageById as Record<string, number>)[netId];
+}
+
 export interface Props {
   comp: SimComponent;
   simState: { components: SimComponent[]; wires: Wire[] };
@@ -59,6 +79,8 @@ export interface Props {
   /** When provided, LED on state is derived from net voltages (forward bias). */
   pinToNetId?: Map<string, string> | Record<string, string>;
   netVoltageById?: Record<string, number> | Map<string, number>;
+  /** Solver output; used when comp.props.on not yet synced so LED still shines. */
+  ledOutput?: { on?: boolean; brightness?: number; status?: string };
 }
 
 export function SchematicLEDRenderer({
@@ -71,10 +93,24 @@ export function SchematicLEDRenderer({
   onPinPointerUp,
   pinToNetId,
   netVoltageById,
+  ledOutput,
 }: Props) {
-  const ledStatus = comp.props?.ledStatus as string | undefined;
-  // LED on only from engine (branch current). No voltage fallback.
-  const on = comp.props?.on === true;
+  const ledStatus = (comp.props?.ledStatus as string) ?? ledOutput?.status;
+  const vf = (comp.props?.vf as number) ?? (comp.props?.forwardVoltage as number) ?? 1.8;
+  // Prefer synced props; fall back to solver output so LED shines even before store has applied updates.
+  let on = comp.props?.on === true || (comp.props?.on === undefined && !!ledOutput?.on);
+  // When LED would show off, use net voltages to light it if forward biased (e.g. battery+LED without resistor).
+  // Skip when solver reports zero current (e.g. reverse-biased diode in series) so LED stays off.
+  if (!on && pinToNetId && netVoltageById) {
+    const solverCurrent = (ledOutput as { current?: number })?.current;
+    if (!(solverCurrent != null && Math.abs(solverCurrent) < 1e-6)) {
+      const anodeNet = getPinNetId(pinToNetId, comp.id, 'anode') ?? getPinNetId(pinToNetId, comp.id, 'A');
+      const cathodeNet = getPinNetId(pinToNetId, comp.id, 'cathode') ?? getPinNetId(pinToNetId, comp.id, 'K');
+      const vA = getNetVoltage(netVoltageById, anodeNet);
+      const vK = getNetVoltage(netVoltageById, cathodeNet);
+      if (vA != null && vK != null && (vA - vK) > vf) on = true;
+    }
+  }
   const isBurned = ledStatus === 'burned';
   const isDamaged = ledStatus === 'damaged';
   const isOvercurrent = ledStatus === 'overcurrent';

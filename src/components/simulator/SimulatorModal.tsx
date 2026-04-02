@@ -369,8 +369,9 @@ loop(() => {
     const eng2 = getEngine2SolveResult();
     if (eng2?.debugReport) return eng2.debugReport as DebugReport;
     const simState = toSimState(state);
-    return explainCircuit(simState, netStateResult);
-  }, [state, netStateResult]);
+    const netStateForExplain = computeNetState(simState, state.components);
+    return explainCircuit(simState, netStateForExplain);
+  }, [state, state.components]);
 
   useEffect(() => {
     if (debugLogToConsole && open) {
@@ -424,7 +425,8 @@ loop(() => {
     const forwardBiased = vA !== undefined && vK !== undefined && (vA - vK) > 1.8;
     const sourceConnected = anodeNetId != null && (ns.energizedNetIds?.has(anodeNetId) ?? false);
     const cathodeNet = cathodeNetId != null ? ns.nets.find((n) => n.id === cathodeNetId) : undefined;
-    const groundConnected = (cathodeNet?.voltage === 0 || cathodeNet?.sourceTypes?.has('gnd')) ?? false;
+    const netWithMeta = cathodeNet as { voltage?: number; sourceTypes?: Set<string> } | undefined;
+    const groundConnected = (netWithMeta?.voltage === 0 || netWithMeta?.sourceTypes?.has('gnd')) ?? false;
     return { vA, vK, forwardBiased, sourceConnected, groundConnected, on: !!sel.props?.on };
   }, [primarySelection, state.components, netStateResult]);
 
@@ -530,7 +532,7 @@ loop(() => {
     (compId: string) => {
       const comp = state.components.find((c) => c.id === compId);
       if (!comp) return;
-      if (comp.type !== 'switch' && comp.type !== 'toggle-switch') return;
+      if (comp.type !== 'switch' && (comp.type as string) !== 'toggle-switch') return;
       const variantId = getSwitchVariantId(comp.variantId);
       if (variantId === 'SPDT' || variantId === 'DPDT') {
         const position = (comp.props?.position as string) === 'B' ? 'B' : 'A';
@@ -1640,6 +1642,7 @@ void buttonInterrupt() {
                 netVoltageById={netStateResult.netVoltageById}
                 unconnectedPinKeys={unconnectedPinKeys}
                 hoveredPinKey={hoveredPinKey}
+                outputsByComponentId={solveResult?.outputsByComponentId}
               />
             )}
             {/* Right-click context menu */}
@@ -1742,7 +1745,7 @@ void buttonInterrupt() {
                       <p className="text-xs mt-1 font-medium text-amber-600 dark:text-amber-400">Status: {status}</p>
                     )}
                     <p className="text-xs mt-1">
-                      Voltage: {net.voltage != null ? `${net.voltage} V` : '—'}
+                      Voltage: {(net as { voltage?: number }).voltage != null ? `${(net as { voltage?: number }).voltage} V` : '—'}
                     </p>
                     {sources.size > 0 && (
                       <p className="text-xs mt-1">
@@ -1814,8 +1817,15 @@ void buttonInterrupt() {
               {/* Scrollable Content Area */}
               <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-200 hover:scrollbar-thumb-gray-500">
                 {tab === 'sketch' ? (
-                  <div className="p-3">
+                  <div className="p-3 space-y-2">
                     <pre className="text-xs whitespace-pre-wrap font-mono leading-relaxed">{generateSketchFromState(toSimState(state))}</pre>
+                    {generateSketchFromState(toSimState(state)).includes('No ESP32') &&
+                      state.components.some((c) => c.type === 'led') &&
+                      state.components.some((c) => c.type === 'dc_supply') && (
+                        <p className="text-xs text-muted-foreground pt-2 border-t border-border/50">
+                          LED not lit? Connect <strong>battery +</strong> to <strong>LED anode (A+)</strong>, and <strong>LED cathode (K−)</strong> to <strong>battery −</strong>. Add a resistor (e.g. 330Ω) in series to limit current.
+                        </p>
+                      )}
                   </div>
                 ) : tab === 'simjs' ? (
                   <div className="h-full flex flex-col">
@@ -1887,13 +1897,13 @@ void buttonInterrupt() {
                       <div className="rounded border p-2 bg-muted/20">
                         <h4 className="font-medium mb-1">Switch</h4>
                         <p className="text-xs">id: {debugReport.switch.id}, on: {String(debugReport.switch.on)}</p>
-                        {(debugReport.switch as { pin1Net?: string }).pin1Net != null ? (
-                          <p className="text-xs">pin1Net: {(debugReport.switch as { pin1Net: string }).pin1Net}, pin2Net: {(debugReport.switch as { pin2Net: string }).pin2Net}</p>
-                        ) : (debugReport.switch as { va?: number }).va != null ? (
-                          <p className="text-xs">Va: {(debugReport.switch as { va: number }).va?.toFixed(2)}V, Vb: {(debugReport.switch as { vb: number }).vb?.toFixed(2)}V</p>
+                        {debugReport.switch.pin1Net != null ? (
+                          <p className="text-xs">pin1Net: {debugReport.switch.pin1Net}, pin2Net: {debugReport.switch.pin2Net}</p>
+                        ) : debugReport.switch.va != null ? (
+                          <p className="text-xs">Va: {debugReport.switch.va?.toFixed(2)}V, Vb: {debugReport.switch.vb?.toFixed(2)}V</p>
                         ) : null}
-                        {(debugReport.switch as { conducts?: boolean }).conducts != null && (
-                          <p className="text-xs">conducts: {String((debugReport.switch as { conducts: boolean }).conducts)}</p>
+                        {debugReport.switch.conducts != null && (
+                          <p className="text-xs">conducts: {String(debugReport.switch.conducts)}</p>
                         )}
                         {debugReport.switch.reasonIfNot && (
                           <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">{debugReport.switch.reasonIfNot}</p>
@@ -1907,11 +1917,11 @@ void buttonInterrupt() {
                         <p className="text-xs">netA: {debugReport.led.netA ?? '—'}, netK: {debugReport.led.netK ?? '—'}</p>
                         <p className="text-xs">vA: {debugReport.led.vA ?? '—'}, vK: {debugReport.led.vK ?? '—'}</p>
                         <p className="text-xs">forwardBiased: {String(debugReport.led.forwardBiased)}</p>
-                        {(debugReport.led as { hasReturnPath?: boolean }).hasReturnPath != null && (
-                          <p className="text-xs">hasReturnPath: {String((debugReport.led as { hasReturnPath: boolean }).hasReturnPath)}, hasFeedPath: {String((debugReport.led as { hasFeedPath?: boolean }).hasFeedPath)}</p>
+                        {debugReport.led.hasReturnPath != null && (
+                          <p className="text-xs">hasReturnPath: {String(debugReport.led.hasReturnPath)}, hasFeedPath: {String(debugReport.led.hasFeedPath)}</p>
                         )}
-                        {(debugReport.led as { current?: number; brightness?: number }).current != null && (
-                          <p className="text-xs">current: {(debugReport.led as { current: number }).current.toFixed(4)}A, brightness: {(debugReport.led as { brightness?: number }).brightness ?? '—'}</p>
+                        {debugReport.led.current != null && (
+                          <p className="text-xs">current: {debugReport.led.current.toFixed(4)}A, brightness: {debugReport.led.brightness ?? '—'}</p>
                         )}
                         <p className="text-xs">Vdrop: {debugReport.led.voltageDrop != null ? `${debugReport.led.voltageDrop.toFixed(2)} V` : '—'}, P: {debugReport.led.power != null ? `${debugReport.led.power.toFixed(3)} W` : '—'}</p>
                         {debugReport.led.reasonIfNot && (
@@ -1937,13 +1947,14 @@ void buttonInterrupt() {
                         <p className="text-xs">netA: {debugReport.diode.netA ?? '—'}, netK: {debugReport.diode.netK ?? '—'}</p>
                         <p className="text-xs">vA: {debugReport.diode.vA != null ? debugReport.diode.vA.toFixed(2) : '—'}, vK: {debugReport.diode.vK != null ? debugReport.diode.vK.toFixed(2) : '—'}</p>
                         <p className="text-xs">Vd: {debugReport.diode.vd != null ? `${debugReport.diode.vd.toFixed(3)} V` : '—'}, state: {debugReport.diode.state ?? '—'}, Id: {debugReport.diode.current != null ? `${(debugReport.diode.current * 1000).toFixed(2)} mA` : '—'}</p>
+                        <p className="text-xs">Bias: {debugReport.diode.state === 'ON' ? 'Forward' : debugReport.diode.vd != null && debugReport.diode.vd < 0 ? 'Reverse' : 'Below Vf'}</p>
                         {debugReport.diode.reasonIfNot && (
                           <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">{debugReport.diode.reasonIfNot}</p>
                         )}
                       </div>
                     )}
-                    {debugReport.battery && (debugReport as { battery?: { sourceCurrent?: number } }).battery?.sourceCurrent != null && (
-                      <p className="text-xs">Battery source current: {(debugReport as { battery: { sourceCurrent: number } }).battery.sourceCurrent.toFixed(4)}A</p>
+                    {debugReport.battery?.sourceCurrent != null && (
+                      <p className="text-xs">Battery source current: {debugReport.battery.sourceCurrent.toFixed(4)}A</p>
                     )}
                     {debugReport.gnd && (
                       <div className="rounded border p-2 bg-muted/20">

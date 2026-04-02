@@ -63,6 +63,17 @@ export type NetlistComponent =
       bNode: number;
       inductance: number;
       floating?: boolean;
+    }
+  | {
+      type: 'SolarPanel';
+      id: string;
+      aNode: number;
+      bNode: number;
+      vocRef: number;
+      iscRef: number;
+      irradiance: number;
+      k: number;
+      floating?: boolean;
     };
 
 export type LedStatus = 'ok' | 'overcurrent' | 'damaged' | 'burned';
@@ -225,7 +236,7 @@ export const R_ON_DIODE_DEFAULT = 1;
 export const I_LEAK_DIODE = 1e-12;
 export const V_BR_DIODE = 50;
 export const R_BR_DIODE = 10;
-export const DIODE_VF_HYSTERESIS = 0.01;
+export const DIODE_VF_HYSTERESIS = 0.005;
 /** Large resistance when OFF for stability (avoid open circuit in MNA). */
 export const R_OFF_DIODE = 1e9;
 
@@ -244,7 +255,34 @@ export interface RgbLedOutput {
   mixedColor?: { r: number; g: number; b: number };
 }
 
-export type ComponentOutput = LedOutput | MotorOutput | VoltmeterOutput | PotOutput | TransistorOutput | BuzzerOutput | CapacitorOutput | RgbLedOutput | DiodeOutput;
+/** Solar panel: piecewise I-V; V = voltage across P+ to P-, I = current, P = power; mode for display. */
+export interface SolarPanelOutput {
+  v: number;
+  i: number;
+  p: number;
+  mode?: 'nearIsc' | 'nearVoc' | 'nearMPP';
+}
+
+/** PV constants (Level 1 piecewise I-V). */
+export const VOC_PV_DEFAULT = 21;
+export const ISC_PV_DEFAULT = 5;
+export const IRRADIANCE_DEFAULT = 700;
+export const PV_CURVE_K = 8;
+/** Min conductance (S) for stability when linearizing PV. */
+export const PV_GMIN = 1e-6;
+
+/** PV current I(V) only (for outputs). V = voltage from P+ to P-. */
+export function pvCurrent(vocRef: number, iscRef: number, irradiance: number, k: number, V: number): number {
+  const G = Math.max(0, irradiance);
+  const isc = iscRef * (G / 1000);
+  const voc = vocRef * (0.9 + 0.1 * (G / 1000));
+  if (voc < 1e-9 || V <= 0) return 0;
+  if (V >= voc) return 0;
+  const vNorm = V / voc;
+  return isc * (1 - Math.pow(vNorm, k));
+}
+
+export type ComponentOutput = LedOutput | MotorOutput | VoltmeterOutput | PotOutput | TransistorOutput | BuzzerOutput | CapacitorOutput | RgbLedOutput | DiodeOutput | SolarPanelOutput;
 
 export const R_ON_SWITCH = 0.05;
 export const R_OFF_SWITCH = 1e9;

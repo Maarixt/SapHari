@@ -41,6 +41,26 @@ function ledColor(color: string | undefined): string {
   return (color && COLOR_MAP[color]) || COLOR_MAP.red || '#ef4444';
 }
 
+function getPinNetId(
+  pinToNetId: Map<string, string> | Record<string, string> | undefined,
+  compId: string,
+  pinId: string
+): string | undefined {
+  if (!pinToNetId) return undefined;
+  const key = `${compId}:${pinId}`;
+  if (pinToNetId instanceof Map) return pinToNetId.get(key);
+  return (pinToNetId as Record<string, string>)[key];
+}
+
+function getNetVoltage(
+  netVoltageById: Record<string, number> | Map<string, number> | undefined,
+  netId: string | undefined
+): number | undefined {
+  if (!netVoltageById || netId == null) return undefined;
+  if (netVoltageById instanceof Map) return netVoltageById.get(netId);
+  return (netVoltageById as Record<string, number>)[netId];
+}
+
 export interface WorkbenchLEDRendererProps {
   comp: SimComponent;
   isSelected: boolean;
@@ -52,6 +72,8 @@ export interface WorkbenchLEDRendererProps {
   /** When provided, LED on/brightness is derived from net voltages (forward bias) instead of props. */
   pinToNetId?: Map<string, string> | Record<string, string>;
   netVoltageById?: Record<string, number> | Map<string, number>;
+  /** Solver output for this LED; used when comp.props.on/brightness not yet synced so LED still shines. */
+  ledOutput?: { on?: boolean; brightness?: number; status?: string };
 }
 
 export function WorkbenchLEDRenderer({
@@ -64,18 +86,37 @@ export function WorkbenchLEDRenderer({
   onPinPointerUp,
   pinToNetId,
   netVoltageById,
+  ledOutput,
 }: WorkbenchLEDRendererProps) {
   const vf = (comp.props?.vf as number) ?? 1.8;
-  const ledStatus = comp.props?.ledStatus as string | undefined;
+  const ledStatus = (comp.props?.ledStatus as string) ?? ledOutput?.status;
   let on: boolean;
   let brightness: number;
-  // LED on/brightness only from engine (branch current). No voltage-only fallback — no current = OFF.
+  // Prefer synced props; fall back to solver output so LED shines even before store has applied updates.
   if (comp.props?.on !== undefined && comp.props?.brightness !== undefined) {
     on = !!comp.props.on;
     brightness = Math.min(1, Math.max(0, (comp.props.brightness as number) ?? 0));
+  } else if (ledOutput && (ledOutput.on !== undefined || ledOutput.brightness !== undefined)) {
+    on = !!ledOutput.on;
+    brightness = Math.min(1, Math.max(0, (ledOutput.brightness as number) ?? 0));
   } else {
     on = false;
     brightness = 0;
+  }
+  // When LED would show off, use net voltages to light it if forward biased (e.g. battery+LED without resistor).
+  // Skip when solver reports zero current (e.g. reverse-biased diode in series) so LED stays off.
+  if (!on && pinToNetId && netVoltageById) {
+    const solverCurrent = (ledOutput as { current?: number })?.current;
+    if (!(solverCurrent != null && Math.abs(solverCurrent) < 1e-6)) {
+      const anodeNet = getPinNetId(pinToNetId, comp.id, 'anode') ?? getPinNetId(pinToNetId, comp.id, 'A');
+      const cathodeNet = getPinNetId(pinToNetId, comp.id, 'cathode') ?? getPinNetId(pinToNetId, comp.id, 'K');
+      const vA = getNetVoltage(netVoltageById, anodeNet);
+      const vK = getNetVoltage(netVoltageById, cathodeNet);
+      if (vA != null && vK != null && (vA - vK) > vf) {
+        on = true;
+        brightness = 0.85;
+      }
+    }
   }
   const color = ledColor(comp.props?.color as string);
   const anodeId = comp.pins[0]?.id ?? 'anode';

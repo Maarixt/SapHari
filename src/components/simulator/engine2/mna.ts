@@ -4,7 +4,7 @@
  */
 
 import type { NetlistComponent } from './models';
-import { EPS, R_OFF_DIODE } from './models';
+import { EPS, PV_GMIN, R_OFF_DIODE } from './models';
 
 export interface MNAContext {
   nNodes: number;
@@ -34,6 +34,8 @@ export interface BuildMNAOptions {
   transientTime?: number;
   /** Per-inductor id -> current (A) from a to b at previous step. Used for Backward Euler companion Ieq. */
   inductorIPrev?: Map<string, number>;
+  /** Per-solar-panel id -> voltage across (P+ minus P-) at last iteration. Used for Norton linearization. */
+  pvOperatingPoints?: Map<string, number>;
 }
 
 export function buildMNA(
@@ -43,7 +45,7 @@ export function buildMNA(
 ): MNAContext {
   const nNodes = nNodesParam > 0 ? nNodesParam : 1 + Math.max(0, ...components.flatMap((c) => {
     if (c.type === 'VSource') return [c.pNode, c.nNode];
-    if (c.type === 'R' || c.type === 'Switch' || c.type === 'LED' || c.type === 'ISource' || c.type === 'Diode' || c.type === 'Inductor') return [c.aNode, c.bNode];
+    if (c.type === 'R' || c.type === 'Switch' || c.type === 'LED' || c.type === 'ISource' || c.type === 'Diode' || c.type === 'Inductor' || c.type === 'SolarPanel') return [c.aNode, c.bNode];
     return [];
   }));
   const vsrcs = components.filter((c): c is NetlistComponent & { type: 'VSource' } => c.type === 'VSource');
@@ -77,6 +79,22 @@ export function buildMNA(
   const diodeStates = opts.diodeStates ?? new Map<string, import('./models').DiodeState>();
   const transientTime = opts.transientTime;
   const inductorIPrev = opts.inductorIPrev ?? new Map<string, number>();
+  const pvOperatingPoints = opts.pvOperatingPoints ?? new Map<string, number>();
+
+  /** PV I-V: Isc(G), Voc(G), I(V), and -dI/dV for Norton linearization. V = voltage from a (P+) to b (P-). */
+  const pvI = (vocRef: number, iscRef: number, irradiance: number, k: number, V: number): { i: number; g: number } => {
+    const G = Math.max(0, irradiance);
+    const isc = iscRef * (G / 1000);
+    const voc = vocRef * (0.9 + 0.1 * (G / 1000));
+    if (voc < 1e-9) return { i: 0, g: PV_GMIN };
+    if (V <= 0) return { i: 0, g: PV_GMIN };
+    if (V >= voc) return { i: 0, g: PV_GMIN };
+    const vNorm = V / voc;
+    const i = isc * (1 - Math.pow(vNorm, k));
+    const dIdV = -isc * k * Math.pow(vNorm, k - 1) / voc;
+    const g = Math.max(PV_GMIN, Math.min(1e3, -dIdV));
+    return { i, g };
+  };
 
   for (const c of components) {
     if (c.type === 'VSource') {
@@ -158,6 +176,15 @@ export function buildMNA(
         const gOff = 1 / R_OFF_DIODE;
         stampResistor(c.aNode, c.bNode, gOff);
       }
+      continue;
+    }
+    if (c.type === 'SolarPanel' && !c.floating) {
+      const voc = c.vocRef;
+      const vGuess = pvOperatingPoints.get(c.id) ?? (c.irradiance > 0 ? voc * 0.5 : 0);
+      const { i, g } = pvI(c.vocRef, c.iscRef, c.irradiance, c.k, vGuess);
+      const Ieq = i + g * vGuess;
+      stampResistor(c.aNode, c.bNode, g);
+      stampCurrentSource(c.aNode, c.bNode, Ieq);
       continue;
     }
   }
